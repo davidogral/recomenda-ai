@@ -26,14 +26,34 @@ from core import catalog, db
 
 INDEX_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index")
 
-MOVIE_IDS_PATH = os.path.join(INDEX_DIR, "movie_ids.npy")
-BM25_VECTORIZER_PATH = os.path.join(INDEX_DIR, "bm25_vectorizer.pkl")
-BM25_COUNTS_PATH = os.path.join(INDEX_DIR, "bm25_counts.npz")
-EMBEDDINGS_PATH = os.path.join(INDEX_DIR, "embeddings.npy")
-KW_EMBEDDINGS_PATH = os.path.join(INDEX_DIR, "kw_embeddings.npy")
-KEYWORD_TERM_EMB_PATH = os.path.join(INDEX_DIR, "keyword_term_embeddings.npy")
-KEYWORD_TERMS_PATH = os.path.join(INDEX_DIR, "keyword_terms.json")
-META_PATH = os.path.join(INDEX_DIR, "meta.json")
+
+def index_paths(index_dir: str = INDEX_DIR) -> dict[str, str]:
+    """Todos os caminhos de um diretório de índice (permite índices alternativos,
+    ex.: `retrieval/index_e5small/` para comparar modelos de embedding)."""
+    j = lambda name: os.path.join(index_dir, name)
+    return {
+        "dir": index_dir,
+        "movie_ids": j("movie_ids.npy"),
+        "bm25_vectorizer": j("bm25_vectorizer.pkl"),
+        "bm25_counts": j("bm25_counts.npz"),
+        "embeddings": j("embeddings.npy"),
+        "kw_embeddings": j("kw_embeddings.npy"),
+        "keyword_term_emb": j("keyword_term_embeddings.npy"),
+        "keyword_terms": j("keyword_terms.json"),
+        "meta": j("meta.json"),
+    }
+
+
+# Constantes do diretório padrão (retrocompatibilidade).
+_P = index_paths(INDEX_DIR)
+MOVIE_IDS_PATH = _P["movie_ids"]
+BM25_VECTORIZER_PATH = _P["bm25_vectorizer"]
+BM25_COUNTS_PATH = _P["bm25_counts"]
+EMBEDDINGS_PATH = _P["embeddings"]
+KW_EMBEDDINGS_PATH = _P["kw_embeddings"]
+KEYWORD_TERM_EMB_PATH = _P["keyword_term_emb"]
+KEYWORD_TERMS_PATH = _P["keyword_terms"]
+META_PATH = _P["meta"]
 
 # Artefatos do Ã­ndice TF-IDF antigo (removidos no rebuild â€” agora usamos BM25).
 _LEGACY_PATHS = [
@@ -198,17 +218,21 @@ def build_index(
     limit: Optional[int] = None,
     batch_size: int = 64,
     show_progress: bool = True,
+    index_dir: str = INDEX_DIR,
 ) -> dict:
-    """ConstrÃ³i os Ã­ndices e salva em `retrieval/index/`.
+    """ConstrÃ³i os Ã­ndices e salva em `index_dir` (padrÃ£o `retrieval/index/`).
 
     Gera, com `with_embeddings`, **dois** espaÃ§os de embedding: o da sinopse
     (`embeddings.npy`) e o temÃ¡tico de keywords/gÃªneros (`kw_embeddings.npy`),
     combinados na busca. O sinal lexical (BM25) Ã© sÃ³ da sinopse.
     `limit` restringe aos N primeiros filmes; `with_embeddings=False` gera sÃ³ BM25.
+    `index_dir` != o padrÃ£o permite Ã­ndices alternativos (ex.: e5-small) sem
+    sobrescrever o de produÃ§Ã£o.
     """
     from retrieval.bm25 import BM25Index
 
-    os.makedirs(INDEX_DIR, exist_ok=True)
+    P = index_paths(index_dir)
+    os.makedirs(index_dir, exist_ok=True)
 
     df = catalog.get_catalog_df()
     if limit is not None:
@@ -229,13 +253,14 @@ def build_index(
     bm25 = BM25Index.build(docs, stop_words=stop, strip_accents="unicode")
     bm25_secs = round(time.time() - t0, 1)
 
-    np.save(MOVIE_IDS_PATH, ids)
-    bm25.save(BM25_VECTORIZER_PATH, BM25_COUNTS_PATH)
+    np.save(P["movie_ids"], ids)
+    bm25.save(P["bm25_vectorizer"], P["bm25_counts"])
     for legacy in _LEGACY_PATHS:  # limpa o Ã­ndice TF-IDF antigo, se existir
         if os.path.exists(legacy):
             os.remove(legacy)
 
     meta = {
+        "index_dir": os.path.relpath(index_dir, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         "n_movies": int(n),
         "lexical": "bm25",
         "bm25_vocab_size": int(bm25.vocab_size),
@@ -268,11 +293,11 @@ def build_index(
             ).astype(np.float32)
 
         emb = _encode_passages(docs)
-        np.save(EMBEDDINGS_PATH, emb)
+        np.save(P["embeddings"], emb)
 
         kw_docs = _build_keyword_documents(ids)
         kw_emb = _encode_passages(kw_docs)
-        np.save(KW_EMBEDDINGS_PATH, kw_emb)
+        np.save(P["kw_embeddings"], kw_emb)
 
         # Embedding por keyword distinta (nÃ£o por filme): permite, na explicaÃ§Ã£o,
         # dizer QUAIS keywords temÃ¡ticas casaram com a consulta â€” de forma
@@ -280,8 +305,8 @@ def build_index(
         kw_rows = db.query("SELECT keyword_id, name FROM keywords ORDER BY keyword_id")
         kw_names = [r["name"] for r in kw_rows]
         kw_term_emb = _encode_passages(kw_names)
-        np.save(KEYWORD_TERM_EMB_PATH, kw_term_emb)
-        with open(KEYWORD_TERMS_PATH, "w", encoding="utf-8") as f:
+        np.save(P["keyword_term_emb"], kw_term_emb)
+        with open(P["keyword_terms"], "w", encoding="utf-8") as f:
             json.dump(kw_names, f, ensure_ascii=False)
 
         meta.update(
@@ -297,12 +322,12 @@ def build_index(
         )
     else:
         # Remove embeddings antigos para nÃ£o dessincronizar com movie_ids.
-        for path in (EMBEDDINGS_PATH, KW_EMBEDDINGS_PATH,
-                     KEYWORD_TERM_EMB_PATH, KEYWORD_TERMS_PATH):
+        for path in (P["embeddings"], P["kw_embeddings"],
+                     P["keyword_term_emb"], P["keyword_terms"]):
             if os.path.exists(path):
                 os.remove(path)
 
-    with open(META_PATH, "w", encoding="utf-8") as f:
+    with open(P["meta"], "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
     return meta
@@ -316,10 +341,12 @@ if __name__ == "__main__":
     p.add_argument("--limit", type=int, default=None, help="Limitar a N filmes.")
     p.add_argument("--model", default=DEFAULT_EMBED_MODEL)
     p.add_argument("--batch-size", type=int, default=64)
+    p.add_argument("--index-dir", default=INDEX_DIR)
     args = p.parse_args()
 
     info = build_index(
         embed_model_name=args.model,
+        index_dir=args.index_dir,
         with_embeddings=not args.no_embeddings,
         limit=args.limit,
         batch_size=args.batch_size,

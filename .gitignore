@@ -54,6 +54,16 @@ data/imdb_cache/
 *.db-wal
 
 # ==============================
+# ARTEFATOS DE BUILD (regeneráveis, grandes)
+# ==============================
+retrieval/onnx/                 # modelos ONNX exportados (python -m retrieval.onnx_embed export)
+retrieval/index_*/              # índices alternativos, exceto os versionados abaixo
+!retrieval/index_e5small/       # índice e5-small (384d) — modo baixa-latência/baixa-RAM, ver benchmark
+# lixo temporário do torch.onnx.export / quant_pre_process (escrevem no CWD)
+sym_shape_infer_temp.onnx
+/*.data
+
+# ==============================
 # IDEs & EDITORES
 # ==============================
 .vscode/

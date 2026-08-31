@@ -10,6 +10,9 @@ rapidfuzz>=3.0.0
 nltk>=3.8
 psutil>=5.9          # medição de RSS no perfil de latência (eval/latency.py)
 SQLAlchemy==2.0.29
+# --- opcional: encoder ONNX INT8 (retrieval/onnx_embed.py, eval/bench.py) ---
+onnx>=1.16
+onnxruntime>=1.17
 python-dotenv==1.0.1
 requests==2.31.0
 gunicorn==23.0.0

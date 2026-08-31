@@ -203,7 +203,15 @@ def _zscore(x: np.ndarray) -> np.ndarray:
 class SearchEngine:
     """Motor de recuperação. Carrega catálogo + índice de sinopse (se houver)."""
 
-    def __init__(self, load_embeddings: bool = True, rerank: bool = RERANK_ENABLED):
+    def __init__(self, load_embeddings: bool = True, rerank: bool = RERANK_ENABLED,
+                 index_dir: Optional[str] = None):
+        # `index_dir` != o padrão permite carregar um índice alternativo (ex.:
+        # e5-small) sem tocar no de produção — usado pelo benchmark eval/bench.py.
+        # Em produção, `RECOMENDAI_INDEX_DIR` troca o índice sem mexer no código.
+        self._index_dir = index_dir or os.environ.get("RECOMENDAI_INDEX_DIR") or ib.INDEX_DIR
+        if not os.path.isabs(self._index_dir):
+            self._index_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))), self._index_dir)
         self.catalog = catalog.get_catalog()  # {tmdb_id: filme}
         # Títulos para fuzzy (lista paralela id<->título).
         self._title_ids: list[int] = []
@@ -248,28 +256,29 @@ class SearchEngine:
 
     # ------------------------------------------------------------------ índice
     def _load_index(self) -> None:
-        if not os.path.exists(ib.META_PATH):
+        P = ib.index_paths(self._index_dir)
+        if not os.path.exists(P["meta"]):
             return
         import json
 
-        with open(ib.META_PATH, encoding="utf-8") as f:
+        with open(P["meta"], encoding="utf-8") as f:
             meta = json.load(f)
         self._embed_query_prefix = meta.get("embed_query_prefix", "") or ""
-        self._movie_ids = np.load(ib.MOVIE_IDS_PATH)
+        self._movie_ids = np.load(P["movie_ids"])
         from retrieval.bm25 import BM25Index
 
         self._bm25 = BM25Index.load(
-            ib.BM25_VECTORIZER_PATH, ib.BM25_COUNTS_PATH,
+            P["bm25_vectorizer"], P["bm25_counts"],
             k1=meta.get("bm25_k1", 1.5), b=meta.get("bm25_b", 0.75),
         )
-        if self._load_embeddings and meta.get("has_embeddings") and os.path.exists(ib.EMBEDDINGS_PATH):
-            self._embeddings = np.load(ib.EMBEDDINGS_PATH)
+        if self._load_embeddings and meta.get("has_embeddings") and os.path.exists(P["embeddings"]):
+            self._embeddings = np.load(P["embeddings"])
             self._embed_model_name = meta.get("embed_model")
-            if meta.get("has_keyword_embeddings") and os.path.exists(ib.KW_EMBEDDINGS_PATH):
-                self._kw_embeddings = np.load(ib.KW_EMBEDDINGS_PATH)
-            if meta.get("has_keyword_terms") and os.path.exists(ib.KEYWORD_TERM_EMB_PATH):
-                self._kw_term_emb = np.load(ib.KEYWORD_TERM_EMB_PATH)
-                with open(ib.KEYWORD_TERMS_PATH, encoding="utf-8") as f:
+            if meta.get("has_keyword_embeddings") and os.path.exists(P["kw_embeddings"]):
+                self._kw_embeddings = np.load(P["kw_embeddings"])
+            if meta.get("has_keyword_terms") and os.path.exists(P["keyword_term_emb"]):
+                self._kw_term_emb = np.load(P["keyword_term_emb"])
+                with open(P["keyword_terms"], encoding="utf-8") as f:
                     names = json.load(f)
                 self._kw_term_row = {nm.lower(): i for i, nm in enumerate(names)}
 
@@ -278,14 +287,23 @@ class SearchEngine:
         return self._bm25 is not None
 
     def _get_embed_model(self):
+        """Encoder da consulta. `RECOMENDAI_EMBED_BACKEND`:
+          - `st` (padrão) → sentence-transformers (fp32, usa MPS/CUDA se houver);
+          - `onnx-int8` / `onnx-fp32` → ONNX Runtime (CPU), pesos INT8 ou fp32.
+        O modelo é o mesmo que gerou o índice (`meta.embed_model`)."""
         if self._embed_model is None:
-            from sentence_transformers import SentenceTransformer
+            name = self._embed_model_name or ib.DEFAULT_EMBED_MODEL
+            backend = os.environ.get("RECOMENDAI_EMBED_BACKEND", "st").lower()
+            if backend.startswith("onnx"):
+                from retrieval.onnx_embed import OnnxEncoder
 
-            from core.device import get_device
+                self._embed_model = OnnxEncoder.from_env(name)
+            else:
+                from sentence_transformers import SentenceTransformer
 
-            self._embed_model = SentenceTransformer(
-                self._embed_model_name or ib.DEFAULT_EMBED_MODEL, device=get_device()
-            )
+                from core.device import get_device
+
+                self._embed_model = SentenceTransformer(name, device=get_device())
         return self._embed_model
 
     def _get_reranker(self):

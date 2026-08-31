@@ -11,13 +11,15 @@ inclui PT; ~120 MB; roda bem em CPU/MPS/CUDA).
 
 from __future__ import annotations
 
+import os
 from typing import Callable, Optional
 
 import numpy as np
 
 from core.device import get_device
 
-DEFAULT_RERANKER_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+DEFAULT_RERANKER_MODEL = os.environ.get(
+    "RECOMENDAI_RERANKER_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1")
 
 
 class CrossEncoderReranker:
