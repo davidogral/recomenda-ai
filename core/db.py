@@ -62,7 +62,7 @@ def load_json_movies() -> list[dict]:
                 path = JSON_PATH2
             else:
                 raise FileNotFoundError(
-                    f"Nenhum dado encontrado. Coloque tmdb_movies_large.json ou tmdb_movies.json em data/"
+                    "Nenhum dado encontrado. Coloque tmdb_movies_large.json ou tmdb_movies.json em data/"
                 )
         else:
             path = JSON_PATH

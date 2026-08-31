@@ -47,17 +47,18 @@ class _Noop:
 
 
 if _ENABLED:
-    _LAT_BUCKETS = (.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10)
-    REQUESTS = Counter("recomendaai_requests_total", "Requisições HTTP",
-                       ["endpoint", "method", "status"])
-    ERRORS = Counter("recomendaai_errors_total", "Erros não tratados numa requisição",
-                     ["endpoint"])
-    REQUEST_SECONDS = Histogram("recomendaai_request_seconds", "Latência ponta-a-ponta",
-                                ["endpoint"], buckets=_LAT_BUCKETS)
-    STAGE_SECONDS = Histogram("recomendaai_stage_seconds", "Latência por etapa do pipeline",
-                              ["stage"], buckets=_LAT_BUCKETS)
-    QUERY_CACHE = Counter("recomendaai_query_cache_events_total",
-                          "Eventos do cache de embedding da consulta", ["result"])
+    _LAT_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
+    REQUESTS = Counter("recomendaai_requests_total", "Requisições HTTP", ["endpoint", "method", "status"])
+    ERRORS = Counter("recomendaai_errors_total", "Erros não tratados numa requisição", ["endpoint"])
+    REQUEST_SECONDS = Histogram(
+        "recomendaai_request_seconds", "Latência ponta-a-ponta", ["endpoint"], buckets=_LAT_BUCKETS
+    )
+    STAGE_SECONDS = Histogram(
+        "recomendaai_stage_seconds", "Latência por etapa do pipeline", ["stage"], buckets=_LAT_BUCKETS
+    )
+    QUERY_CACHE = Counter(
+        "recomendaai_query_cache_events_total", "Eventos do cache de embedding da consulta", ["result"]
+    )
     TMDB_CALLS = Counter("recomendaai_tmdb_calls_total", "Chamadas à API da TMDB", ["result"])
     RSS_BYTES = Gauge("recomendaai_process_rss_bytes", "Memória residente do processo")
     try:

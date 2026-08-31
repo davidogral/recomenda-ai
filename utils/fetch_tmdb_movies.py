@@ -1,9 +1,9 @@
-import requests
 import json
+import os
 import time
-import os
 
-import os
+import requests
+
 TMDB_API_KEY = os.getenv("TMDB_API_KEY", "chave_fallback_para_desenvolvimento_local")
 
 def fetch_movies_by_genre(genre_id, page=1):

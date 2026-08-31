@@ -56,10 +56,12 @@ def _mean(xs: list[float]) -> float:
     return sum(xs) / len(xs) if xs else 0.0
 
 
-def aggregate(ranks: Iterable[Rank],
-              recall_ks: tuple[int, ...] = (1, 3, 5, 10, 20, 50),
-              precision_ks: tuple[int, ...] = (1, 5, 10),
-              ndcg_ks: tuple[int, ...] = (10,)) -> dict:
+def aggregate(
+    ranks: Iterable[Rank],
+    recall_ks: tuple[int, ...] = (1, 3, 5, 10, 20, 50),
+    precision_ks: tuple[int, ...] = (1, 5, 10),
+    ndcg_ks: tuple[int, ...] = (10,),
+) -> dict:
     """Agrega posições (1-based, `None` = não recuperado) em métricas médias."""
     ranks = list(ranks)
     n = len(ranks)
@@ -88,8 +90,10 @@ def latency_stats(samples_ms: list[float]) -> dict:
     if not samples_ms:
         return {"mean_ms": None, "p50_ms": None, "p90_ms": None, "max_ms": None}
     s = sorted(samples_ms)
+
     def pct(p: float) -> float:
         return s[min(len(s) - 1, int(math.ceil(p / 100.0 * len(s)) - 1))]
+
     return {
         "mean_ms": round(_mean(samples_ms), 1),
         "p50_ms": round(pct(50), 1),

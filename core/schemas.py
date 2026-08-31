@@ -20,6 +20,7 @@ from __future__ import annotations
 
 def _pa():
     import pandera.pandas as pa
+
     return pa
 
 
@@ -33,23 +34,20 @@ def catalog_schema():
             "title": Column(str, nullable=False, coerce=True),
             "release_date": Column(str, nullable=True, coerce=True, required=False),
             "release_year": Column(
-                "Int64", nullable=True, coerce=True,
-                checks=pa.Check.in_range(1870, 2100), required=False),
+                "Int64", nullable=True, coerce=True, checks=pa.Check.in_range(1870, 2100), required=False
+            ),
             "runtime_minutes": Column(
-                "Int64", nullable=True, coerce=True,
-                checks=pa.Check.in_range(0, 1200), required=False),
+                "Int64", nullable=True, coerce=True, checks=pa.Check.in_range(0, 1200), required=False
+            ),
             "original_language": Column(
-                str, nullable=True, coerce=True,
-                checks=pa.Check.str_length(0, 12), required=False),
+                str, nullable=True, coerce=True, checks=pa.Check.str_length(0, 12), required=False
+            ),
             "overview": Column(str, nullable=True, coerce=True),
-            "vote_average": Column(
-                float, nullable=True, coerce=True,
-                checks=pa.Check.in_range(0.0, 10.0)),
-            "vote_count": Column(
-                "Int64", nullable=True, coerce=True, checks=pa.Check.ge(0)),
+            "vote_average": Column(float, nullable=True, coerce=True, checks=pa.Check.in_range(0.0, 10.0)),
+            "vote_count": Column("Int64", nullable=True, coerce=True, checks=pa.Check.ge(0)),
             "popularity": Column(float, nullable=True, coerce=True, checks=pa.Check.ge(0.0)),
         },
-        strict=False,   # colunas extras (origin_countries, imdb_*, canon_rank…) são ok
+        strict=False,  # colunas extras (origin_countries, imdb_*, canon_rank…) são ok
         coerce=True,
         name="catalog",
     )
@@ -79,8 +77,7 @@ def reconciled_schema():
         {
             "tmdb_id": Column(int, checks=pa.Check.gt(0), unique=True, coerce=True),
             "imdb_id": Column(str, checks=pa.Check.str_matches(r"^tt\d+$")),
-            "imdb_rating": Column(
-                float, nullable=True, coerce=True, checks=pa.Check.in_range(1.0, 10.0)),
+            "imdb_rating": Column(float, nullable=True, coerce=True, checks=pa.Check.in_range(1.0, 10.0)),
             "imdb_votes": Column("Int64", nullable=True, coerce=True, checks=pa.Check.ge(0)),
         },
         strict=False,
@@ -97,10 +94,12 @@ def summarize_failures(err) -> list[dict]:
         return [{"error": str(err)[:500]}]
     out = []
     for (col, check), grp in fc.groupby(["column", "check"], dropna=False):
-        out.append({
-            "column": None if col != col else str(col),  # NaN-safe
-            "check": str(check),
-            "n": int(len(grp)),
-            "sample": grp["failure_case"].astype(str).head(5).tolist(),
-        })
+        out.append(
+            {
+                "column": None if col != col else str(col),  # NaN-safe
+                "check": str(check),
+                "n": int(len(grp)),
+                "sample": grp["failure_case"].astype(str).head(5).tolist(),
+            }
+        )
     return out

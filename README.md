@@ -1,6 +1,6 @@
 # 🎬 RecomendAI — Inteligência Artificial e Recuperação de Informação
 
-![Status](https://img.shields.io/badge/status-funcional-success)
+![CI](https://github.com/davidogral/recomenda-ai/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![Machine Learning](https://img.shields.io/badge/ML-Híbrido-orange)
 ![SRI](https://img.shields.io/badge/SRI-BM25%20%2B%20Embeddings-blueviolet)
@@ -46,35 +46,33 @@ A camada de **recomendação** prevê o que o usuário vai gostar:
 
 ```
 RecomendaAI/
-├── app.py                  # Backend Flask (rotas de busca e recomendação)
-├── core/                   # Catálogo, conexão com dados, pôsteres, TMDB
-│   ├── catalog.py
-│   ├── db.py
-│   └── posters.py
+├── app.py                  # API (Flask) — rotas, validação, rate limit, /metrics
+├── inference/              # Serviço de inferência (FastAPI) — camada de ML
+│   └── main.py             # /v1/search_combined, /v1/similar, /v1/recommend_*
+├── core/                   # Catálogo, dados, pôsteres, TMDB, métricas, schemas
+│   ├── catalog.py · db.py · posters.py · tmdb.py
+│   ├── metrics.py          # métricas Prometheus (Flask + FastAPI)
+│   ├── inference_client.py # costura api ↔ inference (HTTP ou in-process)
+│   ├── schemas.py          # schemas Pandera (catálogo / dump IMDb)
+│   └── validate.py         # `python -m core.validate` → quality_report.json
 ├── retrieval/              # SRI — busca por sinopse/nome/pessoa
 │   ├── search_engine.py    # Motor de busca (BM25 + embeddings + fuzzy)
-│   ├── reranker.py         # 2º estágio: cross-encoder sobre o top-300
-│   ├── index_builder.py    # Constrói o índice → retrieval/index/
-│   └── index/              # Índices serializados (BM25, embeddings, meta)
-├── recommender/            # ML — recomendação personalizada
-│   ├── profile.py          # Perfil de gosto (conteúdo + colaborativo)
-│   ├── collaborative.py    # Inferência do SVD
-│   ├── letterboxd.py       # Importação do ratings.csv
-│   ├── train.py            # Treina o SVD → recommender/weights/
-│   └── weights/            # Fatores latentes (.npy) + meta.json
+│   ├── reranker.py         # 2º estágio: cross-encoder (off em produção)
+│   ├── onnx_embed.py       # export ONNX + quantização INT8 do encoder
+│   ├── index_builder.py    # Constrói o índice → retrieval/index/ (DVC)
+│   └── index*/             # índices serializados — geridos por DVC
+├── recommender/            # ML — recomendação personalizada (SVD + conteúdo)
+│   └── weights/            # Fatores latentes (.npy) — geridos por DVC
 ├── eval/                   # Avaliação executável do SRI (fonte de verdade)
 │   ├── run.py              # `python -m eval.run` → métricas + JSON versionado
-│   ├── metrics.py          # nDCG@10, MRR, Recall@k, Precision@k
-│   ├── pipelines.py        # variantes da ablação por sinal
+│   ├── bench.py · latency.py  # matriz encoder × latência × RSS, perfil por etapa
 │   ├── datasets/           # queries.jsonl (142 consultas, split dev/teste)
 │   └── results/            # JSON por rodada + history.jsonl
-├── database/
-│   └── models.py           # Esquema do banco (SQLAlchemy)
-├── research/
-│   ├── train_model.ipynb   # Notebook didático de treino/experimentos
-│   └── evaluate_sri.ipynb  # Exploração manual do SRI (não é a avaliação oficial)
-├── data/
-│   └── tmdb_movies_large.json  # Dataset de metadados da TMDB
+├── monitoring/             # prometheus.yml + dashboard Grafana (provisionado)
+├── tests/ + .github/workflows/   # smoke tests + CI (ruff/mypy/pytest + eval-gate)
+├── docs/                   # METODOLOGIA.md + adr/
+├── Dockerfile · docker-compose.yml
+├── research/               # notebooks (exploração, não é a avaliação oficial)
 └── frontend/               # UI/UX (index.html + style.css)
 ```
 
@@ -211,6 +209,49 @@ Regerar: `python -m eval.bench embed` → `eval/results/latest__bench-embed.json
 3.  **Treino:** `recommender/train.py` ajusta o SVD nos ratings reais e serializa os fatores latentes.
 4.  **Avaliação:** `python -m eval.run` mede o SRI no split de teste e versiona o resultado em `eval/results/`.
 5.  **Entrega:** o motor híbrido combina busca e recomendação para responder em tempo real na interface.
+
+---
+
+## 🏗️ Produção
+
+### Dois serviços (Docker Compose)
+
+```bash
+dvc pull                 # baixa o índice + pesos (ver seção 2)
+docker compose up --build
+```
+
+| serviço | o quê | porta |
+|---|---|---|
+| **api** | Flask — rotas HTTP, validação, pôsteres, rate limit | `8000` |
+| **inference** | FastAPI — a camada de ML (busca por sinopse + recomendação), contrato tipado Pydantic + OpenAPI | `9000` → `/docs` |
+| **prometheus** | coleta as métricas dos dois | `9090` |
+| **grafana** | dashboard "RecomendAI" (4 painéis), login anônimo | `3000` |
+
+A `api` chama a `inference` por HTTP quando `RECOMENDAI_INFERENCE_URL` está setado (`core/inference_client.py`); sem isso, roda tudo no mesmo processo (modo dev). **Essa costura é o ponto de corte** para reimplementar a `inference` em outra linguagem (ex.: Rust) medindo só a diferença — o contrato JSON não muda. Migração da `api` para FastAPI: [`docs/adr/0001-migracao-fastapi.md`](docs/adr/0001-migracao-fastapi.md) (adiada, com plano).
+
+### Observabilidade (`/metrics`, Prometheus, Grafana)
+
+`core/metrics.py` expõe, nos dois serviços:
+
+| métrica | o quê |
+|---|---|
+| `recomendaai_stage_seconds{stage}` | latência por etapa — `retrieval`, `rerank`, `total` |
+| `recomendaai_request_seconds{endpoint}` · `recomendaai_requests_total{status}` · `recomendaai_errors_total` | latência ponta-a-ponta, throughput, taxa de erro |
+| `recomendaai_query_cache_events_total{result}` | hit/miss do cache de embedding da consulta |
+| `recomendaai_tmdb_calls_total{result}` | `ok` / `error` / `capped` |
+| `recomendaai_process_rss_bytes` | memória residente |
+
+### Limites
+
+- **Rate limit** (Flask-Limiter): `/search` a **30/min** por IP, endpoints pesados (`/similar`, `/recommend*`, `/explore/essentials`) a **12/min**. Configurável (`RECOMENDAI_RATE_SEARCH`, `RECOMENDAI_RATE_HEAVY`); `memory://` por padrão, aponte `RATELIMIT_STORAGE_URI` para Redis em multi-worker.
+- **Teto de chamadas à TMDB**: `RECOMENDAI_TMDB_MAX_RPM` (240, janela deslizante de 60 s) no chokepoint `core/tmdb.py::_get` — ao estourar, degrada para placeholder/fuzzy, como já faz sem rede.
+
+### CI — portão de qualidade
+
+`.github/workflows/ci.yml` (a cada PR): **ruff** (`check` + `format`), **mypy** (checagem gradual — módulos novos), **pytest** (smoke hermético, sem modelo/rede).
+
+`.github/workflows/eval-gate.yml` (semanal + sob demanda): `dvc pull` + `python -m eval.run --split dev --gate-ndcg 0.78` — **falha o build se o nDCG@10 da fusão cair abaixo do limiar**. Requer os secrets `DVC_ACCESS_KEY_ID` / `DVC_SECRET_ACCESS_KEY`.
 
 ---
 

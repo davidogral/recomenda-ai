@@ -86,7 +86,7 @@ PIPELINE_LABELS: list[tuple[str, str]] = [
     ("embedding", "Só embedding (semântico)"),
     ("thematic", "Só temático (keywords)"),
     ("fusion", "Fusão (produção)"),
-    (f"fusion_rerank", f"Fusão + re-ranker (pool {POOL})"),
+    ("fusion_rerank", f"Fusão + re-ranker (pool {POOL})"),
 ]
 
 # Variantes que dependem do modelo de embeddings / cross-encoder (mais lentas).

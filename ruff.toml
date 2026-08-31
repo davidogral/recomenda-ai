@@ -1,0 +1,23 @@
+# Config do Ruff — lint no CI (.github/workflows/ci.yml).
+target-version = "py39"
+line-length = 120
+
+extend-exclude = ["*.ipynb", ".venv", "retrieval/onnx", ".dvc"]
+
+[lint]
+# UP (pyupgrade) fica de fora: o código usa Optional[]/Union[] de propósito
+# (py39) e reescrever tudo para `X | None` é churn sem ganho real agora.
+select = ["E4", "E7", "E9", "F", "I", "B"]
+ignore = [
+    "E731",  # lambda atribuído a variável (usado de propósito em relu = lambda ...)
+    "E741",  # nome de variável ambíguo (l/I/O) — presente no código legado
+    "E402",  # import fora do topo — alguns módulos setam env antes de importar
+    "E701", "E702",  # dois statements na linha (:/;) — usado em trechos compactos
+    "B008",  # chamada no default de arg — padrão do FastAPI (Depends/Field)
+    "B023",  # variável de loop em closure — falso-positivo frequente aqui
+    "B905",  # zip(...) sem strict= (py39 não tem strict)
+]
+
+[lint.per-file-ignores]
+"eval/datasets/build_queries.py" = ["E501"]   # listas de consultas longas
+"core/enrich.py" = ["E501"]                    # lista CANON longa

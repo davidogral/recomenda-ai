@@ -1,6 +1,7 @@
 import json
 import os
 
+
 def load_movie_names(data_dir="data"):
     """Carrega dicionário de filmes do TMDB (em português)"""
     file_path = os.path.join(data_dir, "tmdb_movies.json")

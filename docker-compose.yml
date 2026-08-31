@@ -1,0 +1,73 @@
+# RecomendAI — 4 serviços: api (Flask) · inference (FastAPI/ML) · prometheus · grafana
+#
+# Antes de subir:  dvc pull            (baixa retrieval/index/ + recommender/weights/)
+#                  # e tenha data/raw/movies.db no host (bind-mount abaixo)
+# Subir:           docker compose up --build
+#   API .......... http://localhost:8000
+#   Inference .... http://localhost:9000/docs   (OpenAPI)
+#   Prometheus ... http://localhost:9090
+#   Grafana ...... http://localhost:3000        (anônimo, dashboard "RecomendAI")
+
+services:
+  inference:
+    build: .
+    command: uvicorn inference.main:app --host 0.0.0.0 --port 9000
+    environment:
+      RECOMENDAI_DEVICE: cpu
+      RECOMENDAI_RERANK: "0"
+      # RECOMENDAI_INDEX_DIR: retrieval/index_e5small   # modo baixa-latência/RAM
+    volumes:
+      - ./retrieval/index:/app/retrieval/index:ro
+      - ./retrieval/index_e5small:/app/retrieval/index_e5small:ro
+      - ./recommender/weights:/app/recommender/weights:ro
+      - ./data:/app/data
+      - hf-cache:/app/.hf
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:9000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
+  api:
+    build: .
+    command: gunicorn -b 0.0.0.0:8000 -w 2 --timeout 120 app:app
+    environment:
+      RECOMENDAI_INFERENCE_URL: http://inference:9000
+      RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-memory://}
+      RECOMENDAI_RATE_SEARCH: ${RECOMENDAI_RATE_SEARCH:-30 per minute}
+      RECOMENDAI_TMDB_MAX_RPM: ${RECOMENDAI_TMDB_MAX_RPM:-240}
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8000:8000"
+    depends_on:
+      inference:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  hf-cache:

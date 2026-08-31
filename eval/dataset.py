@@ -20,13 +20,13 @@ QUERIES_PATH = os.path.join(_HERE, "datasets", "queries.jsonl")
 @dataclass(frozen=True)
 class EvalQuery:
     qid: str
-    split: str          # "dev" | "test"
+    split: str  # "dev" | "test"
     query: str
     title_hint: str
     year: int
-    relevant_id: int    # tmdb_id do único filme relevante
+    relevant_id: int  # tmdb_id do único filme relevante
     relevant_title: str
-    source: str          # "v1-core" | "v1-ext" | "v2"
+    source: str  # "v1-core" | "v1-ext" | "v2"
 
 
 def dataset_sha1(path: str = QUERIES_PATH) -> str:
@@ -37,9 +37,7 @@ def dataset_sha1(path: str = QUERIES_PATH) -> str:
 def load_queries(split: str | None = None, path: str = QUERIES_PATH) -> list[EvalQuery]:
     """Consultas do conjunto. `split`: 'dev', 'test' ou None/'all' para todas."""
     if not os.path.exists(path):
-        raise FileNotFoundError(
-            f"{path} não existe. Rode: .venv/bin/python -m eval.datasets.build_queries"
-        )
+        raise FileNotFoundError(f"{path} não existe. Rode: .venv/bin/python -m eval.datasets.build_queries")
     out: list[EvalQuery] = []
     with open(path, encoding="utf-8") as fh:
         for line in fh:
@@ -47,12 +45,18 @@ def load_queries(split: str | None = None, path: str = QUERIES_PATH) -> list[Eva
             if not line:
                 continue
             r = json.loads(line)
-            out.append(EvalQuery(
-                qid=r["qid"], split=r["split"], query=r["query"],
-                title_hint=r["title_hint"], year=r["year"],
-                relevant_id=int(r["relevant_tmdb_id"]),
-                relevant_title=r.get("relevant_title", ""), source=r["source"],
-            ))
+            out.append(
+                EvalQuery(
+                    qid=r["qid"],
+                    split=r["split"],
+                    query=r["query"],
+                    title_hint=r["title_hint"],
+                    year=r["year"],
+                    relevant_id=int(r["relevant_tmdb_id"]),
+                    relevant_title=r.get("relevant_title", ""),
+                    source=r["source"],
+                )
+            )
     if split and split != "all":
         if split not in ("dev", "test"):
             raise ValueError(f"split inválido: {split!r} (use dev|test|all)")

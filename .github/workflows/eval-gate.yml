@@ -1,0 +1,61 @@
+name: eval-gate
+
+# Portão de QUALIDADE do SRI: roda a avaliação no split de DEV e falha se o
+# nDCG@10 da fusão cair abaixo do limiar. É pesado (baixa e5-large ~2 GB + índice
+# via DVC), então roda semanalmente e sob demanda — não a cada PR.
+#
+# Requer os secrets (Settings → Secrets → Actions):
+#   DVC_ACCESS_KEY_ID       key id do bucket B2
+#   DVC_SECRET_ACCESS_KEY   application key do B2
+# e o `url`/`endpointurl` reais em .dvc/config.
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_ndcg:
+        description: "limiar mínimo de nDCG@10 (fusão, split dev)"
+        default: "0.78"
+  schedule:
+    - cron: "0 6 * * 1" # toda segunda 06:00 UTC
+
+jobs:
+  eval-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+
+      - run: pip install -r requirements.txt "dvc-s3"
+
+      - name: dvc pull (índice + pesos)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DVC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DVC_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "::error::secrets DVC_* ausentes — configure o remote B2 para o eval-gate rodar."
+            exit 1
+          fi
+          dvc pull -v
+
+      - name: cache do modelo HuggingFace
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-e5-large-v1
+
+      - name: eval no split dev + portão de nDCG@10
+        env:
+          RECOMENDAI_DEVICE: cpu
+          RECOMENDAI_TMDB_NAMES: "0"
+        run: |
+          python -m eval.run --split dev --fast \
+            --gate-ndcg "${{ github.event.inputs.min_ndcg || '0.78' }}"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: eval/results/latest__dev.json

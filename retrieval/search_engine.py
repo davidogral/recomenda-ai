@@ -669,7 +669,6 @@ class SearchEngine:
 
         # Pontua cada filme pela melhor correspondência de nome da pessoa.
         movie_score: dict[int, float] = {}
-        movie_order: dict[int, int] = {}
         for _name, score, idx in matches:
             pid = self._people_names[idx][0]
             for tmdb_id in self._person_movies.get(pid, []):
@@ -1039,7 +1038,6 @@ class SearchEngine:
         nome. Como a pessoa já restringiu o conjunto, o texto quase sempre é uma
         descrição de enredo — então a sinopse pesa mais que na busca global.
         Devolve (scored, ctx) para a explicação."""
-        from rapidfuzz import fuzz
 
         cq = clean_descriptive_query(query)  # mesma query limpa p/ embedding e BM25
         q_emb = self._encode(cq) if self._embeddings is not None else None

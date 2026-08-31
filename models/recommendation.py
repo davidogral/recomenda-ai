@@ -1,11 +1,11 @@
-import random
 import json
 import os
 import pickle
-import numpy as np
+import random
+
 import pandas as pd
-from collections import Counter
 from sklearn.metrics.pairwise import cosine_similarity
+
 
 class MovieRecommender:
     def __init__(self, data_path="data/tmdb_movies_large.json", weights_path="models/weights"):

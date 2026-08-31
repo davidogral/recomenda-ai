@@ -108,9 +108,9 @@ def search():
         filters["language"] = data["language"]
 
     try:
-        from retrieval.search_engine import get_engine
+        from core import inference_client
 
-        results = get_engine().search_combined(
+        results = inference_client.search_combined(
             query=query, director=director, actor=actor, n=n, filters=filters or None)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
@@ -637,12 +637,12 @@ def recommend_history():
         return jsonify({"error": "Avalie alguns filmes primeiro (estrelas ou ❤)."}), 400
 
     try:
-        from recommender.profile import recommend_from_profile
+        from core import inference_client
 
         region = (data.get("region") or "").strip() or None
         provider_ids = _parse_providers(data.get("providers"))
-        result = recommend_from_profile(detail, n=n, region=region,
-                                        provider_ids=provider_ids)
+        result = inference_client.recommend_from_profile(detail, n=n, region=region,
+                                                        provider_ids=provider_ids)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
 
@@ -672,9 +672,9 @@ def similar(movie_id: int):
     provider_ids = _parse_providers(request.args.get("providers"))
 
     try:
-        from recommender.similar import similar_to
+        from core import inference_client
 
-        result = similar_to(movie_id, n=n, region=region, provider_ids=provider_ids)
+        result = inference_client.similar(movie_id, n=n, region=region, provider_ids=provider_ids)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
 
@@ -718,13 +718,13 @@ def submit_ratings():
         if not ids:
             return jsonify({"error": "Selecione ao menos um filme."}), 400
 
-        from recommender.profile import recommend_from_profile
+        from core import inference_client
 
         region = (data.get("region") or "").strip() or None
         provider_ids = _parse_providers(data.get("providers"))
         detail = [{"tmdb_id": mid, "rating": 5.0, "name": None, "year": None, "review": ""}
                   for mid in ids]
-        result = recommend_from_profile(detail, n=15, region=region, provider_ids=provider_ids)
+        result = inference_client.recommend_from_profile(detail, n=15, region=region, provider_ids=provider_ids)
         return jsonify({
             "message": "Recomendações personalizadas geradas!",
             "profile": result["profile"],
@@ -758,8 +758,8 @@ def recommend():
         n = 20
 
     try:
+        from core import inference_client
         from recommender.letterboxd import import_ratings
-        from recommender.profile import recommend_from_profile
 
         imported = import_ratings(file, resolver="auto")
         if not imported.matched:
@@ -771,8 +771,8 @@ def recommend():
         # Perfil de gosto: vetor de conteúdo (embeddings) + resumo + colaborativo.
         region = (request.form.get("region") or "").strip() or None
         provider_ids = _parse_providers(request.form.get("providers"))
-        result = recommend_from_profile(imported.matched_detail, n=n,
-                                        region=region, provider_ids=provider_ids)
+        result = inference_client.recommend_from_profile(imported.matched_detail, n=n,
+                                                        region=region, provider_ids=provider_ids)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
 

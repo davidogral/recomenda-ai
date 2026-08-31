@@ -17,7 +17,6 @@ professor para o projeto ir a produção.
 from __future__ import annotations
 
 import argparse
-import gzip
 import json
 import os
 import sqlite3
@@ -41,6 +40,7 @@ def _validate(df, schema, sample: int | None = None) -> dict:
         return {"ok": True, "n_rows": int(len(frame)), "failures": []}
     except pae.SchemaErrors as e:
         from core.schemas import summarize_failures
+
         return {"ok": False, "n_rows": int(len(frame)), "failures": summarize_failures(e)}
 
 
@@ -57,9 +57,9 @@ def check_catalog() -> dict:
 
 def check_imdb_dump() -> dict:
     if not os.path.exists(_IMDB_TSV):
-        return {"ok": None, "skipped": "data/imdb_cache/title.ratings.tsv.gz ausente "
-                "(rode `python -m core.enrich`)"}
+        return {"ok": None, "skipped": "data/imdb_cache/title.ratings.tsv.gz ausente (rode `python -m core.enrich`)"}
     import pandas as pd
+
     from core.schemas import imdb_ratings_schema
 
     df = pd.read_csv(_IMDB_TSV, sep="\t", dtype=str, na_values=["\\N"])
@@ -78,41 +78,47 @@ def check_reconciliation() -> dict:
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(movies)")}
     if "imdb_id" not in cols:
         conn.close()
-        return {"ok": None, "skipped": "colunas de enriquecimento ausentes "
-                "(rode `python -m core.enrich`)"}
+        return {"ok": None, "skipped": "colunas de enriquecimento ausentes (rode `python -m core.enrich`)"}
 
     total = conn.execute("SELECT COUNT(*) FROM movies").fetchone()[0]
-    with_id = conn.execute(
-        "SELECT COUNT(*) FROM movies WHERE imdb_id IS NOT NULL AND imdb_id <> ''").fetchone()[0]
-    with_rating = conn.execute(
-        "SELECT COUNT(*) FROM movies WHERE imdb_rating IS NOT NULL").fetchone()[0]
+    with_id = conn.execute("SELECT COUNT(*) FROM movies WHERE imdb_id IS NOT NULL AND imdb_id <> ''").fetchone()[0]
+    with_rating = conn.execute("SELECT COUNT(*) FROM movies WHERE imdb_rating IS NOT NULL").fetchone()[0]
     # filmes populares (>=100 votos TMDB) que deveriam ter imdb_id e não têm
-    miss_id = [dict(r) for r in conn.execute(
-        "SELECT tmdb_id, title, release_year, vote_count FROM movies "
-        "WHERE (imdb_id IS NULL OR imdb_id = '') AND vote_count >= 100 "
-        "ORDER BY vote_count DESC LIMIT 15")]
+    miss_id = [
+        dict(r)
+        for r in conn.execute(
+            "SELECT tmdb_id, title, release_year, vote_count FROM movies "
+            "WHERE (imdb_id IS NULL OR imdb_id = '') AND vote_count >= 100 "
+            "ORDER BY vote_count DESC LIMIT 15"
+        )
+    ]
     # tem imdb_id mas o dump do IMDb não trouxe nota (TV movie, curta, raridade)
-    miss_rating = [dict(r) for r in conn.execute(
-        "SELECT tmdb_id, title, release_year, imdb_id FROM movies "
-        "WHERE imdb_id <> '' AND imdb_rating IS NULL AND vote_count >= 100 "
-        "ORDER BY vote_count DESC LIMIT 15")]
+    miss_rating = [
+        dict(r)
+        for r in conn.execute(
+            "SELECT tmdb_id, title, release_year, imdb_id FROM movies "
+            "WHERE imdb_id <> '' AND imdb_rating IS NULL AND vote_count >= 100 "
+            "ORDER BY vote_count DESC LIMIT 15"
+        )
+    ]
 
     # schema nas linhas reconciliadas
     import pandas as pd
+
     from core.schemas import reconciled_schema
+
     rec_df = pd.read_sql_query(
-        "SELECT tmdb_id, imdb_id, imdb_rating, imdb_votes FROM movies "
-        "WHERE imdb_id IS NOT NULL AND imdb_id <> ''", conn)
+        "SELECT tmdb_id, imdb_id, imdb_rating, imdb_votes FROM movies WHERE imdb_id IS NOT NULL AND imdb_id <> ''", conn
+    )
     schema_res = _validate(rec_df, reconciled_schema())
 
     canon = None
     if "canon_rank" in cols:
-        n_canon = conn.execute(
-            "SELECT COUNT(*) FROM movies WHERE canon_rank IS NOT NULL").fetchone()[0]
+        n_canon = conn.execute("SELECT COUNT(*) FROM movies WHERE canon_rank IS NOT NULL").fetchone()[0]
         try:
             from core.enrich import CANON
-            canon = {"matched": int(n_canon), "total": len(CANON),
-                     "rate": round(n_canon / len(CANON), 4)}
+
+            canon = {"matched": int(n_canon), "total": len(CANON), "rate": round(n_canon / len(CANON), 4)}
         except Exception:
             canon = {"matched": int(n_canon)}
     conn.close()
@@ -141,7 +147,8 @@ def build_report() -> dict:
         "ratings_provenance_note": (
             "~2,9M avaliações em movies.db.ratings — cara de MovieLens/GroupLens "
             "(escala 0.5–5.0, reconciliação movieId->tmdb_id), release exato e "
-            "script de ingestão NÃO documentados. Bloqueador de deploy público."),
+            "script de ingestão NÃO documentados. Bloqueador de deploy público."
+        ),
         "catalog": check_catalog(),
         "imdb_dump": check_imdb_dump(),
         "reconciliation": check_reconciliation(),
@@ -149,11 +156,12 @@ def build_report() -> dict:
 
 
 def _md(rep: dict) -> str:
-    L = ["## Relatório de qualidade dos dados", "",
-         f"_gerado em {rep['generated_at']}_", ""]
+    L = ["## Relatório de qualidade dos dados", "", f"_gerado em {rep['generated_at']}_", ""]
     c = rep["catalog"]
-    L.append(f"**Catálogo** ({c['source']}, {c.get('n_movies', '?')} filmes): "
-             + ("✅ schema ok" if c["ok"] else f"❌ {len(c['failures'])} tipo(s) de falha"))
+    L.append(
+        f"**Catálogo** ({c['source']}, {c.get('n_movies', '?')} filmes): "
+        + ("✅ schema ok" if c["ok"] else f"❌ {len(c['failures'])} tipo(s) de falha")
+    )
     for f in c.get("failures", []):
         L.append(f"  - `{f.get('column')}` / {f.get('check')}: {f['n']} casos, ex.: {f['sample']}")
 
@@ -161,31 +169,39 @@ def _md(rep: dict) -> str:
     if d.get("skipped"):
         L.append(f"\n**Dump IMDb**: ⏭️ {d['skipped']}")
     else:
-        L.append(f"\n**Dump IMDb** ({d.get('n_rows_total', '?')} linhas, amostra {d['n_rows']}): "
-                 + ("✅ schema ok" if d["ok"] else f"❌ {len(d['failures'])} falha(s)"))
+        L.append(
+            f"\n**Dump IMDb** ({d.get('n_rows_total', '?')} linhas, amostra {d['n_rows']}): "
+            + ("✅ schema ok" if d["ok"] else f"❌ {len(d['failures'])} falha(s)")
+        )
 
     r = rep["reconciliation"]
     if r.get("skipped"):
         L.append(f"\n**Reconciliação catálogo × IMDb**: ⏭️ {r['skipped']}")
     else:
         mr = r["match_rate"]
-        L += ["\n**Reconciliação catálogo × IMDb**",
-              f"  - `imdb_id` resolvido: **{mr['imdb_id']:.1%}** dos filmes",
-              f"  - nota IMDb (entre os com id): **{mr['imdb_rating_given_id']:.1%}**  "
-              f"(geral: {mr['imdb_rating_overall']:.1%})",
-              f"  - schema das linhas reconciliadas: "
-              + ("✅ ok" if r["ok"] else f"❌ {len(r['schema_failures'])} falha(s)")]
+        L += [
+            "\n**Reconciliação catálogo × IMDb**",
+            f"  - `imdb_id` resolvido: **{mr['imdb_id']:.1%}** dos filmes",
+            f"  - nota IMDb (entre os com id): **{mr['imdb_rating_given_id']:.1%}**  "
+            f"(geral: {mr['imdb_rating_overall']:.1%})",
+            "  - schema das linhas reconciliadas: "
+            + ("✅ ok" if r["ok"] else f"❌ {len(r['schema_failures'])} falha(s)"),
+        ]
         if r.get("canon"):
             k = r["canon"]
             L.append(f"  - cânone: {k.get('matched')}/{k.get('total', '?')} casados")
         mi = r["failed_cases"]["popular_without_imdb_id"]
         if mi:
-            L.append(f"  - populares SEM `imdb_id` (top {len(mi)}): "
-                     + ", ".join(f"{m['title']} ({m['release_year']})" for m in mi[:8]))
+            L.append(
+                f"  - populares SEM `imdb_id` (top {len(mi)}): "
+                + ", ".join(f"{m['title']} ({m['release_year']})" for m in mi[:8])
+            )
         mrr = r["failed_cases"]["has_id_but_no_imdb_rating"]
         if mrr:
-            L.append(f"  - com `imdb_id` mas SEM nota no dump: "
-                     + ", ".join(f"{m['title']} ({m['release_year']})" for m in mrr[:8]))
+            L.append(
+                "  - com `imdb_id` mas SEM nota no dump: "
+                + ", ".join(f"{m['title']} ({m['release_year']})" for m in mrr[:8])
+            )
 
     L.append(f"\n**Proveniência dos ratings**: ⚠️ `{rep['ratings_provenance']}` — {rep['ratings_provenance_note']}")
     return "\n".join(L)
@@ -204,8 +220,7 @@ def main(argv=None) -> int:
         print(_md(rep))
         print(f"\n» {os.path.relpath(REPORT_PATH, _ROOT)}")
 
-    failed = [k for k in ("catalog", "imdb_dump", "reconciliation")
-              if rep[k].get("ok") is False]
+    failed = [k for k in ("catalog", "imdb_dump", "reconciliation") if rep[k].get("ok") is False]
     if a.strict and failed:
         print(f"\nSTRICT: schema falhou em {failed}", file=sys.stderr)
         return 1

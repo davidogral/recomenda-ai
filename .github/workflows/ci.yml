@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - run: pip install ruff==0.16.5
+      - name: ruff check
+        run: ruff check --output-format=github .
+      - name: ruff format (módulos novos)
+        run: ruff format --check core/metrics.py core/schemas.py core/validate.py core/inference_client.py inference eval
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - run: pip install -r requirements-ci.txt
+      - name: mypy (checagem gradual)
+        run: mypy --config-file mypy.ini
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - run: pip install -r requirements-ci.txt
+      - name: pytest (hermético — sem modelos/rede)
+        run: python -m pytest -q

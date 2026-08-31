@@ -1,0 +1,56 @@
+{
+  "uid": "recomendaai",
+  "title": "RecomendAI",
+  "tags": ["recomendaai"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Latência por etapa (p50 / p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum by (le, stage) (rate(recomendaai_stage_seconds_bucket[5m])))", "legendFormat": "p50 {{stage}}", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(recomendaai_stage_seconds_bucket[5m])))", "legendFormat": "p95 {{stage}}", "refId": "B" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Requisições/s e erros/s",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "expr": "sum(rate(recomendaai_requests_total[5m]))", "legendFormat": "requisições/s", "refId": "A" },
+        { "expr": "sum(rate(recomendaai_errors_total[5m]))", "legendFormat": "erros/s", "refId": "B" },
+        { "expr": "sum(rate(recomendaai_requests_total{status=~\"5..\"}[5m]))", "legendFormat": "5xx/s", "refId": "C" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Taxa de cache hit (embedding da consulta)",
+      "type": "stat",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 0.3 }, { "color": "green", "value": 0.6 } ] } }, "overrides": [] },
+      "targets": [
+        { "expr": "sum(rate(recomendaai_query_cache_events_total{result=\"hit\"}[10m])) / clamp_min(sum(rate(recomendaai_query_cache_events_total[10m])), 1e-9)", "legendFormat": "hit ratio", "refId": "A" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "RSS por serviço",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        { "expr": "recomendaai_process_rss_bytes", "legendFormat": "{{service}}", "refId": "A" }
+      ]
+    }
+  ]
+}
