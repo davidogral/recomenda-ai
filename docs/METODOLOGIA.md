@@ -270,9 +270,30 @@ A fusão dispara acima de qualquer sinal isolado (complementares). No split de *
 | 50 | 0,754 | 0,705 | 0,94 | 304 ms |
 | 300 (default antigo) | 0,740 | 0,694 | 0,92 | ~2,4 s |
 
-O melhor pool (50) sobe o nDCG@10 em +0,02 no teste, mas **cai** 0,823 → 0,814 no dev — ruído para *n* = 47–95. O pool 300 antigo era o pior: qualidade abaixo do pool 50 *e* Recall@50 menor, a ~1,8 s/busca. Decisão: `RECOMENDAI_RERANK=0` por padrão; se ligar, `RECOMENDAI_RERANK_POOL=50`.
+O melhor pool (50) sobe o nDCG@10 em +0,02 no teste, mas **cai** 0,823 → 0,814 no dev — ruído para *n* = 47–95. O pool 300 antigo era o pior: qualidade abaixo do pool 50 *e* Recall@50 menor, a ~1,8 s/busca. Trocar o L12 por um **MiniLM-L6** multilíngue (`eval.bench rerank`) piora ainda mais — nDCG@10 0,705 @ pool 50, *abaixo* da fusão sem re-ranker. Decisão: `RECOMENDAI_RERANK=0` por padrão; se ligar, L12 + `RECOMENDAI_RERANK_POOL=50`.
 
 </details>
+
+---
+
+## 🧮 Encoder da consulta — precisão, tamanho e latência
+
+> **O que faz** — o mesmo modelo que gerou o índice codifica a consulta num vetor. É a etapa mais cara da busca quando a consulta não está no cache LRU.
+> **O que resolve** — em produção (CPU, sem GPU) esse *forward* domina a latência de cauda; o modelo também é o maior item de RAM do processo.
+
+Otimizações aplicadas (ver [`eval/`](../eval/README.md)):
+
+1. **Cache LRU** por string de consulta (`RECOMENDAI_QUERY_CACHE`): acerto = ~0 ms (elimina o *forward*). Consultas repetem muito entre usuários.
+2. **Preload no boot**: `SearchEngine.warmup()` no import do `app.py` — o modelo carrega no startup, nunca na 1ª requisição.
+3. **Benchmark de modelo/precisão** (`python -m eval.bench embed`, CPU, split de teste):
+
+| config | dim | nDCG@10 | Recall@10 | `encode` p50 / p99 | RSS |
+|---|---|---|---|---|---|
+| **e5-large fp32** (padrão) | 1024 | **0,733** | **0,89** | 169 / 352 ms | 2,3 GB |
+| e5-large INT8 (ONNX) | 1024 | 0,729 | 0,89 | 212 / 369 ms | 1,7 GB |
+| e5-small fp32 | 384 | 0,693 | 0,83 | **22 / 105 ms** | **1,0 GB** |
+
+**INT8 dinâmico** (`retrieval/onnx_embed.py`, quantização de pesos → INT8, cos vs fp32 = 0,993): mantém a qualidade e corta 28 % de RAM, mas **não acelera** o *encode* em CPU ARM (sem VNNI). **e5-small** é o único que corta latência (7,7× no p50) e RAM (pela metade), ao custo de nDCG@10 −0,04 / Recall@10 −6 pp — o **Recall@50 fica igual**. Padrão continua e5-large fp32; `RECOMENDAI_INDEX_DIR=retrieval/index_e5small` troca para o modo baixa-latência.
 
 ---
 

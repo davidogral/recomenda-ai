@@ -1,0 +1,427 @@
+{
+  "run": {
+    "timestamp_utc": "2026-08-31T19:15:38Z",
+    "git_commit": "c01682a",
+    "mode": "bench_rerank",
+    "split": "test",
+    "device": "mps",
+    "dataset_sha1": "88fd89edcf3906102a1aee31df725c41fffd1291",
+    "lat_repeats": 5,
+    "engine": {
+      "n_movies": 22029,
+      "embed_model": "intfloat/multilingual-e5-large",
+      "embed_dim": 1024,
+      "lexical": "bm25"
+    }
+  },
+  "rows": [
+    {
+      "name": "mMiniLMv2-L12 (atual)",
+      "kind": "rerank",
+      "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+      "device": "mps",
+      "rss_mb": {
+        "after_load": 816.4,
+        "model_delta": 802.4
+      },
+      "by_pool": {
+        "50": {
+          "metrics": {
+            "n": 47,
+            "found": 47,
+            "mrr": 0.7049,
+            "median_rank": 1,
+            "mean_rank": 7.7,
+            "recall@1": 0.5957,
+            "recall@3": 0.7872,
+            "recall@5": 0.8298,
+            "recall@10": 0.9149,
+            "recall@20": 0.9149,
+            "recall@50": 0.9362,
+            "precision@1": 0.5957,
+            "precision@5": 0.166,
+            "precision@10": 0.0915,
+            "ndcg@10": 0.7541,
+            "hits@1": 28,
+            "hits@3": 37,
+            "hits@10": 43
+          },
+          "latency": {
+            "encode_cold": {
+              "p50": 31.7,
+              "p95": 48.1,
+              "p99": 56.7
+            },
+            "encode_warm": {
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0
+            },
+            "bm25": {
+              "p50": 0.8,
+              "p95": 1.5,
+              "p99": 3.2
+            },
+            "emb_matmul": {
+              "p50": 1.7,
+              "p95": 15.8,
+              "p99": 37.0
+            },
+            "kw_matmul": {
+              "p50": 1.2,
+              "p95": 8.9,
+              "p99": 18.4
+            },
+            "fuse_argsort": {
+              "p50": 5.6,
+              "p95": 20.7,
+              "p99": 28.8
+            },
+            "search_total": {
+              "p50": 282.5,
+              "p95": 390.2,
+              "p99": 400.2
+            },
+            "rerank": {
+              "p50": 305.5,
+              "p95": 443.2,
+              "p99": 497.7
+            }
+          }
+        },
+        "100": {
+          "metrics": {
+            "n": 47,
+            "found": 47,
+            "mrr": 0.7051,
+            "median_rank": 1,
+            "mean_rank": 6.6,
+            "recall@1": 0.5957,
+            "recall@3": 0.7872,
+            "recall@5": 0.8298,
+            "recall@10": 0.9149,
+            "recall@20": 0.9149,
+            "recall@50": 0.9362,
+            "precision@1": 0.5957,
+            "precision@5": 0.166,
+            "precision@10": 0.0915,
+            "ndcg@10": 0.7541,
+            "hits@1": 28,
+            "hits@3": 37,
+            "hits@10": 43
+          },
+          "latency": {
+            "encode_cold": {
+              "p50": 117.0,
+              "p95": 226.3,
+              "p99": 940.2
+            },
+            "encode_warm": {
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0
+            },
+            "bm25": {
+              "p50": 1.2,
+              "p95": 1.9,
+              "p99": 2.6
+            },
+            "emb_matmul": {
+              "p50": 10.9,
+              "p95": 27.7,
+              "p99": 33.4
+            },
+            "kw_matmul": {
+              "p50": 4.4,
+              "p95": 23.6,
+              "p99": 50.5
+            },
+            "fuse_argsort": {
+              "p50": 10.7,
+              "p95": 33.7,
+              "p99": 60.2
+            },
+            "search_total": {
+              "p50": 406.2,
+              "p95": 635.2,
+              "p99": 891.4
+            },
+            "rerank": {
+              "p50": 991.2,
+              "p95": 1308.8,
+              "p99": 1495.0
+            }
+          }
+        },
+        "300": {
+          "metrics": {
+            "n": 47,
+            "found": 47,
+            "mrr": 0.6937,
+            "median_rank": 1,
+            "mean_rank": 8,
+            "recall@1": 0.5745,
+            "recall@3": 0.7872,
+            "recall@5": 0.8298,
+            "recall@10": 0.8936,
+            "recall@20": 0.9149,
+            "recall@50": 0.9149,
+            "precision@1": 0.5745,
+            "precision@5": 0.166,
+            "precision@10": 0.0894,
+            "ndcg@10": 0.7398,
+            "hits@1": 27,
+            "hits@3": 37,
+            "hits@10": 42
+          },
+          "latency": {
+            "encode_cold": {
+              "p50": 65.9,
+              "p95": 92.4,
+              "p99": 391.8
+            },
+            "encode_warm": {
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0
+            },
+            "bm25": {
+              "p50": 0.6,
+              "p95": 1.0,
+              "p99": 1.1
+            },
+            "emb_matmul": {
+              "p50": 1.1,
+              "p95": 5.1,
+              "p99": 7.7
+            },
+            "kw_matmul": {
+              "p50": 1.3,
+              "p95": 2.6,
+              "p99": 4.8
+            },
+            "fuse_argsort": {
+              "p50": 5.1,
+              "p95": 8.3,
+              "p99": 10.5
+            },
+            "search_total": {
+              "p50": 295.3,
+              "p95": 408.2,
+              "p99": 434.7
+            },
+            "rerank": {
+              "p50": 2990.3,
+              "p95": 3358.9,
+              "p99": 3474.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mMiniLM-L6 (mmarco)",
+      "kind": "rerank",
+      "model": "unicamp-dl/mMiniLM-L6-v2-mmarco-v2",
+      "device": "mps",
+      "rss_mb": {
+        "after_load": 1005.5,
+        "model_delta": 991.4
+      },
+      "by_pool": {
+        "50": {
+          "metrics": {
+            "n": 47,
+            "found": 47,
+            "mrr": 0.6562,
+            "median_rank": 1,
+            "mean_rank": 7.5,
+            "recall@1": 0.5106,
+            "recall@3": 0.8085,
+            "recall@5": 0.8298,
+            "recall@10": 0.8723,
+            "recall@20": 0.9362,
+            "recall@50": 0.9362,
+            "precision@1": 0.5106,
+            "precision@5": 0.166,
+            "precision@10": 0.0872,
+            "ndcg@10": 0.7054,
+            "hits@1": 24,
+            "hits@3": 38,
+            "hits@10": 41
+          },
+          "latency": {
+            "encode_cold": {
+              "p50": 56.4,
+              "p95": 102.0,
+              "p99": 110.9
+            },
+            "encode_warm": {
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0
+            },
+            "bm25": {
+              "p50": 1.7,
+              "p95": 3.1,
+              "p99": 3.6
+            },
+            "emb_matmul": {
+              "p50": 14.3,
+              "p95": 49.0,
+              "p99": 94.7
+            },
+            "kw_matmul": {
+              "p50": 9.1,
+              "p95": 34.8,
+              "p99": 74.1
+            },
+            "fuse_argsort": {
+              "p50": 22.6,
+              "p95": 72.8,
+              "p99": 107.2
+            },
+            "search_total": {
+              "p50": 319.0,
+              "p95": 451.9,
+              "p99": 484.4
+            },
+            "rerank": {
+              "p50": 308.9,
+              "p95": 402.0,
+              "p99": 615.5
+            }
+          }
+        },
+        "100": {
+          "metrics": {
+            "n": 47,
+            "found": 47,
+            "mrr": 0.6293,
+            "median_rank": 2,
+            "mean_rank": 7.5,
+            "recall@1": 0.4894,
+            "recall@3": 0.7447,
+            "recall@5": 0.8298,
+            "recall@10": 0.8511,
+            "recall@20": 0.9362,
+            "recall@50": 0.9362,
+            "precision@1": 0.4894,
+            "precision@5": 0.166,
+            "precision@10": 0.0851,
+            "ndcg@10": 0.6786,
+            "hits@1": 23,
+            "hits@3": 35,
+            "hits@10": 40
+          },
+          "latency": {
+            "encode_cold": {
+              "p50": 51.8,
+              "p95": 110.2,
+              "p99": 474.6
+            },
+            "encode_warm": {
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0
+            },
+            "bm25": {
+              "p50": 1.4,
+              "p95": 2.3,
+              "p99": 3.6
+            },
+            "emb_matmul": {
+              "p50": 12.2,
+              "p95": 38.1,
+              "p99": 50.4
+            },
+            "kw_matmul": {
+              "p50": 5.8,
+              "p95": 19.5,
+              "p99": 31.0
+            },
+            "fuse_argsort": {
+              "p50": 14.5,
+              "p95": 53.8,
+              "p99": 81.8
+            },
+            "search_total": {
+              "p50": 287.6,
+              "p95": 366.3,
+              "p99": 393.3
+            },
+            "rerank": {
+              "p50": 519.8,
+              "p95": 679.3,
+              "p99": 760.1
+            }
+          }
+        },
+        "300": {
+          "metrics": {
+            "n": 47,
+            "found": 47,
+            "mrr": 0.6261,
+            "median_rank": 2,
+            "mean_rank": 9.6,
+            "recall@1": 0.4894,
+            "recall@3": 0.7234,
+            "recall@5": 0.8298,
+            "recall@10": 0.8298,
+            "recall@20": 0.9149,
+            "recall@50": 0.9362,
+            "precision@1": 0.4894,
+            "precision@5": 0.166,
+            "precision@10": 0.083,
+            "ndcg@10": 0.6708,
+            "hits@1": 23,
+            "hits@3": 34,
+            "hits@10": 39
+          },
+          "latency": {
+            "encode_cold": {
+              "p50": 80.1,
+              "p95": 117.3,
+              "p99": 569.3
+            },
+            "encode_warm": {
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0
+            },
+            "bm25": {
+              "p50": 1.0,
+              "p95": 1.4,
+              "p99": 1.7
+            },
+            "emb_matmul": {
+              "p50": 1.6,
+              "p95": 10.2,
+              "p99": 13.2
+            },
+            "kw_matmul": {
+              "p50": 1.6,
+              "p95": 4.3,
+              "p99": 6.2
+            },
+            "fuse_argsort": {
+              "p50": 6.5,
+              "p95": 9.8,
+              "p99": 19.6
+            },
+            "search_total": {
+              "p50": 189.1,
+              "p95": 291.1,
+              "p99": 361.5
+            },
+            "rerank": {
+              "p50": 1439.8,
+              "p95": 1792.9,
+              "p99": 1844.8
+            }
+          }
+        }
+      }
+    }
+  ]
+}

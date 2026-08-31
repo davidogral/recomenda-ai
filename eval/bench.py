@@ -41,8 +41,8 @@ EMBED_CONFIGS = [
 ]
 
 RERANK_MODELS = [
-    ("cross-encoder L12 (atual)", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"),
-    ("cross-encoder L6", "cross-encoder/mmarco-mMiniLMv2-L6-H384-v1"),
+    ("mMiniLMv2-L12 (atual)", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"),
+    ("mMiniLM-L6 (mmarco)", "unicamp-dl/mMiniLM-L6-v2-mmarco-v2"),
 ]
 RERANK_POOLS = [50, 100, 300]
 
@@ -142,6 +142,11 @@ def run_worker(kind: str, name: str, device: str) -> None:
         os.environ["RECOMENDAI_RERANK"] = "1"
         from retrieval.search_engine import SearchEngine
         eng = SearchEngine(rerank=True).warmup(reranker=True)
+        rr = eng._get_reranker()
+        if rr is None or eng._reranker_failed:
+            raise RuntimeError(f"cross-encoder '{model_name}' não carregou — abortando config")
+        _ = rr.rerank("consulta de teste do benchmark", [eng._movie_ids[0].item()],
+                      eng._text_for, retr_scores={}, blend=0.5)  # falha alto se .predict quebrar
         rss1 = _rss_mb()
         by_pool = {}
         for pool in RERANK_POOLS:

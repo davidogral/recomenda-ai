@@ -151,9 +151,46 @@ O re-ranker cross-encoder era o default. A varredura do tamanho do pool (`python
 
 - **Ganho não confiável.** No teste, o melhor pool (50) sobe o nDCG@10 em +0,02; no split de calibração (dev) o mesmo pool **cai** 0,823 → 0,814. Para n = 47–95 consultas, isso é ruído.
 - **O pool 300 era o pior dos mundos:** pior qualidade que o pool 50 *e* Recall@50 mais baixo (reordena candidatos distantes e erra), a **~2 s por busca** — ~300× a latência da fusão sozinha (~7 ms).
-- **Decisão (produção):** `RECOMENDAI_RERANK=0` por padrão. A fusão sem 2º estágio já entrega mediana da posição **#1**. Também tira da imagem o carregamento do modelo cross-encoder (~120 MB) no cold-start. Para experimentar, `RECOMENDAI_RERANK=1` — nesse caso `RECOMENDAI_RERANK_POOL=50` (o 300 regride em todas as rodadas).
 
-Regerar: `python -m eval.run` reescreve `eval/results/latest__test.json`; `--sweep-rerank` gera `latest__sweep-rerank-test.json`.
+**Modelo menor (MiniLM-L6) também não salva** (`python -m eval.bench rerank`, split de teste):
+
+| modelo | pool | nDCG@10 | MRR | Recall@50 | rerank p99 |
+|---|---|---|---|---|---|
+| mMiniLMv2-**L12** (atual) | 50 | 0,754 | 0,705 | 0,94 | 498 ms |
+| mMiniLM-**L6** (mmarco) | 50 | 0,705 | 0,656 | 0,94 | 616 ms |
+| mMiniLM-**L6** (mmarco) | 300 | 0,671 | 0,626 | 0,94 | 1 845 ms |
+
+O L6 fica **abaixo da fusão sem re-ranker** (0,705 < 0,733) e nem é mais rápido. Metade das camadas, reranker pior.
+
+- **Decisão (produção):** `RECOMENDAI_RERANK=0` por padrão. A fusão sem 2º estágio já entrega mediana da posição **#1** e tira o modelo cross-encoder (~120 MB) do cold-start. Para experimentar, `RECOMENDAI_RERANK=1` com `RECOMENDAI_RERANK_POOL=50` e o L12 (`RECOMENDAI_RERANKER_MODEL`).
+
+Regerar: `python -m eval.run --sweep-rerank` (varredura de pool) · `python -m eval.bench rerank` (L12 × L6).
+
+---
+
+## ⚡ Escolha do encoder — nDCG@10 × latência × RSS
+
+Medido em **CPU** (o servidor de produção não tem GPU/MPS), split de teste, `python -m eval.bench embed`. `encode` = *forward* do transformer numa consulta fora do cache (a etapa que domina a busca); `search` = pipeline inteiro com o cache LRU quente; RSS = memória residente do processo depois de carregar o modelo.
+
+| config | dim | nDCG@10 | MRR | Recall@10 | Recall@50 | `encode` p50 / p99 | `search` p99 | RSS |
+|---|---|---|---|---|---|---|---|---|
+| **e5-large fp32** *(padrão)* | 1024 | **0,733** | **0,686** | **0,89** | 0,94 | 169 / 352 ms | 36 ms | 2 318 MB |
+| e5-large **INT8** (ONNX) | 1024 | 0,729 | 0,680 | 0,89 | 0,94 | 212 / 369 ms | 38 ms | **1 676 MB** |
+| **e5-small** fp32 | 384 | 0,693 | 0,654 | 0,83 | 0,94 | **22 / 105 ms** | 30 ms | **1 026 MB** |
+
+**Leitura:**
+- **INT8 dinâmico (ONNX) corta RAM, não latência — nesta máquina.** Qualidade intacta (nDCG@10 −0,004, ruído) e RSS −28 %, mas o `encode` **não** ficou mais rápido: o kernel INT8 do ONNX Runtime em CPU ARM não tem VNNI/AVX-512, então não bate o GEMM fp32 do Accelerate. Num servidor x86 com VNNI a conta muda — vale re-medir lá.
+- **e5-small é o único que mexe a latência:** `encode` p50 **169 → 22 ms** (7,7×), p99 352 → 105 ms; RSS **2,3 → 1,0 GB**. O custo é **nDCG@10 −0,04** (−5,5 %) e **Recall@10 −6 pp** (o filme certo cai do top-10 em ~1 de cada 15 consultas a mais). **Recall@50 não muda** — o candidato certo continua chegando; só ranqueia um pouco pior.
+- Com o **cache LRU** a maioria das consultas nem paga o `encode` (`encode_warm` ≈ 0 ms), então o `encode_cold` só pesa na cauda de consultas inéditas.
+
+**Escolhido: `e5-large fp32` continua o padrão** (sem regressão de qualidade). `e5-small` fica a **um env var** de distância para quando o alvo de deploy for uma caixa pequena (< 2 GB de RAM) ou a latência de cauda `encode` p99 precisar ficar abaixo de ~150 ms:
+
+```bash
+RECOMENDAI_INDEX_DIR=retrieval/index_e5small python app.py      # modo baixa-latência/RAM
+RECOMENDAI_EMBED_BACKEND=onnx-int8 python app.py                 # e5-large INT8 (só RAM)
+```
+
+Regerar: `python -m eval.bench embed` → `eval/results/latest__bench-embed.json` (métricas + p50/p95/p99 por etapa + RSS por config).
 
 ---
 
@@ -164,5 +201,3 @@ Regerar: `python -m eval.run` reescreve `eval/results/latest__test.json`; `--swe
 3.  **Treino:** `recommender/train.py` ajusta o SVD nos ratings reais e serializa os fatores latentes.
 4.  **Avaliação:** `python -m eval.run` mede o SRI no split de teste e versiona o resultado em `eval/results/`.
 5.  **Entrega:** o motor híbrido combina busca e recomendação para responder em tempo real na interface.
-
----
