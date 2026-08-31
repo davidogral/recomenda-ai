@@ -265,10 +265,10 @@ A fusão dispara acima de qualquer sinal isolado (complementares). No split de *
 
 | pool | nDCG@10 | MRR | Recall@50 | latência p50 |
 |---|---|---|---|---|
-| **0 (off)** — produção | 0,733 | 0,686 | 0,94 | **8 ms** |
-| 20 | 0,750 | 0,699 | 0,94 | 131 ms |
-| 50 | 0,754 | 0,705 | 0,94 | 321 ms |
-| 300 (default antigo) | 0,740 | 0,694 | 0,92 | 1 777 ms |
+| **0 (off)** — produção | 0,733 | 0,686 | 0,94 | **7 ms** |
+| 20 | 0,750 | 0,699 | 0,94 | 124 ms |
+| 50 | 0,754 | 0,705 | 0,94 | 304 ms |
+| 300 (default antigo) | 0,740 | 0,694 | 0,92 | ~2,4 s |
 
 O melhor pool (50) sobe o nDCG@10 em +0,02 no teste, mas **cai** 0,823 → 0,814 no dev — ruído para *n* = 47–95. O pool 300 antigo era o pior: qualidade abaixo do pool 50 *e* Recall@50 menor, a ~1,8 s/busca. Decisão: `RECOMENDAI_RERANK=0` por padrão; se ligar, `RECOMENDAI_RERANK_POOL=50`.
 
