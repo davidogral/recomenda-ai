@@ -205,6 +205,18 @@
                 <div class="list-items" id="listItems"></div>
             </div>
         </section>
+
+        <footer class="site-footer">
+            <p class="tmdb-attribution">
+                <img src="{{ url_for('static', filename='tmdb.svg') }}" alt="The Movie Database (TMDB)" class="tmdb-logo">
+                Este produto usa a API do <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>,
+                mas não é endossado nem certificado pela TMDB.
+            </p>
+            <p class="data-credits">
+                Notas e votos de filmes: <a href="https://developer.imdb.com/non-commercial-datasets/" target="_blank" rel="noopener">IMDb Non-Commercial Datasets</a>.
+                Dados de avaliações para a recomendação: ver <a href="https://github.com/davidogral/recomenda-ai#-proveniência-dos-dados" target="_blank" rel="noopener">proveniência dos dados</a>.
+            </p>
+        </footer>
     </div>
 
     <!-- MODAL: FILMES PARECIDOS (item-to-item) -->

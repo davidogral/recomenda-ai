@@ -26,11 +26,12 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import json
 import os
 import sqlite3
 import sys
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 
@@ -169,12 +170,32 @@ def fill_imdb_ratings(conn: sqlite3.Connection, refresh: bool = False) -> None:
             tconst, avg, n = line.rstrip("\n").split("\t")
             if tconst in ours:
                 updates.append((float(avg), int(n), tconst))
+    _validate_imdb_rows(updates)  # schema Pandera no resultado do dump do IMDb
     conn.executemany(
         "UPDATE movies SET imdb_rating = ?, imdb_votes = ? WHERE imdb_id = ?",
         updates,
     )
     conn.commit()
     print(f"  notas IMDb: {len(updates)}/{len(ours)} filmes casados.")
+
+
+def _validate_imdb_rows(updates: list[tuple[float, int, str]]) -> None:
+    """Valida (amostra de) as linhas parseadas do dump IMDb com o schema Pandera.
+    Só avisa — o dado é do IMDb, aqui a gente só reporta o que não bate."""
+    if not updates:
+        return
+    try:
+        import pandas as pd
+
+        from core.schemas import imdb_ratings_schema, summarize_failures
+        df = pd.DataFrame(updates, columns=["averageRating", "numVotes", "tconst"])
+        try:
+            imdb_ratings_schema().validate(df.head(50_000), lazy=True)
+        except Exception as e:  # pandera SchemaErrors
+            fails = summarize_failures(e)
+            print(f"  ! schema do dump IMDb: {len(fails)} tipo(s) de falha — {fails[:2]}")
+    except ImportError:
+        pass  # pandera opcional
 
 
 OMDB_URL = "https://www.omdbapi.com/"
@@ -341,6 +362,19 @@ def main(argv: Optional[list] = None) -> int:
         print("✓ enriquecimento concluído.")
     finally:
         conn.close()
+
+    # Relatório de qualidade (taxa de match + casos que falharam).
+    try:
+        from core import validate as _v
+        rep = _v.build_report()
+        with open(_v.REPORT_PATH, "w", encoding="utf-8") as fh:
+            json.dump(rep, fh, ensure_ascii=False, indent=2)
+        rc = rep["reconciliation"].get("match_rate", {})
+        if rc:
+            print(f"→ relatório: imdb_id {rc['imdb_id']:.1%}, nota IMDb "
+                  f"{rc['imdb_rating_overall']:.1%} — data/quality_report.json")
+    except Exception as e:  # nunca deixa o relatório derrubar o job
+        print(f"  ! relatório de qualidade falhou: {e}")
     return 0
 
 

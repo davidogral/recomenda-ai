@@ -1,0 +1,17 @@
+<!--
+  PLACEHDER do logo do TMDB. Substitua pelo arquivo oficial:
+  https://www.themoviedb.org/about/logos  (baixe o "primary short" e salve como frontend/tmdb.svg)
+  A atribuição em TEXTO (obrigatória pelos termos da API) já está no rodapé do index.html.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 273 35" width="273" height="35" role="img" aria-label="The Movie Database (TMDB)">
+  <defs>
+    <linearGradient id="tmdbG" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#90CEA1"/>
+      <stop offset="0.56" stop-color="#3CBEC9"/>
+      <stop offset="1" stop-color="#00B3E5"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="273" height="35" rx="6" fill="url(#tmdbG)"/>
+  <text x="16" y="25" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="1" fill="#0D253F">TMDB</text>
+  <text x="86" y="24" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#0D253F" opacity="0.85">The Movie Database</text>
+</svg>

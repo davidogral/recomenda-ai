@@ -58,10 +58,8 @@ data/imdb_cache/
 # ==============================
 # modelos ONNX exportados — regenerar com: python -m retrieval.onnx_embed export
 retrieval/onnx/
-# índices de embedding alternativos, EXCETO os versionados de propósito abaixo
-retrieval/index_*/
-!retrieval/index_e5small/
-!retrieval/index_e5small/**
+# retrieval/index/, recommender/weights/ e retrieval/index_e5small/ são geridos
+# pelo DVC (ver *.dvc + retrieval/.gitignore + recommender/.gitignore) — `dvc pull`
 # lixo temporário do torch.onnx.export / quant_pre_process (escrevem no CWD)
 sym_shape_infer_temp.onnx
 /*.data

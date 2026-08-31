@@ -9,6 +9,7 @@ sentence-transformers>=2.2.2
 rapidfuzz>=3.0.0
 nltk>=3.8
 psutil>=5.9          # medição de RSS no perfil de latência (eval/latency.py)
+pandera>=0.20        # validação de schema do catálogo / dump IMDb (core/schemas.py)
 SQLAlchemy==2.0.29
 # --- opcional: encoder ONNX INT8 (retrieval/onnx_embed.py, eval/bench.py) ---
 onnx>=1.16

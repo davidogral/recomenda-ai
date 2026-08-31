@@ -1379,3 +1379,18 @@ body {
     left: 0;
     right: auto;
 }
+
+/* ── Rodapé: atribuição TMDB (obrigatória p/ uso da API) + créditos de dados ── */
+.site-footer {
+    margin-top: 48px;
+    padding: 24px 4px 12px;
+    border-top: 1px solid var(--input-border);
+    color: var(--gray);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+.site-footer p { margin: 6px 0; }
+.site-footer a { color: var(--gray); text-decoration: underline; }
+.site-footer a:hover { color: var(--light); }
+.tmdb-attribution { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tmdb-logo { height: 20px; width: auto; display: block; border-radius: 4px; }

@@ -38,7 +38,7 @@ A camada de **recomendação** prevê o que o usuário vai gostar:
 *   **Autocomplete inteligente:** diretor, ator e títulos sugeridos diretamente do catálogo.
 *   **Pôsteres via TMDB:** imagens carregadas da TMDB com cache local (degradam graciosamente para placeholder).
 *   **Persistência de Dados:** catálogo e ratings em SQLite via SQLAlchemy.
-*   **Motor pronto para rodar:** índices de busca e pesos do recomendador já versionados — a aplicação sobe sem treino prévio.
+*   **Motor pronto para rodar:** índices de busca e pesos do recomendador vêm por `dvc pull` (remote em B2) — a aplicação sobe sem treino prévio.
 
 ---
 
@@ -87,26 +87,36 @@ RecomendaAI/
 pip install -r requirements.txt
 ```
 
-### 2. (Opcional) Credenciais da TMDB para pôsteres
+### 2. Artefatos de modelo (DVC)
+Os índices de busca (`retrieval/index/`, `retrieval/index_e5small/`) e os pesos do recomendador (`recommender/weights/`) **não ficam no git** — são geridos por **[DVC](https://dvc.org)**, com *remote* em **Backblaze B2**. Os ponteiros `*.dvc` estão versionados; os binários vêm de:
+
+```bash
+pip install "dvc-s3"
+# credenciais do B2 (ficam em .dvc/config.local, fora do git):
+dvc remote modify --local b2 access_key_id     <B2_KEY_ID>
+dvc remote modify --local b2 secret_access_key <B2_APP_KEY>
+dvc pull                                   # baixa index/ + weights/
+```
+
+> `.dvc/config` tem um `url`/`endpointurl` **placeholder** (`s3://CHANGE-ME-bucket/...`) — ajuste para o seu bucket/região B2. Sem o `dvc pull`, reconstrua os artefatos localmente (passo 5).
+
+### 3. (Opcional) Credenciais da TMDB para pôsteres
 Copie `.env.example` para `.env` e preencha com seu token da TMDB. Sem isso, o sistema funciona normalmente, exibindo placeholders no lugar das imagens.
 
-### 3. Execução do Servidor
+### 4. Execução do Servidor
 ```bash
 python app.py
 ```
-Acesse: `http://localhost:5001`
+Acesse: `http://localhost:5001` — o motor de busca é **pré-carregado no boot** (`RECOMENDAI_NO_WARMUP=1` desliga). Na 1ª vez, o modelo de embeddings do `sentence-transformers` é baixado uma vez.
 
-> [!NOTE]
-> Os índices de busca (`retrieval/index/`) e os pesos do recomendador (`recommender/weights/`) já estão versionados, então a aplicação sobe direto. Na **primeira busca por sinopse**, o modelo de embeddings do `sentence-transformers` é baixado uma vez (pode levar alguns segundos).
-
-### 4. (Opcional) Reconstruir os modelos
-Para regenerar o índice de busca ou retreinar o recomendador a partir dos dados:
+### 6. (Opcional) Reconstruir os modelos
+Alternativa ao `dvc pull` — regenerar do zero:
 ```bash
 python -m retrieval.index_builder   # reconstrói retrieval/index/
 python -m recommender.train         # retreina o SVD em recommender/weights/
 ```
 
-### 5. Avaliação do SRI
+### 7. Avaliação do SRI
 A avaliação é **executável** e a saída é **JSON versionado** em `eval/results/` — não vive mais num notebook.
 
 ```bash
@@ -201,3 +211,36 @@ Regerar: `python -m eval.bench embed` → `eval/results/latest__bench-embed.json
 3.  **Treino:** `recommender/train.py` ajusta o SVD nos ratings reais e serializa os fatores latentes.
 4.  **Avaliação:** `python -m eval.run` mede o SRI no split de teste e versiona o resultado em `eval/results/`.
 5.  **Entrega:** o motor híbrido combina busca e recomendação para responder em tempo real na interface.
+
+---
+
+## 📚 Proveniência dos Dados
+
+| dado | fonte | licença / termos | onde entra |
+|---|---|---|---|
+| Metadados de filmes (sinopse, gêneros, elenco, *keywords*, pôster) | **API da TMDB** | [Termos de uso da API TMDB](https://www.themoviedb.org/api-terms-of-use) — uso permitido com atribuição; **este produto não é endossado nem certificado pela TMDB** | catálogo, busca, ficha |
+| Nota e nº de votos de filmes (`imdb_rating`, `imdb_votes`) | **[IMDb Non-Commercial Datasets](https://developer.imdb.com/non-commercial-datasets/)** (`title.ratings.tsv.gz`) | Uso **pessoal e não-comercial** apenas; sem redistribuição. Baixado por `core/enrich.py` | ranking de "Essenciais" |
+| Crítica (`metascore`, `rt_score`) | **[OMDb API](https://www.omdbapi.com/)** (agrega Metacritic / Rotten Tomatoes) | Termos do OMDb; requer `OMDB_API_KEY` | ranking de "Essenciais" |
+| Cânone (`canon_rank`) | Lista **curada** no repositório (`core/enrich.py::CANON`) — base Sight & Sound 2022 + clássicos de consenso | Curadoria própria | ranking de "Essenciais" |
+| **~2,9 M de avaliações** que treinam o SVD colaborativo | **MovieLens / GroupLens** — *release exato a confirmar* (ver ⚠️ abaixo) | **[Termos do GroupLens](https://files.grouplens.org/datasets/movielens/ml-25m-README.html)** | recomendação colaborativa |
+| Notas do usuário (aba Letterboxd / Assistidos) | *Upload do próprio usuário* | Dado do usuário; fica só no `data/user.db` local, não é redistribuído | recomendação a partir do perfil |
+
+### ⚠️ Bloqueador de produção — avaliações do modelo colaborativo
+
+Os ~2,9 M de ratings (`movies.db → ratings`, escala meia-estrela 0,5–5,0, *timestamps* de 1996–2018) **têm forte cara de MovieLens** (escala, formato, reconciliação `movieId → tmdb_id`), mas:
+
+- **o *release* exato não está documentado** (ml-25m? ml-latest? um subconjunto filtrado?) e o script de reconciliação **não está no repositório** — o dado veio pronto no `movies.db`;
+- os **termos do GroupLens proíbem uso comercial ou "revenue-bearing" sem permissão** de um pesquisador do GroupLens, e exigem citar Harper & Konstan (2015), *The MovieLens Datasets: History and Context*, ACM TiiS.
+
+**Antes de qualquer deploy público:** (1) confirmar a origem exata com quem montou o `movies.db`; (2) versionar o script de ingestão/reconciliação; (3) decidir conformidade — se houver monetização, obter permissão do GroupLens **ou** trocar por um dataset com licença compatível (ex.: MovieLens com permissão, ou ratings próprios). Rastreado em `data/quality_report.json` (`ratings_provenance: "unconfirmed"`).
+
+### Validação de schema (Pandera)
+
+```bash
+python -m core.validate            # checa e escreve data/quality_report.json
+python -m core.validate --strict   # exit != 0 se algum schema falhar (para CI)
+```
+
+Schemas em [`core/schemas.py`](core/schemas.py): **catálogo** (tipos, faixas — `vote_average` 0–10, `release_year` 1870–2100, `tmdb_id` único…), **dump IMDb** (`tconst` = `^tt\d+$`, `averageRating` 1–10) e as **linhas reconciliadas** catálogo × IMDb. `core/enrich.py` roda a validação do dump durante a ingestão e grava o relatório ao final.
+
+**Taxa de match atual** (`data/quality_report.json`): `imdb_id` resolvido em **99,9 %** dos filmes, nota IMDb em **99,7 %**, cânone 100/100. Os poucos casos que falham são curtas/filmes de TV/raridades fora do `title.ratings` do IMDb — listados no relatório.

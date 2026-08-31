@@ -1,0 +1,6 @@
+outs:
+- md5: 22520371a36f8c1f20f0953e8b0df730.dir
+  size: 105570972
+  nfiles: 8
+  hash: md5
+  path: index_e5small
