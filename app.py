@@ -16,9 +16,31 @@ import os
 
 from flask import Flask, jsonify, render_template, request
 
-from core import catalog, posters
+from core import catalog, metrics, posters
 
 app = Flask(__name__, static_folder="frontend", template_folder="frontend")
+
+# --- Observabilidade: contadores/latência Prometheus + rota /metrics ---
+metrics.init_flask(app)
+
+# --- Rate limiting (Flask-Limiter). storage em memória: vale por processo;
+#     para multi-worker/multi-instância, aponte RATELIMIT_STORAGE_URI p/ Redis. ---
+RATE_SEARCH = os.environ.get("RECOMENDAI_RATE_SEARCH", "30 per minute")
+RATE_HEAVY = os.environ.get("RECOMENDAI_RATE_HEAVY", "12 per minute")
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+
+    limiter = Limiter(
+        key_func=get_remote_address, app=app, default_limits=[],
+        storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
+        headers_enabled=True,
+    )
+except Exception:  # flask-limiter ausente → decorador vira no-op
+    class _NoLimiter:
+        def limit(self, *_a, **_k):
+            return lambda f: f
+    limiter = _NoLimiter()
 
 
 def _parse_providers(raw) -> "list[int] | None":
@@ -56,6 +78,7 @@ def genres():
 
 
 @app.route("/search", methods=["POST"])
+@limiter.limit(RATE_SEARCH)
 def search():
     """Busca facetada. Body JSON: {query, director, actor, n, year_min,
     year_max, genre, language}. Diretor/ator restringem; query ranqueia."""
@@ -409,6 +432,7 @@ def explore_options():
 
 
 @app.route("/explore/essentials")
+@limiter.limit(RATE_HEAVY)
 def explore_essentials():
     """Essenciais de um grupo — exatamente um de: genre, style, director.
     Query params: n (1–60), region, providers (filtro de streaming opcional).
@@ -585,6 +609,7 @@ def lists_from_collection():
 
 
 @app.route("/recommend_history", methods=["POST"])
+@limiter.limit(RATE_HEAVY)
 def recommend_history():
     """Recomendações a partir do meu diário (avaliações locais com estrelas/❤).
 
@@ -633,6 +658,7 @@ def recommend_history():
 # =========================================================================
 
 @app.route("/similar/<int:movie_id>")
+@limiter.limit(RATE_HEAVY)
 def similar(movie_id: int):
     """Filmes parecidos com `movie_id` (conteúdo e5 + colaborativo item-item).
 
@@ -667,6 +693,7 @@ def similar(movie_id: int):
 # =========================================================================
 
 @app.route("/submit_ratings", methods=["POST"])
+@limiter.limit(RATE_HEAVY)
 def submit_ratings():
     """Recomenda a partir de filmes favoritos selecionados (qualquer quantidade).
 
@@ -719,6 +746,7 @@ def submit_ratings():
 # =========================================================================
 
 @app.route("/recommend", methods=["POST"])
+@limiter.limit(RATE_HEAVY)
 def recommend():
     """Recomendação via upload ratings.csv do Letterboxd."""
     file = request.files.get("ratings")
@@ -766,6 +794,13 @@ def recommend():
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"})
+
+
+@app.errorhandler(429)
+def _rate_limited(e):
+    """Resposta JSON para o rate limit (o frontend lê `error`)."""
+    return jsonify({"error": "Muitas requisições — tente de novo em instantes.",
+                    "detail": str(getattr(e, "description", e))}), 429
 
 
 # =========================================================================

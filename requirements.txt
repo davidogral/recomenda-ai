@@ -17,3 +17,7 @@ onnxruntime>=1.17
 python-dotenv==1.0.1
 requests==2.31.0
 gunicorn==23.0.0
+# --- observabilidade + limites (produção) ---
+prometheus-client>=0.20
+Flask-Limiter>=3.5
+httpx>=0.27          # cliente do serviço de inferência (core/inference_client.py)

@@ -23,6 +23,7 @@ from typing import Any, Optional
 import numpy as np
 
 from core import catalog, db
+from core import metrics as _metrics
 from retrieval import index_builder as ib
 
 # Artigos PT iniciais: ruído no casamento de nome ("O pescotapa" casava todo
@@ -385,8 +386,10 @@ class SearchEngine:
         if cached is not None:
             c.move_to_end(query)
             self._query_emb_hits += 1
+            _metrics.query_cache_event(hit=True)
             return cached
         self._query_emb_misses += 1
+        _metrics.query_cache_event(hit=False)
         text = f"{self._embed_query_prefix}{query}" if self._embed_query_prefix else query
         vec = self._get_embed_model().encode(
             [text], normalize_embeddings=True, convert_to_numpy=True
@@ -866,30 +869,32 @@ class SearchEngine:
             return []
 
         ctx: dict[str, Any] = {}
-        if mode == "name":
-            scored = self.search_by_name(query, n)
-            ctx = {"name_scores": dict(scored), "name_w": 1.0, "syn_w": 0.0,
-                   "q_emb": self._encode(query) if self._embeddings is not None else None}
-        elif mode == "synopsis":
-            scored, ctx = self._synopsis_ranked(query, n, blend_name=False)
-        elif mode == "person":
-            scored = self.search_by_person(query, n, role=role)
-        elif mode == "keyword":
-            scored = self.search_by_keyword(query, n)
-            ctx = {"q_emb": self._encode(query) if self._embeddings is not None else None}
-        elif mode == "auto":
-            if self.has_synopsis_index:
-                scored, ctx = self._synopsis_ranked(query, n, blend_name=True)
-            else:
+        with _metrics.stage_timer("retrieval"):
+            if mode == "name":
                 scored = self.search_by_name(query, n)
-                ctx = {"name_scores": dict(scored), "name_w": 1.0, "syn_w": 0.0}
-        else:
-            raise ValueError(f"modo desconhecido: {mode!r}")
+                ctx = {"name_scores": dict(scored), "name_w": 1.0, "syn_w": 0.0,
+                       "q_emb": self._encode(query) if self._embeddings is not None else None}
+            elif mode == "synopsis":
+                scored, ctx = self._synopsis_ranked(query, n, blend_name=False)
+            elif mode == "person":
+                scored = self.search_by_person(query, n, role=role)
+            elif mode == "keyword":
+                scored = self.search_by_keyword(query, n)
+                ctx = {"q_emb": self._encode(query) if self._embeddings is not None else None}
+            elif mode == "auto":
+                if self.has_synopsis_index:
+                    scored, ctx = self._synopsis_ranked(query, n, blend_name=True)
+                else:
+                    scored = self.search_by_name(query, n)
+                    ctx = {"name_scores": dict(scored), "name_w": 1.0, "syn_w": 0.0}
+            else:
+                raise ValueError(f"modo desconhecido: {mode!r}")
 
         # Re-rank por sinopse só faz sentido p/ descrição; numa busca de nome
         # (título quase-exato) reordenar pela sinopse atrapalha.
         if mode in ("synopsis", "auto") and self.has_synopsis_index and ctx.get("intent") != "name":
-            scored = self._maybe_rerank(query, scored, ctx)
+            with _metrics.stage_timer("rerank"):
+                scored = self._maybe_rerank(query, scored, ctx)
 
         # Relevância: quando reordenado, escala só pela cabeça reordenada (mesma
         # escala blended); senão, por todo o conjunto.

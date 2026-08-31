@@ -98,15 +98,61 @@ def _params(extra: Optional[dict] = None) -> dict:
     return p
 
 
+# Teto de segurança de chamadas à TMDB por minuto (janela deslizante). Protege
+# contra loop/abuso — a API é grátis mas limitada (~50 req / 10 s). Ao estourar,
+# `_get` devolve None e o resto do sistema cai para placeholder / fuzzy, como já
+# faz sem rede. `RECOMENDAI_TMDB_MAX_RPM=0` desliga o teto.
+TMDB_MAX_RPM = int(os.environ.get("RECOMENDAI_TMDB_MAX_RPM", "240"))
+_call_times: list[float] = []
+_call_lock = threading.Lock()
+
+
+def _rate_ok() -> bool:
+    """True se ainda há orçamento de chamadas na janela de 60 s (e reserva o slot)."""
+    if TMDB_MAX_RPM <= 0:
+        return True
+    now = time.monotonic()
+    with _call_lock:
+        cutoff = now - 60.0
+        while _call_times and _call_times[0] < cutoff:
+            _call_times.pop(0)
+        if len(_call_times) >= TMDB_MAX_RPM:
+            return False
+        _call_times.append(now)
+        return True
+
+
+def tmdb_rate_state() -> dict:
+    """Diagnóstico: chamadas na janela atual e o teto."""
+    now = time.monotonic()
+    with _call_lock:
+        recent = sum(1 for t in _call_times if t >= now - 60.0)
+    return {"calls_last_60s": recent, "max_rpm": TMDB_MAX_RPM}
+
+
 def _get(path: str, params: Optional[dict] = None, timeout: float = 10.0) -> Optional[dict]:
     if not is_configured():
         return None
     try:
+        from core import metrics as _m
+    except Exception:  # pragma: no cover
+        _m = None
+    if not _rate_ok():
+        if _m:
+            _m.tmdb_call("capped")
+        return None
+    try:
         resp = _get_session().get(f"{_API_BASE}{path}", params=_params(params), timeout=timeout)
         if resp.status_code == 200:
+            if _m:
+                _m.tmdb_call("ok")
             return resp.json()
     except (requests.RequestException, ValueError):
+        if _m:
+            _m.tmdb_call("error")
         return None
+    if _m:
+        _m.tmdb_call("error")
     return None
 
 
