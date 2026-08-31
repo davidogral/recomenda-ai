@@ -1,0 +1,214 @@
+{
+  "run": {
+    "timestamp_utc": "2026-08-31T17:33:22Z",
+    "git_commit": "7d96851",
+    "mode": "sweep_rerank",
+    "split": "test",
+    "n_queries": 47,
+    "dataset_sha1": "88fd89edcf3906102a1aee31df725c41fffd1291",
+    "pools": [
+      0,
+      10,
+      20,
+      50,
+      100,
+      300
+    ],
+    "engine": {
+      "n_movies": 22029,
+      "embed_model": "intfloat/multilingual-e5-large",
+      "embed_dim": 1024,
+      "lexical": "bm25"
+    },
+    "config": {
+      "embed_weight": 0.6,
+      "keyword_weight": 0.5,
+      "lexical_weight": "adaptativo (0.20–0.30)",
+      "pop_prior": 0.35,
+      "rerank_pool": 50,
+      "rerank_blend": 0.5,
+      "intent_thresholds": [
+        0.92,
+        0.85
+      ],
+      "tmdb_name_fallback": false,
+      "query_slm": false
+    }
+  },
+  "sweep": [
+    {
+      "pool": 0,
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.6861,
+        "median_rank": 1,
+        "mean_rank": 7.3,
+        "recall@1": 0.5745,
+        "recall@3": 0.7872,
+        "recall@5": 0.7872,
+        "recall@10": 0.8936,
+        "recall@20": 0.9362,
+        "recall@50": 0.9362,
+        "precision@1": 0.5745,
+        "precision@5": 0.1574,
+        "precision@10": 0.0894,
+        "ndcg@10": 0.7327,
+        "hits@1": 27,
+        "hits@3": 37,
+        "hits@10": 42
+      },
+      "latency_ms": {
+        "mean_ms": 7.8,
+        "p50_ms": 6.9,
+        "p90_ms": 8.4,
+        "max_ms": 48.8
+      }
+    },
+    {
+      "pool": 10,
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.6984,
+        "median_rank": 1,
+        "mean_rank": 7.2,
+        "recall@1": 0.5745,
+        "recall@3": 0.8085,
+        "recall@5": 0.8298,
+        "recall@10": 0.8936,
+        "recall@20": 0.9362,
+        "recall@50": 0.9362,
+        "precision@1": 0.5745,
+        "precision@5": 0.166,
+        "precision@10": 0.0894,
+        "ndcg@10": 0.7428,
+        "hits@1": 27,
+        "hits@3": 38,
+        "hits@10": 42
+      },
+      "latency_ms": {
+        "mean_ms": 119.2,
+        "p50_ms": 75.6,
+        "p90_ms": 93.5,
+        "max_ms": 2179.6
+      }
+    },
+    {
+      "pool": 20,
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.6985,
+        "median_rank": 1,
+        "mean_rank": 7.3,
+        "recall@1": 0.5745,
+        "recall@3": 0.8085,
+        "recall@5": 0.8298,
+        "recall@10": 0.9149,
+        "recall@20": 0.9362,
+        "recall@50": 0.9362,
+        "precision@1": 0.5745,
+        "precision@5": 0.166,
+        "precision@10": 0.0915,
+        "ndcg@10": 0.7496,
+        "hits@1": 27,
+        "hits@3": 38,
+        "hits@10": 43
+      },
+      "latency_ms": {
+        "mean_ms": 129.6,
+        "p50_ms": 123.9,
+        "p90_ms": 156.4,
+        "max_ms": 207.5
+      }
+    },
+    {
+      "pool": 50,
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.7049,
+        "median_rank": 1,
+        "mean_rank": 7.7,
+        "recall@1": 0.5957,
+        "recall@3": 0.7872,
+        "recall@5": 0.8298,
+        "recall@10": 0.9149,
+        "recall@20": 0.9149,
+        "recall@50": 0.9362,
+        "precision@1": 0.5957,
+        "precision@5": 0.166,
+        "precision@10": 0.0915,
+        "ndcg@10": 0.7541,
+        "hits@1": 28,
+        "hits@3": 37,
+        "hits@10": 43
+      },
+      "latency_ms": {
+        "mean_ms": 312.0,
+        "p50_ms": 304.2,
+        "p90_ms": 377.5,
+        "max_ms": 405.9
+      }
+    },
+    {
+      "pool": 100,
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.7051,
+        "median_rank": 1,
+        "mean_rank": 6.6,
+        "recall@1": 0.5957,
+        "recall@3": 0.7872,
+        "recall@5": 0.8298,
+        "recall@10": 0.9149,
+        "recall@20": 0.9149,
+        "recall@50": 0.9362,
+        "precision@1": 0.5957,
+        "precision@5": 0.166,
+        "precision@10": 0.0915,
+        "ndcg@10": 0.7541,
+        "hits@1": 28,
+        "hits@3": 37,
+        "hits@10": 43
+      },
+      "latency_ms": {
+        "mean_ms": 602.6,
+        "p50_ms": 587.7,
+        "p90_ms": 701.5,
+        "max_ms": 772.7
+      }
+    },
+    {
+      "pool": 300,
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.6937,
+        "median_rank": 1,
+        "mean_rank": 8,
+        "recall@1": 0.5745,
+        "recall@3": 0.7872,
+        "recall@5": 0.8298,
+        "recall@10": 0.8936,
+        "recall@20": 0.9149,
+        "recall@50": 0.9149,
+        "precision@1": 0.5745,
+        "precision@5": 0.166,
+        "precision@10": 0.0894,
+        "ndcg@10": 0.7398,
+        "hits@1": 27,
+        "hits@3": 37,
+        "hits@10": 42
+      },
+      "latency_ms": {
+        "mean_ms": 2493.9,
+        "p50_ms": 2423.1,
+        "p90_ms": 3109.1,
+        "max_ms": 3590.7
+      }
+    }
+  ]
+}

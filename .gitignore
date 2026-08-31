@@ -1,0 +1,89 @@
+# ==============================
+# AMBIENTES VIRTUAIS PYTHON
+# ==============================
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==============================
+# ARQUIVOS DE CONFIGURAÇÃO LOCAL
+# ==============================
+.env
+.env.local
+.env.development
+.env.production
+
+# ==============================
+# CACHE E ARQUIVOS COMPILADOS
+# ==============================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.ipynb_checkpoints/
+
+# ==============================
+# LOGS, BUILD E DEPLOY
+# ==============================
+*.log
+logs/
+*.sqlite3
+*.db
+dist/
+build/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ==============================
+# DADOS (OPCIONAL — RECOMENDADO SE FOREM GRANDES OU SENSÍVEIS)
+# ==============================
+data/*.csv
+data/*.zip
+data/*.tar.gz
+data/raw/
+data/processed/
+data/tmdb_cache/
+data/imdb_cache/
+# SQLite WAL/SHM sidecars (transitórios — nunca versionar)
+*.db-shm
+*.db-wal
+
+# ==============================
+# IDEs & EDITORES
+# ==============================
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+Thumbs.db
+
+# ==============================
+# SISTEMA
+# ==============================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Procfile
+# ==============================
+# JUPYTER (se usar)
+# ==============================
+.ipynb_checkpoints
+
+
+
+# ==============================
+# MODELOS TREINADOS
+# ==============================
+models/weights/
+
+

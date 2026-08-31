@@ -1,0 +1,4008 @@
+{
+  "run": {
+    "timestamp_utc": "2026-08-31T17:40:59Z",
+    "git_commit": "7d96851",
+    "split": "dev",
+    "n_queries": 95,
+    "dataset_file": "eval/datasets/queries.jsonl",
+    "dataset_sha1": "88fd89edcf3906102a1aee31df725c41fffd1291",
+    "split_counts": {
+      "total": 142,
+      "dev": 95,
+      "test": 47,
+      "by_source": {
+        "v1-core": {
+          "dev": 11,
+          "test": 1
+        },
+        "v1-ext": {
+          "dev": 24,
+          "test": 16
+        },
+        "v2": {
+          "dev": 60,
+          "test": 30
+        }
+      }
+    },
+    "engine": {
+      "n_movies": 22029,
+      "embed_model": "intfloat/multilingual-e5-large",
+      "embed_dim": 1024,
+      "lexical": "bm25"
+    },
+    "config": {
+      "embed_weight": 0.6,
+      "keyword_weight": 0.5,
+      "lexical_weight": "adaptativo (0.20–0.30)",
+      "pop_prior": 0.35,
+      "rerank_pool": 50,
+      "rerank_blend": 0.5,
+      "intent_thresholds": [
+        0.92,
+        0.85
+      ],
+      "tmdb_name_fallback": false,
+      "query_slm": false
+    },
+    "pipelines": [
+      "bm25",
+      "embedding",
+      "thematic",
+      "fusion",
+      "fusion_rerank"
+    ]
+  },
+  "results": {
+    "bm25": {
+      "metrics": {
+        "n": 95,
+        "found": 95,
+        "mrr": 0.4624,
+        "median_rank": 3,
+        "mean_rank": 675.3,
+        "recall@1": 0.3789,
+        "recall@3": 0.5158,
+        "recall@5": 0.5684,
+        "recall@10": 0.6105,
+        "recall@20": 0.6632,
+        "recall@50": 0.7368,
+        "precision@1": 0.3789,
+        "precision@5": 0.1137,
+        "precision@10": 0.0611,
+        "ndcg@10": 0.4924,
+        "hits@1": 36,
+        "hits@3": 49,
+        "hits@10": 58
+      },
+      "latency_ms": {
+        "mean_ms": 4.3,
+        "p50_ms": 4.1,
+        "p90_ms": 4.5,
+        "max_ms": 9.2
+      },
+      "per_query": [
+        {
+          "qid": "v1-core-00",
+          "source": "v1-core",
+          "title": "Amnésia",
+          "relevant_id": 77,
+          "rank": 26,
+          "rr": 0.0385
+        },
+        {
+          "qid": "v1-core-01",
+          "source": "v1-core",
+          "title": "Parasita",
+          "relevant_id": 496243,
+          "rank": 50,
+          "rr": 0.02
+        },
+        {
+          "qid": "v1-core-02",
+          "source": "v1-core",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 14,
+          "rr": 0.0714
+        },
+        {
+          "qid": "v1-core-03",
+          "source": "v1-core",
+          "title": "Tubarão",
+          "relevant_id": 578,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v1-core-04",
+          "source": "v1-core",
+          "title": "Whiplash: Em Busca da Perfeição",
+          "relevant_id": 244786,
+          "rank": 18,
+          "rr": 0.0556
+        },
+        {
+          "qid": "v1-core-06",
+          "source": "v1-core",
+          "title": "Seven - Os Sete Crimes Capitais",
+          "relevant_id": 807,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-07",
+          "source": "v1-core",
+          "title": "Ex_Machina: Instinto Artificial",
+          "relevant_id": 264660,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-08",
+          "source": "v1-core",
+          "title": "Um Homem com uma Câmera",
+          "relevant_id": 26317,
+          "rank": 9,
+          "rr": 0.1111
+        },
+        {
+          "qid": "v1-core-09",
+          "source": "v1-core",
+          "title": "O Show de Truman: O Show da Vida",
+          "relevant_id": 37165,
+          "rank": 33,
+          "rr": 0.0303
+        },
+        {
+          "qid": "v1-core-10",
+          "source": "v1-core",
+          "title": "Brilho Eterno de uma Mente sem Lembranças",
+          "relevant_id": 38,
+          "rank": 203,
+          "rr": 0.0049
+        },
+        {
+          "qid": "v1-core-11",
+          "source": "v1-core",
+          "title": "Feitiço do Tempo",
+          "relevant_id": 137,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-13",
+          "source": "v1-ext",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-15",
+          "source": "v1-ext",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-16",
+          "source": "v1-ext",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-17",
+          "source": "v1-ext",
+          "title": "Toy Story: Um Mundo de Aventuras",
+          "relevant_id": 862,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-19",
+          "source": "v1-ext",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 141,
+          "rr": 0.0071
+        },
+        {
+          "qid": "v1-ext-21",
+          "source": "v1-ext",
+          "title": "Jurassic Park: O Parque dos Dinossauros",
+          "relevant_id": 329,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-22",
+          "source": "v1-ext",
+          "title": "O Exterminador do Futuro",
+          "relevant_id": 218,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v1-ext-24",
+          "source": "v1-ext",
+          "title": "Interestelar",
+          "relevant_id": 157336,
+          "rank": 344,
+          "rr": 0.0029
+        },
+        {
+          "qid": "v1-ext-25",
+          "source": "v1-ext",
+          "title": "Coringa",
+          "relevant_id": 475557,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v1-ext-27",
+          "source": "v1-ext",
+          "title": "Django Livre",
+          "relevant_id": 68718,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-30",
+          "source": "v1-ext",
+          "title": "WALL-E",
+          "relevant_id": 10681,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-31",
+          "source": "v1-ext",
+          "title": "Os Infiltrados",
+          "relevant_id": 1422,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-33",
+          "source": "v1-ext",
+          "title": "Psicose",
+          "relevant_id": 539,
+          "rank": 8228,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v1-ext-34",
+          "source": "v1-ext",
+          "title": "Laranja Mecânica",
+          "relevant_id": 185,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-37",
+          "source": "v1-ext",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v1-ext-38",
+          "source": "v1-ext",
+          "title": "O Rei Leão",
+          "relevant_id": 8587,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v1-ext-39",
+          "source": "v1-ext",
+          "title": "Taxi Driver: Motorista de Táxi",
+          "relevant_id": 103,
+          "rank": 8227,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v1-ext-41",
+          "source": "v1-ext",
+          "title": "Corra!",
+          "relevant_id": 419430,
+          "rank": 1850,
+          "rr": 0.0005
+        },
+        {
+          "qid": "v1-ext-42",
+          "source": "v1-ext",
+          "title": "Ilha do Medo",
+          "relevant_id": 11324,
+          "rank": 320,
+          "rr": 0.0031
+        },
+        {
+          "qid": "v1-ext-44",
+          "source": "v1-ext",
+          "title": "Mad Max: Estrada da Fúria",
+          "relevant_id": 76341,
+          "rank": 19022,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v1-ext-46",
+          "source": "v1-ext",
+          "title": "2001: Uma Odisséia no Espaço",
+          "relevant_id": 62,
+          "rank": 34,
+          "rr": 0.0294
+        },
+        {
+          "qid": "v1-ext-47",
+          "source": "v1-ext",
+          "title": "Cisne Negro",
+          "relevant_id": 44214,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-48",
+          "source": "v1-ext",
+          "title": "O Sexto Sentido",
+          "relevant_id": 745,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-50",
+          "source": "v1-ext",
+          "title": "Um Sonho de Liberdade",
+          "relevant_id": 278,
+          "rank": 42,
+          "rr": 0.0238
+        },
+        {
+          "qid": "v2-000",
+          "source": "v2",
+          "title": "Pulp Fiction: Tempo de Violência",
+          "relevant_id": 680,
+          "rank": 2894,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v2-001",
+          "source": "v2",
+          "title": "O Grande Lebowski",
+          "relevant_id": 115,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-002",
+          "source": "v2",
+          "title": "Cães de Aluguel",
+          "relevant_id": 500,
+          "rank": 330,
+          "rr": 0.003
+        },
+        {
+          "qid": "v2-006",
+          "source": "v2",
+          "title": "Chinatown",
+          "relevant_id": 829,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-007",
+          "source": "v2",
+          "title": "Apocalypse Now",
+          "relevant_id": 28,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-009",
+          "source": "v2",
+          "title": "Um Corpo Que Cai",
+          "relevant_id": 426,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v2-011",
+          "source": "v2",
+          "title": "E.T.: O Extraterrestre",
+          "relevant_id": 601,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-012",
+          "source": "v2",
+          "title": "Os Caça-Fantasmas",
+          "relevant_id": 620,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-013",
+          "source": "v2",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-014",
+          "source": "v2",
+          "title": "O Bebê de Rosemary",
+          "relevant_id": 805,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v2-015",
+          "source": "v2",
+          "title": "Coração Valente",
+          "relevant_id": 197,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-016",
+          "source": "v2",
+          "title": "O Pianista",
+          "relevant_id": 423,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-017",
+          "source": "v2",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-020",
+          "source": "v2",
+          "title": "Réquiem para um Sonho",
+          "relevant_id": 641,
+          "rank": 699,
+          "rr": 0.0014
+        },
+        {
+          "qid": "v2-023",
+          "source": "v2",
+          "title": "Meia Noite em Paris",
+          "relevant_id": 59436,
+          "rank": 63,
+          "rr": 0.0159
+        },
+        {
+          "qid": "v2-024",
+          "source": "v2",
+          "title": "Nasce uma Estrela",
+          "relevant_id": 332562,
+          "rank": 33,
+          "rr": 0.0303
+        },
+        {
+          "qid": "v2-027",
+          "source": "v2",
+          "title": "Menina de Ouro",
+          "relevant_id": 70,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-029",
+          "source": "v2",
+          "title": "Scarface",
+          "relevant_id": 111,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-030",
+          "source": "v2",
+          "title": "Era Uma Vez na América",
+          "relevant_id": 311,
+          "rank": 146,
+          "rr": 0.0068
+        },
+        {
+          "qid": "v2-031",
+          "source": "v2",
+          "title": "Platoon",
+          "relevant_id": 792,
+          "rank": 178,
+          "rr": 0.0056
+        },
+        {
+          "qid": "v2-032",
+          "source": "v2",
+          "title": "Nascido Para Matar",
+          "relevant_id": 600,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-033",
+          "source": "v2",
+          "title": "Dunkirk",
+          "relevant_id": 374720,
+          "rank": 300,
+          "rr": 0.0033
+        },
+        {
+          "qid": "v2-034",
+          "source": "v2",
+          "title": "1917",
+          "relevant_id": 530915,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-037",
+          "source": "v2",
+          "title": "Perdido em Marte",
+          "relevant_id": 286217,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-038",
+          "source": "v2",
+          "title": "Contato",
+          "relevant_id": 686,
+          "rank": 86,
+          "rr": 0.0116
+        },
+        {
+          "qid": "v2-040",
+          "source": "v2",
+          "title": "A.I.: Inteligência Artificial",
+          "relevant_id": 644,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-042",
+          "source": "v2",
+          "title": "O Vingador do Futuro",
+          "relevant_id": 861,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-043",
+          "source": "v2",
+          "title": "RoboCop - O Policial do Futuro",
+          "relevant_id": 5548,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-044",
+          "source": "v2",
+          "title": "Duro de Matar",
+          "relevant_id": 562,
+          "rank": 51,
+          "rr": 0.0196
+        },
+        {
+          "qid": "v2-045",
+          "source": "v2",
+          "title": "Velocidade Máxima",
+          "relevant_id": 1637,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-046",
+          "source": "v2",
+          "title": "O Massacre da Serra Elétrica",
+          "relevant_id": 30497,
+          "rank": 798,
+          "rr": 0.0013
+        },
+        {
+          "qid": "v2-047",
+          "source": "v2",
+          "title": "Halloween - A Noite do Terror",
+          "relevant_id": 948,
+          "rank": 116,
+          "rr": 0.0086
+        },
+        {
+          "qid": "v2-049",
+          "source": "v2",
+          "title": "It: A Coisa",
+          "relevant_id": 346364,
+          "rank": 12,
+          "rr": 0.0833
+        },
+        {
+          "qid": "v2-051",
+          "source": "v2",
+          "title": "Hereditário",
+          "relevant_id": 493922,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-052",
+          "source": "v2",
+          "title": "Nós",
+          "relevant_id": 458723,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v2-054",
+          "source": "v2",
+          "title": "O Predador",
+          "relevant_id": 106,
+          "rank": 172,
+          "rr": 0.0058
+        },
+        {
+          "qid": "v2-055",
+          "source": "v2",
+          "title": "Tropa de Elite",
+          "relevant_id": 7347,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-056",
+          "source": "v2",
+          "title": "Central do Brasil",
+          "relevant_id": 666,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-057",
+          "source": "v2",
+          "title": "O Auto da Compadecida",
+          "relevant_id": 40096,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-058",
+          "source": "v2",
+          "title": "Bacurau",
+          "relevant_id": 446159,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-059",
+          "source": "v2",
+          "title": "Que Horas Ela Volta?",
+          "relevant_id": 310569,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-061",
+          "source": "v2",
+          "title": "Blade Runner 2049",
+          "relevant_id": 335984,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-062",
+          "source": "v2",
+          "title": "Ela",
+          "relevant_id": 152601,
+          "rank": 205,
+          "rr": 0.0049
+        },
+        {
+          "qid": "v2-063",
+          "source": "v2",
+          "title": "Donnie Darko",
+          "relevant_id": 141,
+          "rank": 69,
+          "rr": 0.0145
+        },
+        {
+          "qid": "v2-065",
+          "source": "v2",
+          "title": "Birdman ou (A Inesperada Virtude da Ignorância)",
+          "relevant_id": 194662,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-067",
+          "source": "v2",
+          "title": "Cassino",
+          "relevant_id": 524,
+          "rank": 14,
+          "rr": 0.0714
+        },
+        {
+          "qid": "v2-068",
+          "source": "v2",
+          "title": "Thelma & Louise",
+          "relevant_id": 1541,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v2-069",
+          "source": "v2",
+          "title": "Três Homens em Conflito",
+          "relevant_id": 429,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-071",
+          "source": "v2",
+          "title": "Fargo: Uma Comédia de Erros",
+          "relevant_id": 275,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-072",
+          "source": "v2",
+          "title": "Prenda-Me se For Capaz",
+          "relevant_id": 640,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-074",
+          "source": "v2",
+          "title": "O Homem Que Mudou o Jogo",
+          "relevant_id": 60308,
+          "rank": 18287,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v2-076",
+          "source": "v2",
+          "title": "12 Homens e uma Sentença",
+          "relevant_id": 389,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-077",
+          "source": "v2",
+          "title": "Papillon",
+          "relevant_id": 5924,
+          "rank": 31,
+          "rr": 0.0323
+        },
+        {
+          "qid": "v2-078",
+          "source": "v2",
+          "title": "Lawrence da Arábia",
+          "relevant_id": 947,
+          "rank": 12,
+          "rr": 0.0833
+        },
+        {
+          "qid": "v2-079",
+          "source": "v2",
+          "title": "A Noviça Rebelde",
+          "relevant_id": 15121,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-080",
+          "source": "v2",
+          "title": "Encurralado",
+          "relevant_id": 839,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-082",
+          "source": "v2",
+          "title": "A Fantástica Fábrica de Chocolate",
+          "relevant_id": 252,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-083",
+          "source": "v2",
+          "title": "Harry Potter e a Pedra Filosofal",
+          "relevant_id": 671,
+          "rank": 89,
+          "rr": 0.0112
+        },
+        {
+          "qid": "v2-086",
+          "source": "v2",
+          "title": "Ratatouille",
+          "relevant_id": 2062,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-088",
+          "source": "v2",
+          "title": "Assassinos por Natureza",
+          "relevant_id": 241,
+          "rank": 890,
+          "rr": 0.0011
+        }
+      ]
+    },
+    "embedding": {
+      "metrics": {
+        "n": 95,
+        "found": 95,
+        "mrr": 0.327,
+        "median_rank": 15,
+        "mean_rank": 659.1,
+        "recall@1": 0.2526,
+        "recall@3": 0.3684,
+        "recall@5": 0.4105,
+        "recall@10": 0.4737,
+        "recall@20": 0.5263,
+        "recall@50": 0.6316,
+        "precision@1": 0.2526,
+        "precision@5": 0.0821,
+        "precision@10": 0.0474,
+        "ndcg@10": 0.356,
+        "hits@1": 24,
+        "hits@3": 35,
+        "hits@10": 45
+      },
+      "latency_ms": {
+        "mean_ms": 8.0,
+        "p50_ms": 7.4,
+        "p90_ms": 10.1,
+        "max_ms": 18.9
+      },
+      "per_query": [
+        {
+          "qid": "v1-core-00",
+          "source": "v1-core",
+          "title": "Amnésia",
+          "relevant_id": 77,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-01",
+          "source": "v1-core",
+          "title": "Parasita",
+          "relevant_id": 496243,
+          "rank": 60,
+          "rr": 0.0167
+        },
+        {
+          "qid": "v1-core-02",
+          "source": "v1-core",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-03",
+          "source": "v1-core",
+          "title": "Tubarão",
+          "relevant_id": 578,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-core-04",
+          "source": "v1-core",
+          "title": "Whiplash: Em Busca da Perfeição",
+          "relevant_id": 244786,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v1-core-06",
+          "source": "v1-core",
+          "title": "Seven - Os Sete Crimes Capitais",
+          "relevant_id": 807,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-07",
+          "source": "v1-core",
+          "title": "Ex_Machina: Instinto Artificial",
+          "relevant_id": 264660,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-08",
+          "source": "v1-core",
+          "title": "Um Homem com uma Câmera",
+          "relevant_id": 26317,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-09",
+          "source": "v1-core",
+          "title": "O Show de Truman: O Show da Vida",
+          "relevant_id": 37165,
+          "rank": 724,
+          "rr": 0.0014
+        },
+        {
+          "qid": "v1-core-10",
+          "source": "v1-core",
+          "title": "Brilho Eterno de uma Mente sem Lembranças",
+          "relevant_id": 38,
+          "rank": 9,
+          "rr": 0.1111
+        },
+        {
+          "qid": "v1-core-11",
+          "source": "v1-core",
+          "title": "Feitiço do Tempo",
+          "relevant_id": 137,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-13",
+          "source": "v1-ext",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-15",
+          "source": "v1-ext",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 427,
+          "rr": 0.0023
+        },
+        {
+          "qid": "v1-ext-16",
+          "source": "v1-ext",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-17",
+          "source": "v1-ext",
+          "title": "Toy Story: Um Mundo de Aventuras",
+          "relevant_id": 862,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-19",
+          "source": "v1-ext",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 2776,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v1-ext-21",
+          "source": "v1-ext",
+          "title": "Jurassic Park: O Parque dos Dinossauros",
+          "relevant_id": 329,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-22",
+          "source": "v1-ext",
+          "title": "O Exterminador do Futuro",
+          "relevant_id": 218,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v1-ext-24",
+          "source": "v1-ext",
+          "title": "Interestelar",
+          "relevant_id": 157336,
+          "rank": 688,
+          "rr": 0.0015
+        },
+        {
+          "qid": "v1-ext-25",
+          "source": "v1-ext",
+          "title": "Coringa",
+          "relevant_id": 475557,
+          "rank": 106,
+          "rr": 0.0094
+        },
+        {
+          "qid": "v1-ext-27",
+          "source": "v1-ext",
+          "title": "Django Livre",
+          "relevant_id": 68718,
+          "rank": 14,
+          "rr": 0.0714
+        },
+        {
+          "qid": "v1-ext-30",
+          "source": "v1-ext",
+          "title": "WALL-E",
+          "relevant_id": 10681,
+          "rank": 13,
+          "rr": 0.0769
+        },
+        {
+          "qid": "v1-ext-31",
+          "source": "v1-ext",
+          "title": "Os Infiltrados",
+          "relevant_id": 1422,
+          "rank": 226,
+          "rr": 0.0044
+        },
+        {
+          "qid": "v1-ext-33",
+          "source": "v1-ext",
+          "title": "Psicose",
+          "relevant_id": 539,
+          "rank": 1421,
+          "rr": 0.0007
+        },
+        {
+          "qid": "v1-ext-34",
+          "source": "v1-ext",
+          "title": "Laranja Mecânica",
+          "relevant_id": 185,
+          "rank": 1187,
+          "rr": 0.0008
+        },
+        {
+          "qid": "v1-ext-37",
+          "source": "v1-ext",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 3014,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v1-ext-38",
+          "source": "v1-ext",
+          "title": "O Rei Leão",
+          "relevant_id": 8587,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v1-ext-39",
+          "source": "v1-ext",
+          "title": "Taxi Driver: Motorista de Táxi",
+          "relevant_id": 103,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-41",
+          "source": "v1-ext",
+          "title": "Corra!",
+          "relevant_id": 419430,
+          "rank": 45,
+          "rr": 0.0222
+        },
+        {
+          "qid": "v1-ext-42",
+          "source": "v1-ext",
+          "title": "Ilha do Medo",
+          "relevant_id": 11324,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-44",
+          "source": "v1-ext",
+          "title": "Mad Max: Estrada da Fúria",
+          "relevant_id": 76341,
+          "rank": 8209,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v1-ext-46",
+          "source": "v1-ext",
+          "title": "2001: Uma Odisséia no Espaço",
+          "relevant_id": 62,
+          "rank": 148,
+          "rr": 0.0068
+        },
+        {
+          "qid": "v1-ext-47",
+          "source": "v1-ext",
+          "title": "Cisne Negro",
+          "relevant_id": 44214,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v1-ext-48",
+          "source": "v1-ext",
+          "title": "O Sexto Sentido",
+          "relevant_id": 745,
+          "rank": 17,
+          "rr": 0.0588
+        },
+        {
+          "qid": "v1-ext-50",
+          "source": "v1-ext",
+          "title": "Um Sonho de Liberdade",
+          "relevant_id": 278,
+          "rank": 5451,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v2-000",
+          "source": "v2",
+          "title": "Pulp Fiction: Tempo de Violência",
+          "relevant_id": 680,
+          "rank": 3469,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v2-001",
+          "source": "v2",
+          "title": "O Grande Lebowski",
+          "relevant_id": 115,
+          "rank": 11834,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v2-002",
+          "source": "v2",
+          "title": "Cães de Aluguel",
+          "relevant_id": 500,
+          "rank": 9,
+          "rr": 0.1111
+        },
+        {
+          "qid": "v2-006",
+          "source": "v2",
+          "title": "Chinatown",
+          "relevant_id": 829,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v2-007",
+          "source": "v2",
+          "title": "Apocalypse Now",
+          "relevant_id": 28,
+          "rank": 26,
+          "rr": 0.0385
+        },
+        {
+          "qid": "v2-009",
+          "source": "v2",
+          "title": "Um Corpo Que Cai",
+          "relevant_id": 426,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-011",
+          "source": "v2",
+          "title": "E.T.: O Extraterrestre",
+          "relevant_id": 601,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-012",
+          "source": "v2",
+          "title": "Os Caça-Fantasmas",
+          "relevant_id": 620,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-013",
+          "source": "v2",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 46,
+          "rr": 0.0217
+        },
+        {
+          "qid": "v2-014",
+          "source": "v2",
+          "title": "O Bebê de Rosemary",
+          "relevant_id": 805,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-015",
+          "source": "v2",
+          "title": "Coração Valente",
+          "relevant_id": 197,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-016",
+          "source": "v2",
+          "title": "O Pianista",
+          "relevant_id": 423,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-017",
+          "source": "v2",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v2-020",
+          "source": "v2",
+          "title": "Réquiem para um Sonho",
+          "relevant_id": 641,
+          "rank": 2481,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v2-023",
+          "source": "v2",
+          "title": "Meia Noite em Paris",
+          "relevant_id": 59436,
+          "rank": 266,
+          "rr": 0.0038
+        },
+        {
+          "qid": "v2-024",
+          "source": "v2",
+          "title": "Nasce uma Estrela",
+          "relevant_id": 332562,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-027",
+          "source": "v2",
+          "title": "Menina de Ouro",
+          "relevant_id": 70,
+          "rank": 35,
+          "rr": 0.0286
+        },
+        {
+          "qid": "v2-029",
+          "source": "v2",
+          "title": "Scarface",
+          "relevant_id": 111,
+          "rank": 348,
+          "rr": 0.0029
+        },
+        {
+          "qid": "v2-030",
+          "source": "v2",
+          "title": "Era Uma Vez na América",
+          "relevant_id": 311,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-031",
+          "source": "v2",
+          "title": "Platoon",
+          "relevant_id": 792,
+          "rank": 155,
+          "rr": 0.0065
+        },
+        {
+          "qid": "v2-032",
+          "source": "v2",
+          "title": "Nascido Para Matar",
+          "relevant_id": 600,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-033",
+          "source": "v2",
+          "title": "Dunkirk",
+          "relevant_id": 374720,
+          "rank": 2985,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v2-034",
+          "source": "v2",
+          "title": "1917",
+          "relevant_id": 530915,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-037",
+          "source": "v2",
+          "title": "Perdido em Marte",
+          "relevant_id": 286217,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-038",
+          "source": "v2",
+          "title": "Contato",
+          "relevant_id": 686,
+          "rank": 576,
+          "rr": 0.0017
+        },
+        {
+          "qid": "v2-040",
+          "source": "v2",
+          "title": "A.I.: Inteligência Artificial",
+          "relevant_id": 644,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-042",
+          "source": "v2",
+          "title": "O Vingador do Futuro",
+          "relevant_id": 861,
+          "rank": 28,
+          "rr": 0.0357
+        },
+        {
+          "qid": "v2-043",
+          "source": "v2",
+          "title": "RoboCop - O Policial do Futuro",
+          "relevant_id": 5548,
+          "rank": 447,
+          "rr": 0.0022
+        },
+        {
+          "qid": "v2-044",
+          "source": "v2",
+          "title": "Duro de Matar",
+          "relevant_id": 562,
+          "rank": 2336,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v2-045",
+          "source": "v2",
+          "title": "Velocidade Máxima",
+          "relevant_id": 1637,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-046",
+          "source": "v2",
+          "title": "O Massacre da Serra Elétrica",
+          "relevant_id": 30497,
+          "rank": 1546,
+          "rr": 0.0006
+        },
+        {
+          "qid": "v2-047",
+          "source": "v2",
+          "title": "Halloween - A Noite do Terror",
+          "relevant_id": 948,
+          "rank": 1295,
+          "rr": 0.0008
+        },
+        {
+          "qid": "v2-049",
+          "source": "v2",
+          "title": "It: A Coisa",
+          "relevant_id": 346364,
+          "rank": 73,
+          "rr": 0.0137
+        },
+        {
+          "qid": "v2-051",
+          "source": "v2",
+          "title": "Hereditário",
+          "relevant_id": 493922,
+          "rank": 170,
+          "rr": 0.0059
+        },
+        {
+          "qid": "v2-052",
+          "source": "v2",
+          "title": "Nós",
+          "relevant_id": 458723,
+          "rank": 21,
+          "rr": 0.0476
+        },
+        {
+          "qid": "v2-054",
+          "source": "v2",
+          "title": "O Predador",
+          "relevant_id": 106,
+          "rank": 115,
+          "rr": 0.0087
+        },
+        {
+          "qid": "v2-055",
+          "source": "v2",
+          "title": "Tropa de Elite",
+          "relevant_id": 7347,
+          "rank": 608,
+          "rr": 0.0016
+        },
+        {
+          "qid": "v2-056",
+          "source": "v2",
+          "title": "Central do Brasil",
+          "relevant_id": 666,
+          "rank": 33,
+          "rr": 0.0303
+        },
+        {
+          "qid": "v2-057",
+          "source": "v2",
+          "title": "O Auto da Compadecida",
+          "relevant_id": 40096,
+          "rank": 15,
+          "rr": 0.0667
+        },
+        {
+          "qid": "v2-058",
+          "source": "v2",
+          "title": "Bacurau",
+          "relevant_id": 446159,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-059",
+          "source": "v2",
+          "title": "Que Horas Ela Volta?",
+          "relevant_id": 310569,
+          "rank": 4539,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v2-061",
+          "source": "v2",
+          "title": "Blade Runner 2049",
+          "relevant_id": 335984,
+          "rank": 1355,
+          "rr": 0.0007
+        },
+        {
+          "qid": "v2-062",
+          "source": "v2",
+          "title": "Ela",
+          "relevant_id": 152601,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-063",
+          "source": "v2",
+          "title": "Donnie Darko",
+          "relevant_id": 141,
+          "rank": 582,
+          "rr": 0.0017
+        },
+        {
+          "qid": "v2-065",
+          "source": "v2",
+          "title": "Birdman ou (A Inesperada Virtude da Ignorância)",
+          "relevant_id": 194662,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-067",
+          "source": "v2",
+          "title": "Cassino",
+          "relevant_id": 524,
+          "rank": 29,
+          "rr": 0.0345
+        },
+        {
+          "qid": "v2-068",
+          "source": "v2",
+          "title": "Thelma & Louise",
+          "relevant_id": 1541,
+          "rank": 331,
+          "rr": 0.003
+        },
+        {
+          "qid": "v2-069",
+          "source": "v2",
+          "title": "Três Homens em Conflito",
+          "relevant_id": 429,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-071",
+          "source": "v2",
+          "title": "Fargo: Uma Comédia de Erros",
+          "relevant_id": 275,
+          "rank": 16,
+          "rr": 0.0625
+        },
+        {
+          "qid": "v2-072",
+          "source": "v2",
+          "title": "Prenda-Me se For Capaz",
+          "relevant_id": 640,
+          "rank": 40,
+          "rr": 0.025
+        },
+        {
+          "qid": "v2-074",
+          "source": "v2",
+          "title": "O Homem Que Mudou o Jogo",
+          "relevant_id": 60308,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-076",
+          "source": "v2",
+          "title": "12 Homens e uma Sentença",
+          "relevant_id": 389,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-077",
+          "source": "v2",
+          "title": "Papillon",
+          "relevant_id": 5924,
+          "rank": 2059,
+          "rr": 0.0005
+        },
+        {
+          "qid": "v2-078",
+          "source": "v2",
+          "title": "Lawrence da Arábia",
+          "relevant_id": 947,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-079",
+          "source": "v2",
+          "title": "A Noviça Rebelde",
+          "relevant_id": 15121,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-080",
+          "source": "v2",
+          "title": "Encurralado",
+          "relevant_id": 839,
+          "rank": 45,
+          "rr": 0.0222
+        },
+        {
+          "qid": "v2-082",
+          "source": "v2",
+          "title": "A Fantástica Fábrica de Chocolate",
+          "relevant_id": 252,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-083",
+          "source": "v2",
+          "title": "Harry Potter e a Pedra Filosofal",
+          "relevant_id": 671,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-086",
+          "source": "v2",
+          "title": "Ratatouille",
+          "relevant_id": 2062,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-088",
+          "source": "v2",
+          "title": "Assassinos por Natureza",
+          "relevant_id": 241,
+          "rank": 70,
+          "rr": 0.0143
+        }
+      ]
+    },
+    "thematic": {
+      "metrics": {
+        "n": 95,
+        "found": 95,
+        "mrr": 0.2518,
+        "median_rank": 14,
+        "mean_rank": 547.1,
+        "recall@1": 0.1474,
+        "recall@3": 0.2842,
+        "recall@5": 0.3789,
+        "recall@10": 0.4737,
+        "recall@20": 0.5368,
+        "recall@50": 0.6316,
+        "precision@1": 0.1474,
+        "precision@5": 0.0758,
+        "precision@10": 0.0474,
+        "ndcg@10": 0.2974,
+        "hits@1": 14,
+        "hits@3": 27,
+        "hits@10": 45
+      },
+      "latency_ms": {
+        "mean_ms": 9.0,
+        "p50_ms": 8.5,
+        "p90_ms": 11.3,
+        "max_ms": 17.6
+      },
+      "per_query": [
+        {
+          "qid": "v1-core-00",
+          "source": "v1-core",
+          "title": "Amnésia",
+          "relevant_id": 77,
+          "rank": 316,
+          "rr": 0.0032
+        },
+        {
+          "qid": "v1-core-01",
+          "source": "v1-core",
+          "title": "Parasita",
+          "relevant_id": 496243,
+          "rank": 35,
+          "rr": 0.0286
+        },
+        {
+          "qid": "v1-core-02",
+          "source": "v1-core",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-03",
+          "source": "v1-core",
+          "title": "Tubarão",
+          "relevant_id": 578,
+          "rank": 85,
+          "rr": 0.0118
+        },
+        {
+          "qid": "v1-core-04",
+          "source": "v1-core",
+          "title": "Whiplash: Em Busca da Perfeição",
+          "relevant_id": 244786,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-06",
+          "source": "v1-core",
+          "title": "Seven - Os Sete Crimes Capitais",
+          "relevant_id": 807,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-07",
+          "source": "v1-core",
+          "title": "Ex_Machina: Instinto Artificial",
+          "relevant_id": 264660,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v1-core-08",
+          "source": "v1-core",
+          "title": "Um Homem com uma Câmera",
+          "relevant_id": 26317,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-core-09",
+          "source": "v1-core",
+          "title": "O Show de Truman: O Show da Vida",
+          "relevant_id": 37165,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-10",
+          "source": "v1-core",
+          "title": "Brilho Eterno de uma Mente sem Lembranças",
+          "relevant_id": 38,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v1-core-11",
+          "source": "v1-core",
+          "title": "Feitiço do Tempo",
+          "relevant_id": 137,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v1-ext-13",
+          "source": "v1-ext",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 10076,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v1-ext-15",
+          "source": "v1-ext",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 1050,
+          "rr": 0.001
+        },
+        {
+          "qid": "v1-ext-16",
+          "source": "v1-ext",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-17",
+          "source": "v1-ext",
+          "title": "Toy Story: Um Mundo de Aventuras",
+          "relevant_id": 862,
+          "rank": 11,
+          "rr": 0.0909
+        },
+        {
+          "qid": "v1-ext-19",
+          "source": "v1-ext",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 43,
+          "rr": 0.0233
+        },
+        {
+          "qid": "v1-ext-21",
+          "source": "v1-ext",
+          "title": "Jurassic Park: O Parque dos Dinossauros",
+          "relevant_id": 329,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-22",
+          "source": "v1-ext",
+          "title": "O Exterminador do Futuro",
+          "relevant_id": 218,
+          "rank": 46,
+          "rr": 0.0217
+        },
+        {
+          "qid": "v1-ext-24",
+          "source": "v1-ext",
+          "title": "Interestelar",
+          "relevant_id": 157336,
+          "rank": 14,
+          "rr": 0.0714
+        },
+        {
+          "qid": "v1-ext-25",
+          "source": "v1-ext",
+          "title": "Coringa",
+          "relevant_id": 475557,
+          "rank": 55,
+          "rr": 0.0182
+        },
+        {
+          "qid": "v1-ext-27",
+          "source": "v1-ext",
+          "title": "Django Livre",
+          "relevant_id": 68718,
+          "rank": 146,
+          "rr": 0.0068
+        },
+        {
+          "qid": "v1-ext-30",
+          "source": "v1-ext",
+          "title": "WALL-E",
+          "relevant_id": 10681,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v1-ext-31",
+          "source": "v1-ext",
+          "title": "Os Infiltrados",
+          "relevant_id": 1422,
+          "rank": 211,
+          "rr": 0.0047
+        },
+        {
+          "qid": "v1-ext-33",
+          "source": "v1-ext",
+          "title": "Psicose",
+          "relevant_id": 539,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v1-ext-34",
+          "source": "v1-ext",
+          "title": "Laranja Mecânica",
+          "relevant_id": 185,
+          "rank": 5427,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v1-ext-37",
+          "source": "v1-ext",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 433,
+          "rr": 0.0023
+        },
+        {
+          "qid": "v1-ext-38",
+          "source": "v1-ext",
+          "title": "O Rei Leão",
+          "relevant_id": 8587,
+          "rank": 21,
+          "rr": 0.0476
+        },
+        {
+          "qid": "v1-ext-39",
+          "source": "v1-ext",
+          "title": "Taxi Driver: Motorista de Táxi",
+          "relevant_id": 103,
+          "rank": 24,
+          "rr": 0.0417
+        },
+        {
+          "qid": "v1-ext-41",
+          "source": "v1-ext",
+          "title": "Corra!",
+          "relevant_id": 419430,
+          "rank": 14,
+          "rr": 0.0714
+        },
+        {
+          "qid": "v1-ext-42",
+          "source": "v1-ext",
+          "title": "Ilha do Medo",
+          "relevant_id": 11324,
+          "rank": 653,
+          "rr": 0.0015
+        },
+        {
+          "qid": "v1-ext-44",
+          "source": "v1-ext",
+          "title": "Mad Max: Estrada da Fúria",
+          "relevant_id": 76341,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v1-ext-46",
+          "source": "v1-ext",
+          "title": "2001: Uma Odisséia no Espaço",
+          "relevant_id": 62,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v1-ext-47",
+          "source": "v1-ext",
+          "title": "Cisne Negro",
+          "relevant_id": 44214,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-48",
+          "source": "v1-ext",
+          "title": "O Sexto Sentido",
+          "relevant_id": 745,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v1-ext-50",
+          "source": "v1-ext",
+          "title": "Um Sonho de Liberdade",
+          "relevant_id": 278,
+          "rank": 9,
+          "rr": 0.1111
+        },
+        {
+          "qid": "v2-000",
+          "source": "v2",
+          "title": "Pulp Fiction: Tempo de Violência",
+          "relevant_id": 680,
+          "rank": 742,
+          "rr": 0.0013
+        },
+        {
+          "qid": "v2-001",
+          "source": "v2",
+          "title": "O Grande Lebowski",
+          "relevant_id": 115,
+          "rank": 164,
+          "rr": 0.0061
+        },
+        {
+          "qid": "v2-002",
+          "source": "v2",
+          "title": "Cães de Aluguel",
+          "relevant_id": 500,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-006",
+          "source": "v2",
+          "title": "Chinatown",
+          "relevant_id": 829,
+          "rank": 580,
+          "rr": 0.0017
+        },
+        {
+          "qid": "v2-007",
+          "source": "v2",
+          "title": "Apocalypse Now",
+          "relevant_id": 28,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-009",
+          "source": "v2",
+          "title": "Um Corpo Que Cai",
+          "relevant_id": 426,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-011",
+          "source": "v2",
+          "title": "E.T.: O Extraterrestre",
+          "relevant_id": 601,
+          "rank": 81,
+          "rr": 0.0123
+        },
+        {
+          "qid": "v2-012",
+          "source": "v2",
+          "title": "Os Caça-Fantasmas",
+          "relevant_id": 620,
+          "rank": 183,
+          "rr": 0.0055
+        },
+        {
+          "qid": "v2-013",
+          "source": "v2",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-014",
+          "source": "v2",
+          "title": "O Bebê de Rosemary",
+          "relevant_id": 805,
+          "rank": 16,
+          "rr": 0.0625
+        },
+        {
+          "qid": "v2-015",
+          "source": "v2",
+          "title": "Coração Valente",
+          "relevant_id": 197,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-016",
+          "source": "v2",
+          "title": "O Pianista",
+          "relevant_id": 423,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-017",
+          "source": "v2",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 13,
+          "rr": 0.0769
+        },
+        {
+          "qid": "v2-020",
+          "source": "v2",
+          "title": "Réquiem para um Sonho",
+          "relevant_id": 641,
+          "rank": 131,
+          "rr": 0.0076
+        },
+        {
+          "qid": "v2-023",
+          "source": "v2",
+          "title": "Meia Noite em Paris",
+          "relevant_id": 59436,
+          "rank": 75,
+          "rr": 0.0133
+        },
+        {
+          "qid": "v2-024",
+          "source": "v2",
+          "title": "Nasce uma Estrela",
+          "relevant_id": 332562,
+          "rank": 38,
+          "rr": 0.0263
+        },
+        {
+          "qid": "v2-027",
+          "source": "v2",
+          "title": "Menina de Ouro",
+          "relevant_id": 70,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-029",
+          "source": "v2",
+          "title": "Scarface",
+          "relevant_id": 111,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-030",
+          "source": "v2",
+          "title": "Era Uma Vez na América",
+          "relevant_id": 311,
+          "rank": 426,
+          "rr": 0.0023
+        },
+        {
+          "qid": "v2-031",
+          "source": "v2",
+          "title": "Platoon",
+          "relevant_id": 792,
+          "rank": 1120,
+          "rr": 0.0009
+        },
+        {
+          "qid": "v2-032",
+          "source": "v2",
+          "title": "Nascido Para Matar",
+          "relevant_id": 600,
+          "rank": 49,
+          "rr": 0.0204
+        },
+        {
+          "qid": "v2-033",
+          "source": "v2",
+          "title": "Dunkirk",
+          "relevant_id": 374720,
+          "rank": 22,
+          "rr": 0.0455
+        },
+        {
+          "qid": "v2-034",
+          "source": "v2",
+          "title": "1917",
+          "relevant_id": 530915,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-037",
+          "source": "v2",
+          "title": "Perdido em Marte",
+          "relevant_id": 286217,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-038",
+          "source": "v2",
+          "title": "Contato",
+          "relevant_id": 686,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-040",
+          "source": "v2",
+          "title": "A.I.: Inteligência Artificial",
+          "relevant_id": 644,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-042",
+          "source": "v2",
+          "title": "O Vingador do Futuro",
+          "relevant_id": 861,
+          "rank": 62,
+          "rr": 0.0161
+        },
+        {
+          "qid": "v2-043",
+          "source": "v2",
+          "title": "RoboCop - O Policial do Futuro",
+          "relevant_id": 5548,
+          "rank": 99,
+          "rr": 0.0101
+        },
+        {
+          "qid": "v2-044",
+          "source": "v2",
+          "title": "Duro de Matar",
+          "relevant_id": 562,
+          "rank": 52,
+          "rr": 0.0192
+        },
+        {
+          "qid": "v2-045",
+          "source": "v2",
+          "title": "Velocidade Máxima",
+          "relevant_id": 1637,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-046",
+          "source": "v2",
+          "title": "O Massacre da Serra Elétrica",
+          "relevant_id": 30497,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v2-047",
+          "source": "v2",
+          "title": "Halloween - A Noite do Terror",
+          "relevant_id": 948,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v2-049",
+          "source": "v2",
+          "title": "It: A Coisa",
+          "relevant_id": 346364,
+          "rank": 38,
+          "rr": 0.0263
+        },
+        {
+          "qid": "v2-051",
+          "source": "v2",
+          "title": "Hereditário",
+          "relevant_id": 493922,
+          "rank": 205,
+          "rr": 0.0049
+        },
+        {
+          "qid": "v2-052",
+          "source": "v2",
+          "title": "Nós",
+          "relevant_id": 458723,
+          "rank": 2386,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v2-054",
+          "source": "v2",
+          "title": "O Predador",
+          "relevant_id": 106,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-055",
+          "source": "v2",
+          "title": "Tropa de Elite",
+          "relevant_id": 7347,
+          "rank": 584,
+          "rr": 0.0017
+        },
+        {
+          "qid": "v2-056",
+          "source": "v2",
+          "title": "Central do Brasil",
+          "relevant_id": 666,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-057",
+          "source": "v2",
+          "title": "O Auto da Compadecida",
+          "relevant_id": 40096,
+          "rank": 4892,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v2-058",
+          "source": "v2",
+          "title": "Bacurau",
+          "relevant_id": 446159,
+          "rank": 808,
+          "rr": 0.0012
+        },
+        {
+          "qid": "v2-059",
+          "source": "v2",
+          "title": "Que Horas Ela Volta?",
+          "relevant_id": 310569,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-061",
+          "source": "v2",
+          "title": "Blade Runner 2049",
+          "relevant_id": 335984,
+          "rank": 1396,
+          "rr": 0.0007
+        },
+        {
+          "qid": "v2-062",
+          "source": "v2",
+          "title": "Ela",
+          "relevant_id": 152601,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-063",
+          "source": "v2",
+          "title": "Donnie Darko",
+          "relevant_id": 141,
+          "rank": 13661,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v2-065",
+          "source": "v2",
+          "title": "Birdman ou (A Inesperada Virtude da Ignorância)",
+          "relevant_id": 194662,
+          "rank": 4496,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v2-067",
+          "source": "v2",
+          "title": "Cassino",
+          "relevant_id": 524,
+          "rank": 136,
+          "rr": 0.0074
+        },
+        {
+          "qid": "v2-068",
+          "source": "v2",
+          "title": "Thelma & Louise",
+          "relevant_id": 1541,
+          "rank": 88,
+          "rr": 0.0114
+        },
+        {
+          "qid": "v2-069",
+          "source": "v2",
+          "title": "Três Homens em Conflito",
+          "relevant_id": 429,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-071",
+          "source": "v2",
+          "title": "Fargo: Uma Comédia de Erros",
+          "relevant_id": 275,
+          "rank": 173,
+          "rr": 0.0058
+        },
+        {
+          "qid": "v2-072",
+          "source": "v2",
+          "title": "Prenda-Me se For Capaz",
+          "relevant_id": 640,
+          "rank": 16,
+          "rr": 0.0625
+        },
+        {
+          "qid": "v2-074",
+          "source": "v2",
+          "title": "O Homem Que Mudou o Jogo",
+          "relevant_id": 60308,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v2-076",
+          "source": "v2",
+          "title": "12 Homens e uma Sentença",
+          "relevant_id": 389,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v2-077",
+          "source": "v2",
+          "title": "Papillon",
+          "relevant_id": 5924,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-078",
+          "source": "v2",
+          "title": "Lawrence da Arábia",
+          "relevant_id": 947,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-079",
+          "source": "v2",
+          "title": "A Noviça Rebelde",
+          "relevant_id": 15121,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-080",
+          "source": "v2",
+          "title": "Encurralado",
+          "relevant_id": 839,
+          "rank": 337,
+          "rr": 0.003
+        },
+        {
+          "qid": "v2-082",
+          "source": "v2",
+          "title": "A Fantástica Fábrica de Chocolate",
+          "relevant_id": 252,
+          "rank": 93,
+          "rr": 0.0108
+        },
+        {
+          "qid": "v2-083",
+          "source": "v2",
+          "title": "Harry Potter e a Pedra Filosofal",
+          "relevant_id": 671,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-086",
+          "source": "v2",
+          "title": "Ratatouille",
+          "relevant_id": 2062,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-088",
+          "source": "v2",
+          "title": "Assassinos por Natureza",
+          "relevant_id": 241,
+          "rank": 7,
+          "rr": 0.1429
+        }
+      ]
+    },
+    "fusion": {
+      "metrics": {
+        "n": 95,
+        "found": 95,
+        "mrr": 0.7878,
+        "median_rank": 1,
+        "mean_rank": 3.8,
+        "recall@1": 0.6947,
+        "recall@3": 0.8526,
+        "recall@5": 0.8947,
+        "recall@10": 0.9368,
+        "recall@20": 0.9579,
+        "recall@50": 0.9895,
+        "precision@1": 0.6947,
+        "precision@5": 0.1789,
+        "precision@10": 0.0937,
+        "ndcg@10": 0.8225,
+        "hits@1": 66,
+        "hits@3": 81,
+        "hits@10": 89
+      },
+      "latency_ms": {
+        "mean_ms": 12.9,
+        "p50_ms": 12.1,
+        "p90_ms": 16.9,
+        "max_ms": 31.1
+      },
+      "per_query": [
+        {
+          "qid": "v1-core-00",
+          "source": "v1-core",
+          "title": "Amnésia",
+          "relevant_id": 77,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-01",
+          "source": "v1-core",
+          "title": "Parasita",
+          "relevant_id": 496243,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-02",
+          "source": "v1-core",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-03",
+          "source": "v1-core",
+          "title": "Tubarão",
+          "relevant_id": 578,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-core-04",
+          "source": "v1-core",
+          "title": "Whiplash: Em Busca da Perfeição",
+          "relevant_id": 244786,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-06",
+          "source": "v1-core",
+          "title": "Seven - Os Sete Crimes Capitais",
+          "relevant_id": 807,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-07",
+          "source": "v1-core",
+          "title": "Ex_Machina: Instinto Artificial",
+          "relevant_id": 264660,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-08",
+          "source": "v1-core",
+          "title": "Um Homem com uma Câmera",
+          "relevant_id": 26317,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-09",
+          "source": "v1-core",
+          "title": "O Show de Truman: O Show da Vida",
+          "relevant_id": 37165,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-10",
+          "source": "v1-core",
+          "title": "Brilho Eterno de uma Mente sem Lembranças",
+          "relevant_id": 38,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-11",
+          "source": "v1-core",
+          "title": "Feitiço do Tempo",
+          "relevant_id": 137,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-13",
+          "source": "v1-ext",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-15",
+          "source": "v1-ext",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-16",
+          "source": "v1-ext",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-17",
+          "source": "v1-ext",
+          "title": "Toy Story: Um Mundo de Aventuras",
+          "relevant_id": 862,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-19",
+          "source": "v1-ext",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v1-ext-21",
+          "source": "v1-ext",
+          "title": "Jurassic Park: O Parque dos Dinossauros",
+          "relevant_id": 329,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-22",
+          "source": "v1-ext",
+          "title": "O Exterminador do Futuro",
+          "relevant_id": 218,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-24",
+          "source": "v1-ext",
+          "title": "Interestelar",
+          "relevant_id": 157336,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v1-ext-25",
+          "source": "v1-ext",
+          "title": "Coringa",
+          "relevant_id": 475557,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-27",
+          "source": "v1-ext",
+          "title": "Django Livre",
+          "relevant_id": 68718,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-30",
+          "source": "v1-ext",
+          "title": "WALL-E",
+          "relevant_id": 10681,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-31",
+          "source": "v1-ext",
+          "title": "Os Infiltrados",
+          "relevant_id": 1422,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-33",
+          "source": "v1-ext",
+          "title": "Psicose",
+          "relevant_id": 539,
+          "rank": 14,
+          "rr": 0.0714
+        },
+        {
+          "qid": "v1-ext-34",
+          "source": "v1-ext",
+          "title": "Laranja Mecânica",
+          "relevant_id": 185,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-37",
+          "source": "v1-ext",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-38",
+          "source": "v1-ext",
+          "title": "O Rei Leão",
+          "relevant_id": 8587,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-39",
+          "source": "v1-ext",
+          "title": "Taxi Driver: Motorista de Táxi",
+          "relevant_id": 103,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-41",
+          "source": "v1-ext",
+          "title": "Corra!",
+          "relevant_id": 419430,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-42",
+          "source": "v1-ext",
+          "title": "Ilha do Medo",
+          "relevant_id": 11324,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-44",
+          "source": "v1-ext",
+          "title": "Mad Max: Estrada da Fúria",
+          "relevant_id": 76341,
+          "rank": 46,
+          "rr": 0.0217
+        },
+        {
+          "qid": "v1-ext-46",
+          "source": "v1-ext",
+          "title": "2001: Uma Odisséia no Espaço",
+          "relevant_id": 62,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v1-ext-47",
+          "source": "v1-ext",
+          "title": "Cisne Negro",
+          "relevant_id": 44214,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-48",
+          "source": "v1-ext",
+          "title": "O Sexto Sentido",
+          "relevant_id": 745,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-50",
+          "source": "v1-ext",
+          "title": "Um Sonho de Liberdade",
+          "relevant_id": 278,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-000",
+          "source": "v2",
+          "title": "Pulp Fiction: Tempo de Violência",
+          "relevant_id": 680,
+          "rank": 66,
+          "rr": 0.0152
+        },
+        {
+          "qid": "v2-001",
+          "source": "v2",
+          "title": "O Grande Lebowski",
+          "relevant_id": 115,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-002",
+          "source": "v2",
+          "title": "Cães de Aluguel",
+          "relevant_id": 500,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-006",
+          "source": "v2",
+          "title": "Chinatown",
+          "relevant_id": 829,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-007",
+          "source": "v2",
+          "title": "Apocalypse Now",
+          "relevant_id": 28,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-009",
+          "source": "v2",
+          "title": "Um Corpo Que Cai",
+          "relevant_id": 426,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-011",
+          "source": "v2",
+          "title": "E.T.: O Extraterrestre",
+          "relevant_id": 601,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-012",
+          "source": "v2",
+          "title": "Os Caça-Fantasmas",
+          "relevant_id": 620,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-013",
+          "source": "v2",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-014",
+          "source": "v2",
+          "title": "O Bebê de Rosemary",
+          "relevant_id": 805,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-015",
+          "source": "v2",
+          "title": "Coração Valente",
+          "relevant_id": 197,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-016",
+          "source": "v2",
+          "title": "O Pianista",
+          "relevant_id": 423,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-017",
+          "source": "v2",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-020",
+          "source": "v2",
+          "title": "Réquiem para um Sonho",
+          "relevant_id": 641,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v2-023",
+          "source": "v2",
+          "title": "Meia Noite em Paris",
+          "relevant_id": 59436,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-024",
+          "source": "v2",
+          "title": "Nasce uma Estrela",
+          "relevant_id": 332562,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-027",
+          "source": "v2",
+          "title": "Menina de Ouro",
+          "relevant_id": 70,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-029",
+          "source": "v2",
+          "title": "Scarface",
+          "relevant_id": 111,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-030",
+          "source": "v2",
+          "title": "Era Uma Vez na América",
+          "relevant_id": 311,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-031",
+          "source": "v2",
+          "title": "Platoon",
+          "relevant_id": 792,
+          "rank": 17,
+          "rr": 0.0588
+        },
+        {
+          "qid": "v2-032",
+          "source": "v2",
+          "title": "Nascido Para Matar",
+          "relevant_id": 600,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-033",
+          "source": "v2",
+          "title": "Dunkirk",
+          "relevant_id": 374720,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-034",
+          "source": "v2",
+          "title": "1917",
+          "relevant_id": 530915,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-037",
+          "source": "v2",
+          "title": "Perdido em Marte",
+          "relevant_id": 286217,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-038",
+          "source": "v2",
+          "title": "Contato",
+          "relevant_id": 686,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-040",
+          "source": "v2",
+          "title": "A.I.: Inteligência Artificial",
+          "relevant_id": 644,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-042",
+          "source": "v2",
+          "title": "O Vingador do Futuro",
+          "relevant_id": 861,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-043",
+          "source": "v2",
+          "title": "RoboCop - O Policial do Futuro",
+          "relevant_id": 5548,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-044",
+          "source": "v2",
+          "title": "Duro de Matar",
+          "relevant_id": 562,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-045",
+          "source": "v2",
+          "title": "Velocidade Máxima",
+          "relevant_id": 1637,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-046",
+          "source": "v2",
+          "title": "O Massacre da Serra Elétrica",
+          "relevant_id": 30497,
+          "rank": 9,
+          "rr": 0.1111
+        },
+        {
+          "qid": "v2-047",
+          "source": "v2",
+          "title": "Halloween - A Noite do Terror",
+          "relevant_id": 948,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v2-049",
+          "source": "v2",
+          "title": "It: A Coisa",
+          "relevant_id": 346364,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-051",
+          "source": "v2",
+          "title": "Hereditário",
+          "relevant_id": 493922,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-052",
+          "source": "v2",
+          "title": "Nós",
+          "relevant_id": 458723,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-054",
+          "source": "v2",
+          "title": "O Predador",
+          "relevant_id": 106,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-055",
+          "source": "v2",
+          "title": "Tropa de Elite",
+          "relevant_id": 7347,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-056",
+          "source": "v2",
+          "title": "Central do Brasil",
+          "relevant_id": 666,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-057",
+          "source": "v2",
+          "title": "O Auto da Compadecida",
+          "relevant_id": 40096,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-058",
+          "source": "v2",
+          "title": "Bacurau",
+          "relevant_id": 446159,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-059",
+          "source": "v2",
+          "title": "Que Horas Ela Volta?",
+          "relevant_id": 310569,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-061",
+          "source": "v2",
+          "title": "Blade Runner 2049",
+          "relevant_id": 335984,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-062",
+          "source": "v2",
+          "title": "Ela",
+          "relevant_id": 152601,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-063",
+          "source": "v2",
+          "title": "Donnie Darko",
+          "relevant_id": 141,
+          "rank": 41,
+          "rr": 0.0244
+        },
+        {
+          "qid": "v2-065",
+          "source": "v2",
+          "title": "Birdman ou (A Inesperada Virtude da Ignorância)",
+          "relevant_id": 194662,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-067",
+          "source": "v2",
+          "title": "Cassino",
+          "relevant_id": 524,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-068",
+          "source": "v2",
+          "title": "Thelma & Louise",
+          "relevant_id": 1541,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-069",
+          "source": "v2",
+          "title": "Três Homens em Conflito",
+          "relevant_id": 429,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-071",
+          "source": "v2",
+          "title": "Fargo: Uma Comédia de Erros",
+          "relevant_id": 275,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-072",
+          "source": "v2",
+          "title": "Prenda-Me se For Capaz",
+          "relevant_id": 640,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-074",
+          "source": "v2",
+          "title": "O Homem Que Mudou o Jogo",
+          "relevant_id": 60308,
+          "rank": 27,
+          "rr": 0.037
+        },
+        {
+          "qid": "v2-076",
+          "source": "v2",
+          "title": "12 Homens e uma Sentença",
+          "relevant_id": 389,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-077",
+          "source": "v2",
+          "title": "Papillon",
+          "relevant_id": 5924,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-078",
+          "source": "v2",
+          "title": "Lawrence da Arábia",
+          "relevant_id": 947,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-079",
+          "source": "v2",
+          "title": "A Noviça Rebelde",
+          "relevant_id": 15121,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-080",
+          "source": "v2",
+          "title": "Encurralado",
+          "relevant_id": 839,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-082",
+          "source": "v2",
+          "title": "A Fantástica Fábrica de Chocolate",
+          "relevant_id": 252,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-083",
+          "source": "v2",
+          "title": "Harry Potter e a Pedra Filosofal",
+          "relevant_id": 671,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-086",
+          "source": "v2",
+          "title": "Ratatouille",
+          "relevant_id": 2062,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-088",
+          "source": "v2",
+          "title": "Assassinos por Natureza",
+          "relevant_id": 241,
+          "rank": 2,
+          "rr": 0.5
+        }
+      ]
+    },
+    "fusion_rerank": {
+      "metrics": {
+        "n": 95,
+        "found": 95,
+        "mrr": 0.7813,
+        "median_rank": 1,
+        "mean_rank": 3.5,
+        "recall@1": 0.6947,
+        "recall@3": 0.8421,
+        "recall@5": 0.8842,
+        "recall@10": 0.9263,
+        "recall@20": 0.9474,
+        "recall@50": 0.9895,
+        "precision@1": 0.6947,
+        "precision@5": 0.1768,
+        "precision@10": 0.0926,
+        "ndcg@10": 0.8141,
+        "hits@1": 66,
+        "hits@3": 80,
+        "hits@10": 88
+      },
+      "latency_ms": {
+        "mean_ms": 657.6,
+        "p50_ms": 617.1,
+        "p90_ms": 795.7,
+        "max_ms": 3155.5
+      },
+      "per_query": [
+        {
+          "qid": "v1-core-00",
+          "source": "v1-core",
+          "title": "Amnésia",
+          "relevant_id": 77,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-01",
+          "source": "v1-core",
+          "title": "Parasita",
+          "relevant_id": 496243,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-02",
+          "source": "v1-core",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-core-03",
+          "source": "v1-core",
+          "title": "Tubarão",
+          "relevant_id": 578,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-04",
+          "source": "v1-core",
+          "title": "Whiplash: Em Busca da Perfeição",
+          "relevant_id": 244786,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-06",
+          "source": "v1-core",
+          "title": "Seven - Os Sete Crimes Capitais",
+          "relevant_id": 807,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-07",
+          "source": "v1-core",
+          "title": "Ex_Machina: Instinto Artificial",
+          "relevant_id": 264660,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-08",
+          "source": "v1-core",
+          "title": "Um Homem com uma Câmera",
+          "relevant_id": 26317,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-09",
+          "source": "v1-core",
+          "title": "O Show de Truman: O Show da Vida",
+          "relevant_id": 37165,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-10",
+          "source": "v1-core",
+          "title": "Brilho Eterno de uma Mente sem Lembranças",
+          "relevant_id": 38,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-core-11",
+          "source": "v1-core",
+          "title": "Feitiço do Tempo",
+          "relevant_id": 137,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-13",
+          "source": "v1-ext",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-15",
+          "source": "v1-ext",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-16",
+          "source": "v1-ext",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-17",
+          "source": "v1-ext",
+          "title": "Toy Story: Um Mundo de Aventuras",
+          "relevant_id": 862,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-19",
+          "source": "v1-ext",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v1-ext-21",
+          "source": "v1-ext",
+          "title": "Jurassic Park: O Parque dos Dinossauros",
+          "relevant_id": 329,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-22",
+          "source": "v1-ext",
+          "title": "O Exterminador do Futuro",
+          "relevant_id": 218,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-24",
+          "source": "v1-ext",
+          "title": "Interestelar",
+          "relevant_id": 157336,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v1-ext-25",
+          "source": "v1-ext",
+          "title": "Coringa",
+          "relevant_id": 475557,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-27",
+          "source": "v1-ext",
+          "title": "Django Livre",
+          "relevant_id": 68718,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-30",
+          "source": "v1-ext",
+          "title": "WALL-E",
+          "relevant_id": 10681,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-31",
+          "source": "v1-ext",
+          "title": "Os Infiltrados",
+          "relevant_id": 1422,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-33",
+          "source": "v1-ext",
+          "title": "Psicose",
+          "relevant_id": 539,
+          "rank": 13,
+          "rr": 0.0769
+        },
+        {
+          "qid": "v1-ext-34",
+          "source": "v1-ext",
+          "title": "Laranja Mecânica",
+          "relevant_id": 185,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-37",
+          "source": "v1-ext",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-38",
+          "source": "v1-ext",
+          "title": "O Rei Leão",
+          "relevant_id": 8587,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-39",
+          "source": "v1-ext",
+          "title": "Taxi Driver: Motorista de Táxi",
+          "relevant_id": 103,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-41",
+          "source": "v1-ext",
+          "title": "Corra!",
+          "relevant_id": 419430,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-42",
+          "source": "v1-ext",
+          "title": "Ilha do Medo",
+          "relevant_id": 11324,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-44",
+          "source": "v1-ext",
+          "title": "Mad Max: Estrada da Fúria",
+          "relevant_id": 76341,
+          "rank": 22,
+          "rr": 0.0455
+        },
+        {
+          "qid": "v1-ext-46",
+          "source": "v1-ext",
+          "title": "2001: Uma Odisséia no Espaço",
+          "relevant_id": 62,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v1-ext-47",
+          "source": "v1-ext",
+          "title": "Cisne Negro",
+          "relevant_id": 44214,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-48",
+          "source": "v1-ext",
+          "title": "O Sexto Sentido",
+          "relevant_id": 745,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-50",
+          "source": "v1-ext",
+          "title": "Um Sonho de Liberdade",
+          "relevant_id": 278,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-000",
+          "source": "v2",
+          "title": "Pulp Fiction: Tempo de Violência",
+          "relevant_id": 680,
+          "rank": 66,
+          "rr": 0.0152
+        },
+        {
+          "qid": "v2-001",
+          "source": "v2",
+          "title": "O Grande Lebowski",
+          "relevant_id": 115,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-002",
+          "source": "v2",
+          "title": "Cães de Aluguel",
+          "relevant_id": 500,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-006",
+          "source": "v2",
+          "title": "Chinatown",
+          "relevant_id": 829,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-007",
+          "source": "v2",
+          "title": "Apocalypse Now",
+          "relevant_id": 28,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-009",
+          "source": "v2",
+          "title": "Um Corpo Que Cai",
+          "relevant_id": 426,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-011",
+          "source": "v2",
+          "title": "E.T.: O Extraterrestre",
+          "relevant_id": 601,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-012",
+          "source": "v2",
+          "title": "Os Caça-Fantasmas",
+          "relevant_id": 620,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-013",
+          "source": "v2",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-014",
+          "source": "v2",
+          "title": "O Bebê de Rosemary",
+          "relevant_id": 805,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-015",
+          "source": "v2",
+          "title": "Coração Valente",
+          "relevant_id": 197,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-016",
+          "source": "v2",
+          "title": "O Pianista",
+          "relevant_id": 423,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-017",
+          "source": "v2",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-020",
+          "source": "v2",
+          "title": "Réquiem para um Sonho",
+          "relevant_id": 641,
+          "rank": 20,
+          "rr": 0.05
+        },
+        {
+          "qid": "v2-023",
+          "source": "v2",
+          "title": "Meia Noite em Paris",
+          "relevant_id": 59436,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-024",
+          "source": "v2",
+          "title": "Nasce uma Estrela",
+          "relevant_id": 332562,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-027",
+          "source": "v2",
+          "title": "Menina de Ouro",
+          "relevant_id": 70,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-029",
+          "source": "v2",
+          "title": "Scarface",
+          "relevant_id": 111,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-030",
+          "source": "v2",
+          "title": "Era Uma Vez na América",
+          "relevant_id": 311,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-031",
+          "source": "v2",
+          "title": "Platoon",
+          "relevant_id": 792,
+          "rank": 22,
+          "rr": 0.0455
+        },
+        {
+          "qid": "v2-032",
+          "source": "v2",
+          "title": "Nascido Para Matar",
+          "relevant_id": 600,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-033",
+          "source": "v2",
+          "title": "Dunkirk",
+          "relevant_id": 374720,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v2-034",
+          "source": "v2",
+          "title": "1917",
+          "relevant_id": 530915,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-037",
+          "source": "v2",
+          "title": "Perdido em Marte",
+          "relevant_id": 286217,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-038",
+          "source": "v2",
+          "title": "Contato",
+          "relevant_id": 686,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-040",
+          "source": "v2",
+          "title": "A.I.: Inteligência Artificial",
+          "relevant_id": 644,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-042",
+          "source": "v2",
+          "title": "O Vingador do Futuro",
+          "relevant_id": 861,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-043",
+          "source": "v2",
+          "title": "RoboCop - O Policial do Futuro",
+          "relevant_id": 5548,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-044",
+          "source": "v2",
+          "title": "Duro de Matar",
+          "relevant_id": 562,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-045",
+          "source": "v2",
+          "title": "Velocidade Máxima",
+          "relevant_id": 1637,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-046",
+          "source": "v2",
+          "title": "O Massacre da Serra Elétrica",
+          "relevant_id": 30497,
+          "rank": 22,
+          "rr": 0.0455
+        },
+        {
+          "qid": "v2-047",
+          "source": "v2",
+          "title": "Halloween - A Noite do Terror",
+          "relevant_id": 948,
+          "rank": 9,
+          "rr": 0.1111
+        },
+        {
+          "qid": "v2-049",
+          "source": "v2",
+          "title": "It: A Coisa",
+          "relevant_id": 346364,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-051",
+          "source": "v2",
+          "title": "Hereditário",
+          "relevant_id": 493922,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-052",
+          "source": "v2",
+          "title": "Nós",
+          "relevant_id": 458723,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-054",
+          "source": "v2",
+          "title": "O Predador",
+          "relevant_id": 106,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v2-055",
+          "source": "v2",
+          "title": "Tropa de Elite",
+          "relevant_id": 7347,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-056",
+          "source": "v2",
+          "title": "Central do Brasil",
+          "relevant_id": 666,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-057",
+          "source": "v2",
+          "title": "O Auto da Compadecida",
+          "relevant_id": 40096,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-058",
+          "source": "v2",
+          "title": "Bacurau",
+          "relevant_id": 446159,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-059",
+          "source": "v2",
+          "title": "Que Horas Ela Volta?",
+          "relevant_id": 310569,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-061",
+          "source": "v2",
+          "title": "Blade Runner 2049",
+          "relevant_id": 335984,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-062",
+          "source": "v2",
+          "title": "Ela",
+          "relevant_id": 152601,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-063",
+          "source": "v2",
+          "title": "Donnie Darko",
+          "relevant_id": 141,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v2-065",
+          "source": "v2",
+          "title": "Birdman ou (A Inesperada Virtude da Ignorância)",
+          "relevant_id": 194662,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-067",
+          "source": "v2",
+          "title": "Cassino",
+          "relevant_id": 524,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-068",
+          "source": "v2",
+          "title": "Thelma & Louise",
+          "relevant_id": 1541,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-069",
+          "source": "v2",
+          "title": "Três Homens em Conflito",
+          "relevant_id": 429,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-071",
+          "source": "v2",
+          "title": "Fargo: Uma Comédia de Erros",
+          "relevant_id": 275,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-072",
+          "source": "v2",
+          "title": "Prenda-Me se For Capaz",
+          "relevant_id": 640,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-074",
+          "source": "v2",
+          "title": "O Homem Que Mudou o Jogo",
+          "relevant_id": 60308,
+          "rank": 22,
+          "rr": 0.0455
+        },
+        {
+          "qid": "v2-076",
+          "source": "v2",
+          "title": "12 Homens e uma Sentença",
+          "relevant_id": 389,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-077",
+          "source": "v2",
+          "title": "Papillon",
+          "relevant_id": 5924,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-078",
+          "source": "v2",
+          "title": "Lawrence da Arábia",
+          "relevant_id": 947,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-079",
+          "source": "v2",
+          "title": "A Noviça Rebelde",
+          "relevant_id": 15121,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-080",
+          "source": "v2",
+          "title": "Encurralado",
+          "relevant_id": 839,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-082",
+          "source": "v2",
+          "title": "A Fantástica Fábrica de Chocolate",
+          "relevant_id": 252,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-083",
+          "source": "v2",
+          "title": "Harry Potter e a Pedra Filosofal",
+          "relevant_id": 671,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-086",
+          "source": "v2",
+          "title": "Ratatouille",
+          "relevant_id": 2062,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-088",
+          "source": "v2",
+          "title": "Assassinos por Natureza",
+          "relevant_id": 241,
+          "rank": 2,
+          "rr": 0.5
+        }
+      ]
+    }
+  }
+}

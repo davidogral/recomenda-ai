@@ -1,0 +1,2088 @@
+{
+  "run": {
+    "timestamp_utc": "2026-08-31T17:39:38Z",
+    "git_commit": "7d96851",
+    "split": "test",
+    "n_queries": 47,
+    "dataset_file": "eval/datasets/queries.jsonl",
+    "dataset_sha1": "88fd89edcf3906102a1aee31df725c41fffd1291",
+    "split_counts": {
+      "total": 142,
+      "dev": 95,
+      "test": 47,
+      "by_source": {
+        "v1-core": {
+          "dev": 11,
+          "test": 1
+        },
+        "v1-ext": {
+          "dev": 24,
+          "test": 16
+        },
+        "v2": {
+          "dev": 60,
+          "test": 30
+        }
+      }
+    },
+    "engine": {
+      "n_movies": 22029,
+      "embed_model": "intfloat/multilingual-e5-large",
+      "embed_dim": 1024,
+      "lexical": "bm25"
+    },
+    "config": {
+      "embed_weight": 0.6,
+      "keyword_weight": 0.5,
+      "lexical_weight": "adaptativo (0.20–0.30)",
+      "pop_prior": 0.35,
+      "rerank_pool": 50,
+      "rerank_blend": 0.5,
+      "intent_thresholds": [
+        0.92,
+        0.85
+      ],
+      "tmdb_name_fallback": false,
+      "query_slm": false
+    },
+    "pipelines": [
+      "bm25",
+      "embedding",
+      "thematic",
+      "fusion",
+      "fusion_rerank"
+    ]
+  },
+  "results": {
+    "bm25": {
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.3161,
+        "median_rank": 7,
+        "mean_rank": 615.5,
+        "recall@1": 0.2128,
+        "recall@3": 0.3404,
+        "recall@5": 0.4255,
+        "recall@10": 0.5319,
+        "recall@20": 0.6383,
+        "recall@50": 0.6596,
+        "precision@1": 0.2128,
+        "precision@5": 0.0851,
+        "precision@10": 0.0532,
+        "ndcg@10": 0.3604,
+        "hits@1": 10,
+        "hits@3": 16,
+        "hits@10": 25
+      },
+      "latency_ms": {
+        "mean_ms": 4.2,
+        "p50_ms": 4.0,
+        "p90_ms": 4.7,
+        "max_ms": 7.2
+      },
+      "per_query": [
+        {
+          "qid": "v1-core-05",
+          "source": "v1-core",
+          "title": "O Grande Truque",
+          "relevant_id": 1124,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v1-ext-12",
+          "source": "v1-ext",
+          "title": "Matrix",
+          "relevant_id": 603,
+          "rank": 152,
+          "rr": 0.0066
+        },
+        {
+          "qid": "v1-ext-14",
+          "source": "v1-ext",
+          "title": "Cidade de Deus",
+          "relevant_id": 598,
+          "rank": 8139,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v1-ext-18",
+          "source": "v1-ext",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-20",
+          "source": "v1-ext",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-23",
+          "source": "v1-ext",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-26",
+          "source": "v1-ext",
+          "title": "Bastardos Inglórios",
+          "relevant_id": 16869,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-28",
+          "source": "v1-ext",
+          "title": "O Resgate do Soldado Ryan",
+          "relevant_id": 857,
+          "rank": 227,
+          "rr": 0.0044
+        },
+        {
+          "qid": "v1-ext-29",
+          "source": "v1-ext",
+          "title": "Procurando Nemo",
+          "relevant_id": 12,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-32",
+          "source": "v1-ext",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 798,
+          "rr": 0.0013
+        },
+        {
+          "qid": "v1-ext-35",
+          "source": "v1-ext",
+          "title": "O Fabuloso Destino de Amélie Poulain",
+          "relevant_id": 194,
+          "rank": 19,
+          "rr": 0.0526
+        },
+        {
+          "qid": "v1-ext-36",
+          "source": "v1-ext",
+          "title": "Cidadão Kane",
+          "relevant_id": 15,
+          "rank": 226,
+          "rr": 0.0044
+        },
+        {
+          "qid": "v1-ext-40",
+          "source": "v1-ext",
+          "title": "Os Bons Companheiros",
+          "relevant_id": 769,
+          "rank": 7244,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v1-ext-43",
+          "source": "v1-ext",
+          "title": "A Lista de Schindler",
+          "relevant_id": 424,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-45",
+          "source": "v1-ext",
+          "title": "Up: Altas Aventuras",
+          "relevant_id": 14160,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-49",
+          "source": "v1-ext",
+          "title": "Rocky: Um Lutador",
+          "relevant_id": 1366,
+          "rank": 29,
+          "rr": 0.0345
+        },
+        {
+          "qid": "v1-ext-51",
+          "source": "v1-ext",
+          "title": "Indiana Jones e os Caçadores da Arca Perdida",
+          "relevant_id": 85,
+          "rank": 121,
+          "rr": 0.0083
+        },
+        {
+          "qid": "v2-003",
+          "source": "v2",
+          "title": "Kill Bill: Volume 1",
+          "relevant_id": 24,
+          "rank": 13,
+          "rr": 0.0769
+        },
+        {
+          "qid": "v2-004",
+          "source": "v2",
+          "title": "À Espera de um Milagre",
+          "relevant_id": 497,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-005",
+          "source": "v2",
+          "title": "Um Estranho no Ninho",
+          "relevant_id": 510,
+          "rank": 13,
+          "rr": 0.0769
+        },
+        {
+          "qid": "v2-008",
+          "source": "v2",
+          "title": "La La Land: Cantando Estações",
+          "relevant_id": 313369,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-010",
+          "source": "v2",
+          "title": "Cantando na Chuva",
+          "relevant_id": 872,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-018",
+          "source": "v2",
+          "title": "Batman: O Cavaleiro das Trevas",
+          "relevant_id": 155,
+          "rank": 8428,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v2-019",
+          "source": "v2",
+          "title": "Os Suspeitos",
+          "relevant_id": 629,
+          "rank": 716,
+          "rr": 0.0014
+        },
+        {
+          "qid": "v2-021",
+          "source": "v2",
+          "title": "Trainspotting: Sem Limites",
+          "relevant_id": 627,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-022",
+          "source": "v2",
+          "title": "Beleza Americana",
+          "relevant_id": 14,
+          "rank": 580,
+          "rr": 0.0017
+        },
+        {
+          "qid": "v2-025",
+          "source": "v2",
+          "title": "O Lobo de Wall Street",
+          "relevant_id": 106646,
+          "rank": 11,
+          "rr": 0.0909
+        },
+        {
+          "qid": "v2-026",
+          "source": "v2",
+          "title": "A Rede Social",
+          "relevant_id": 37799,
+          "rank": 350,
+          "rr": 0.0029
+        },
+        {
+          "qid": "v2-028",
+          "source": "v2",
+          "title": "Touro Indomável",
+          "relevant_id": 1578,
+          "rank": 470,
+          "rr": 0.0021
+        },
+        {
+          "qid": "v2-035",
+          "source": "v2",
+          "title": "A Chegada",
+          "relevant_id": 329865,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v2-036",
+          "source": "v2",
+          "title": "Gravidade",
+          "relevant_id": 49047,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-039",
+          "source": "v2",
+          "title": "Distrito 9",
+          "relevant_id": 17654,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-041",
+          "source": "v2",
+          "title": "Minority Report: A Nova Lei",
+          "relevant_id": 180,
+          "rank": 19,
+          "rr": 0.0526
+        },
+        {
+          "qid": "v2-048",
+          "source": "v2",
+          "title": "A Hora do Pesadelo",
+          "relevant_id": 377,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-050",
+          "source": "v2",
+          "title": "O Exorcista",
+          "relevant_id": 9552,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v2-053",
+          "source": "v2",
+          "title": "O Enigma de Outro Mundo",
+          "relevant_id": 1091,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-060",
+          "source": "v2",
+          "title": "Carandiru",
+          "relevant_id": 8440,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-064",
+          "source": "v2",
+          "title": "Corpo Fechado",
+          "relevant_id": 9741,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-066",
+          "source": "v2",
+          "title": "O Grande Hotel Budapeste",
+          "relevant_id": 120467,
+          "rank": 92,
+          "rr": 0.0109
+        },
+        {
+          "qid": "v2-070",
+          "source": "v2",
+          "title": "Onde os Fracos Não Têm Vez",
+          "relevant_id": 6977,
+          "rank": 902,
+          "rr": 0.0011
+        },
+        {
+          "qid": "v2-073",
+          "source": "v2",
+          "title": "Ender's Game: O Jogo do Exterminador",
+          "relevant_id": 80274,
+          "rank": 90,
+          "rr": 0.0111
+        },
+        {
+          "qid": "v2-075",
+          "source": "v2",
+          "title": "O Sol é Para Todos",
+          "relevant_id": 595,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-081",
+          "source": "v2",
+          "title": "007 Contra Goldfinger",
+          "relevant_id": 658,
+          "rank": 216,
+          "rr": 0.0046
+        },
+        {
+          "qid": "v2-084",
+          "source": "v2",
+          "title": "A Bela e a Fera",
+          "relevant_id": 10020,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-085",
+          "source": "v2",
+          "title": "Alice no País das Maravilhas",
+          "relevant_id": 12092,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-087",
+          "source": "v2",
+          "title": "Os Incríveis",
+          "relevant_id": 9806,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-089",
+          "source": "v2",
+          "title": "Boyhood: Da Infância à Juventude",
+          "relevant_id": 85350,
+          "rank": 4,
+          "rr": 0.25
+        }
+      ]
+    },
+    "embedding": {
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.2595,
+        "median_rank": 25,
+        "mean_rank": 310.8,
+        "recall@1": 0.1915,
+        "recall@3": 0.2553,
+        "recall@5": 0.3617,
+        "recall@10": 0.4468,
+        "recall@20": 0.4681,
+        "recall@50": 0.5319,
+        "precision@1": 0.1915,
+        "precision@5": 0.0723,
+        "precision@10": 0.0447,
+        "ndcg@10": 0.2986,
+        "hits@1": 9,
+        "hits@3": 12,
+        "hits@10": 21
+      },
+      "latency_ms": {
+        "mean_ms": 7.6,
+        "p50_ms": 7.3,
+        "p90_ms": 9.4,
+        "max_ms": 10.7
+      },
+      "per_query": [
+        {
+          "qid": "v1-core-05",
+          "source": "v1-core",
+          "title": "O Grande Truque",
+          "relevant_id": 1124,
+          "rank": 25,
+          "rr": 0.04
+        },
+        {
+          "qid": "v1-ext-12",
+          "source": "v1-ext",
+          "title": "Matrix",
+          "relevant_id": 603,
+          "rank": 936,
+          "rr": 0.0011
+        },
+        {
+          "qid": "v1-ext-14",
+          "source": "v1-ext",
+          "title": "Cidade de Deus",
+          "relevant_id": 598,
+          "rank": 544,
+          "rr": 0.0018
+        },
+        {
+          "qid": "v1-ext-18",
+          "source": "v1-ext",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 86,
+          "rr": 0.0116
+        },
+        {
+          "qid": "v1-ext-20",
+          "source": "v1-ext",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-23",
+          "source": "v1-ext",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v1-ext-26",
+          "source": "v1-ext",
+          "title": "Bastardos Inglórios",
+          "relevant_id": 16869,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v1-ext-28",
+          "source": "v1-ext",
+          "title": "O Resgate do Soldado Ryan",
+          "relevant_id": 857,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v1-ext-29",
+          "source": "v1-ext",
+          "title": "Procurando Nemo",
+          "relevant_id": 12,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-32",
+          "source": "v1-ext",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 13,
+          "rr": 0.0769
+        },
+        {
+          "qid": "v1-ext-35",
+          "source": "v1-ext",
+          "title": "O Fabuloso Destino de Amélie Poulain",
+          "relevant_id": 194,
+          "rank": 446,
+          "rr": 0.0022
+        },
+        {
+          "qid": "v1-ext-36",
+          "source": "v1-ext",
+          "title": "Cidadão Kane",
+          "relevant_id": 15,
+          "rank": 82,
+          "rr": 0.0122
+        },
+        {
+          "qid": "v1-ext-40",
+          "source": "v1-ext",
+          "title": "Os Bons Companheiros",
+          "relevant_id": 769,
+          "rank": 90,
+          "rr": 0.0111
+        },
+        {
+          "qid": "v1-ext-43",
+          "source": "v1-ext",
+          "title": "A Lista de Schindler",
+          "relevant_id": 424,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-45",
+          "source": "v1-ext",
+          "title": "Up: Altas Aventuras",
+          "relevant_id": 14160,
+          "rank": 1043,
+          "rr": 0.001
+        },
+        {
+          "qid": "v1-ext-49",
+          "source": "v1-ext",
+          "title": "Rocky: Um Lutador",
+          "relevant_id": 1366,
+          "rank": 37,
+          "rr": 0.027
+        },
+        {
+          "qid": "v1-ext-51",
+          "source": "v1-ext",
+          "title": "Indiana Jones e os Caçadores da Arca Perdida",
+          "relevant_id": 85,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-003",
+          "source": "v2",
+          "title": "Kill Bill: Volume 1",
+          "relevant_id": 24,
+          "rank": 1049,
+          "rr": 0.001
+        },
+        {
+          "qid": "v2-004",
+          "source": "v2",
+          "title": "À Espera de um Milagre",
+          "relevant_id": 497,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-005",
+          "source": "v2",
+          "title": "Um Estranho no Ninho",
+          "relevant_id": 510,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v2-008",
+          "source": "v2",
+          "title": "La La Land: Cantando Estações",
+          "relevant_id": 313369,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-010",
+          "source": "v2",
+          "title": "Cantando na Chuva",
+          "relevant_id": 872,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-018",
+          "source": "v2",
+          "title": "Batman: O Cavaleiro das Trevas",
+          "relevant_id": 155,
+          "rank": 3302,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v2-019",
+          "source": "v2",
+          "title": "Os Suspeitos",
+          "relevant_id": 629,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-021",
+          "source": "v2",
+          "title": "Trainspotting: Sem Limites",
+          "relevant_id": 627,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-022",
+          "source": "v2",
+          "title": "Beleza Americana",
+          "relevant_id": 14,
+          "rank": 2782,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v2-025",
+          "source": "v2",
+          "title": "O Lobo de Wall Street",
+          "relevant_id": 106646,
+          "rank": 205,
+          "rr": 0.0049
+        },
+        {
+          "qid": "v2-026",
+          "source": "v2",
+          "title": "A Rede Social",
+          "relevant_id": 37799,
+          "rank": 1029,
+          "rr": 0.001
+        },
+        {
+          "qid": "v2-028",
+          "source": "v2",
+          "title": "Touro Indomável",
+          "relevant_id": 1578,
+          "rank": 640,
+          "rr": 0.0016
+        },
+        {
+          "qid": "v2-035",
+          "source": "v2",
+          "title": "A Chegada",
+          "relevant_id": 329865,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-036",
+          "source": "v2",
+          "title": "Gravidade",
+          "relevant_id": 49047,
+          "rank": 78,
+          "rr": 0.0128
+        },
+        {
+          "qid": "v2-039",
+          "source": "v2",
+          "title": "Distrito 9",
+          "relevant_id": 17654,
+          "rank": 458,
+          "rr": 0.0022
+        },
+        {
+          "qid": "v2-041",
+          "source": "v2",
+          "title": "Minority Report: A Nova Lei",
+          "relevant_id": 180,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v2-048",
+          "source": "v2",
+          "title": "A Hora do Pesadelo",
+          "relevant_id": 377,
+          "rank": 282,
+          "rr": 0.0035
+        },
+        {
+          "qid": "v2-050",
+          "source": "v2",
+          "title": "O Exorcista",
+          "relevant_id": 9552,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v2-053",
+          "source": "v2",
+          "title": "O Enigma de Outro Mundo",
+          "relevant_id": 1091,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-060",
+          "source": "v2",
+          "title": "Carandiru",
+          "relevant_id": 8440,
+          "rank": 153,
+          "rr": 0.0065
+        },
+        {
+          "qid": "v2-064",
+          "source": "v2",
+          "title": "Corpo Fechado",
+          "relevant_id": 9741,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v2-066",
+          "source": "v2",
+          "title": "O Grande Hotel Budapeste",
+          "relevant_id": 120467,
+          "rank": 124,
+          "rr": 0.0081
+        },
+        {
+          "qid": "v2-070",
+          "source": "v2",
+          "title": "Onde os Fracos Não Têm Vez",
+          "relevant_id": 6977,
+          "rank": 97,
+          "rr": 0.0103
+        },
+        {
+          "qid": "v2-073",
+          "source": "v2",
+          "title": "Ender's Game: O Jogo do Exterminador",
+          "relevant_id": 80274,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-075",
+          "source": "v2",
+          "title": "O Sol é Para Todos",
+          "relevant_id": 595,
+          "rank": 493,
+          "rr": 0.002
+        },
+        {
+          "qid": "v2-081",
+          "source": "v2",
+          "title": "007 Contra Goldfinger",
+          "relevant_id": 658,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-084",
+          "source": "v2",
+          "title": "A Bela e a Fera",
+          "relevant_id": 10020,
+          "rank": 21,
+          "rr": 0.0476
+        },
+        {
+          "qid": "v2-085",
+          "source": "v2",
+          "title": "Alice no País das Maravilhas",
+          "relevant_id": 12092,
+          "rank": 444,
+          "rr": 0.0023
+        },
+        {
+          "qid": "v2-087",
+          "source": "v2",
+          "title": "Os Incríveis",
+          "relevant_id": 9806,
+          "rank": 82,
+          "rr": 0.0122
+        },
+        {
+          "qid": "v2-089",
+          "source": "v2",
+          "title": "Boyhood: Da Infância à Juventude",
+          "relevant_id": 85350,
+          "rank": 1,
+          "rr": 1.0
+        }
+      ]
+    },
+    "thematic": {
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.256,
+        "median_rank": 10,
+        "mean_rank": 870.1,
+        "recall@1": 0.1702,
+        "recall@3": 0.2766,
+        "recall@5": 0.3404,
+        "recall@10": 0.5106,
+        "recall@20": 0.5319,
+        "recall@50": 0.6383,
+        "precision@1": 0.1702,
+        "precision@5": 0.0681,
+        "precision@10": 0.0511,
+        "ndcg@10": 0.3101,
+        "hits@1": 8,
+        "hits@3": 13,
+        "hits@10": 24
+      },
+      "latency_ms": {
+        "mean_ms": 9.3,
+        "p50_ms": 9.1,
+        "p90_ms": 11.6,
+        "max_ms": 14.5
+      },
+      "per_query": [
+        {
+          "qid": "v1-core-05",
+          "source": "v1-core",
+          "title": "O Grande Truque",
+          "relevant_id": 1124,
+          "rank": 241,
+          "rr": 0.0041
+        },
+        {
+          "qid": "v1-ext-12",
+          "source": "v1-ext",
+          "title": "Matrix",
+          "relevant_id": 603,
+          "rank": 693,
+          "rr": 0.0014
+        },
+        {
+          "qid": "v1-ext-14",
+          "source": "v1-ext",
+          "title": "Cidade de Deus",
+          "relevant_id": 598,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v1-ext-18",
+          "source": "v1-ext",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 2268,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v1-ext-20",
+          "source": "v1-ext",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-23",
+          "source": "v1-ext",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-26",
+          "source": "v1-ext",
+          "title": "Bastardos Inglórios",
+          "relevant_id": 16869,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v1-ext-28",
+          "source": "v1-ext",
+          "title": "O Resgate do Soldado Ryan",
+          "relevant_id": 857,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v1-ext-29",
+          "source": "v1-ext",
+          "title": "Procurando Nemo",
+          "relevant_id": 12,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-32",
+          "source": "v1-ext",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v1-ext-35",
+          "source": "v1-ext",
+          "title": "O Fabuloso Destino de Amélie Poulain",
+          "relevant_id": 194,
+          "rank": 121,
+          "rr": 0.0083
+        },
+        {
+          "qid": "v1-ext-36",
+          "source": "v1-ext",
+          "title": "Cidadão Kane",
+          "relevant_id": 15,
+          "rank": 413,
+          "rr": 0.0024
+        },
+        {
+          "qid": "v1-ext-40",
+          "source": "v1-ext",
+          "title": "Os Bons Companheiros",
+          "relevant_id": 769,
+          "rank": 5595,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v1-ext-43",
+          "source": "v1-ext",
+          "title": "A Lista de Schindler",
+          "relevant_id": 424,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v1-ext-45",
+          "source": "v1-ext",
+          "title": "Up: Altas Aventuras",
+          "relevant_id": 14160,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v1-ext-49",
+          "source": "v1-ext",
+          "title": "Rocky: Um Lutador",
+          "relevant_id": 1366,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-51",
+          "source": "v1-ext",
+          "title": "Indiana Jones e os Caçadores da Arca Perdida",
+          "relevant_id": 85,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-003",
+          "source": "v2",
+          "title": "Kill Bill: Volume 1",
+          "relevant_id": 24,
+          "rank": 7872,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v2-004",
+          "source": "v2",
+          "title": "À Espera de um Milagre",
+          "relevant_id": 497,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-005",
+          "source": "v2",
+          "title": "Um Estranho no Ninho",
+          "relevant_id": 510,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v2-008",
+          "source": "v2",
+          "title": "La La Land: Cantando Estações",
+          "relevant_id": 313369,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-010",
+          "source": "v2",
+          "title": "Cantando na Chuva",
+          "relevant_id": 872,
+          "rank": 140,
+          "rr": 0.0071
+        },
+        {
+          "qid": "v2-018",
+          "source": "v2",
+          "title": "Batman: O Cavaleiro das Trevas",
+          "relevant_id": 155,
+          "rank": 919,
+          "rr": 0.0011
+        },
+        {
+          "qid": "v2-019",
+          "source": "v2",
+          "title": "Os Suspeitos",
+          "relevant_id": 629,
+          "rank": 1055,
+          "rr": 0.0009
+        },
+        {
+          "qid": "v2-021",
+          "source": "v2",
+          "title": "Trainspotting: Sem Limites",
+          "relevant_id": 627,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v2-022",
+          "source": "v2",
+          "title": "Beleza Americana",
+          "relevant_id": 14,
+          "rank": 108,
+          "rr": 0.0093
+        },
+        {
+          "qid": "v2-025",
+          "source": "v2",
+          "title": "O Lobo de Wall Street",
+          "relevant_id": 106646,
+          "rank": 39,
+          "rr": 0.0256
+        },
+        {
+          "qid": "v2-026",
+          "source": "v2",
+          "title": "A Rede Social",
+          "relevant_id": 37799,
+          "rank": 372,
+          "rr": 0.0027
+        },
+        {
+          "qid": "v2-028",
+          "source": "v2",
+          "title": "Touro Indomável",
+          "relevant_id": 1578,
+          "rank": 32,
+          "rr": 0.0312
+        },
+        {
+          "qid": "v2-035",
+          "source": "v2",
+          "title": "A Chegada",
+          "relevant_id": 329865,
+          "rank": 24,
+          "rr": 0.0417
+        },
+        {
+          "qid": "v2-036",
+          "source": "v2",
+          "title": "Gravidade",
+          "relevant_id": 49047,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-039",
+          "source": "v2",
+          "title": "Distrito 9",
+          "relevant_id": 17654,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-041",
+          "source": "v2",
+          "title": "Minority Report: A Nova Lei",
+          "relevant_id": 180,
+          "rank": 215,
+          "rr": 0.0047
+        },
+        {
+          "qid": "v2-048",
+          "source": "v2",
+          "title": "A Hora do Pesadelo",
+          "relevant_id": 377,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-050",
+          "source": "v2",
+          "title": "O Exorcista",
+          "relevant_id": 9552,
+          "rank": 117,
+          "rr": 0.0085
+        },
+        {
+          "qid": "v2-053",
+          "source": "v2",
+          "title": "O Enigma de Outro Mundo",
+          "relevant_id": 1091,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-060",
+          "source": "v2",
+          "title": "Carandiru",
+          "relevant_id": 8440,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-064",
+          "source": "v2",
+          "title": "Corpo Fechado",
+          "relevant_id": 9741,
+          "rank": 35,
+          "rr": 0.0286
+        },
+        {
+          "qid": "v2-066",
+          "source": "v2",
+          "title": "O Grande Hotel Budapeste",
+          "relevant_id": 120467,
+          "rank": 39,
+          "rr": 0.0256
+        },
+        {
+          "qid": "v2-070",
+          "source": "v2",
+          "title": "Onde os Fracos Não Têm Vez",
+          "relevant_id": 6977,
+          "rank": 11987,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v2-073",
+          "source": "v2",
+          "title": "Ender's Game: O Jogo do Exterminador",
+          "relevant_id": 80274,
+          "rank": 119,
+          "rr": 0.0084
+        },
+        {
+          "qid": "v2-075",
+          "source": "v2",
+          "title": "O Sol é Para Todos",
+          "relevant_id": 595,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-081",
+          "source": "v2",
+          "title": "007 Contra Goldfinger",
+          "relevant_id": 658,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-084",
+          "source": "v2",
+          "title": "A Bela e a Fera",
+          "relevant_id": 10020,
+          "rank": 12,
+          "rr": 0.0833
+        },
+        {
+          "qid": "v2-085",
+          "source": "v2",
+          "title": "Alice no País das Maravilhas",
+          "relevant_id": 12092,
+          "rank": 8385,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v2-087",
+          "source": "v2",
+          "title": "Os Incríveis",
+          "relevant_id": 9806,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v2-089",
+          "source": "v2",
+          "title": "Boyhood: Da Infância à Juventude",
+          "relevant_id": 85350,
+          "rank": 7,
+          "rr": 0.1429
+        }
+      ]
+    },
+    "fusion": {
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.6861,
+        "median_rank": 1,
+        "mean_rank": 7.3,
+        "recall@1": 0.5745,
+        "recall@3": 0.7872,
+        "recall@5": 0.7872,
+        "recall@10": 0.8936,
+        "recall@20": 0.9362,
+        "recall@50": 0.9362,
+        "precision@1": 0.5745,
+        "precision@5": 0.1574,
+        "precision@10": 0.0894,
+        "ndcg@10": 0.7327,
+        "hits@1": 27,
+        "hits@3": 37,
+        "hits@10": 42
+      },
+      "latency_ms": {
+        "mean_ms": 37.9,
+        "p50_ms": 33.5,
+        "p90_ms": 55.3,
+        "max_ms": 166.1
+      },
+      "per_query": [
+        {
+          "qid": "v1-core-05",
+          "source": "v1-core",
+          "title": "O Grande Truque",
+          "relevant_id": 1124,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v1-ext-12",
+          "source": "v1-ext",
+          "title": "Matrix",
+          "relevant_id": 603,
+          "rank": 12,
+          "rr": 0.0833
+        },
+        {
+          "qid": "v1-ext-14",
+          "source": "v1-ext",
+          "title": "Cidade de Deus",
+          "relevant_id": 598,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v1-ext-18",
+          "source": "v1-ext",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-20",
+          "source": "v1-ext",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-23",
+          "source": "v1-ext",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-26",
+          "source": "v1-ext",
+          "title": "Bastardos Inglórios",
+          "relevant_id": 16869,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-28",
+          "source": "v1-ext",
+          "title": "O Resgate do Soldado Ryan",
+          "relevant_id": 857,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-29",
+          "source": "v1-ext",
+          "title": "Procurando Nemo",
+          "relevant_id": 12,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-32",
+          "source": "v1-ext",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v1-ext-35",
+          "source": "v1-ext",
+          "title": "O Fabuloso Destino de Amélie Poulain",
+          "relevant_id": 194,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-36",
+          "source": "v1-ext",
+          "title": "Cidadão Kane",
+          "relevant_id": 15,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v1-ext-40",
+          "source": "v1-ext",
+          "title": "Os Bons Companheiros",
+          "relevant_id": 769,
+          "rank": 76,
+          "rr": 0.0132
+        },
+        {
+          "qid": "v1-ext-43",
+          "source": "v1-ext",
+          "title": "A Lista de Schindler",
+          "relevant_id": 424,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-45",
+          "source": "v1-ext",
+          "title": "Up: Altas Aventuras",
+          "relevant_id": 14160,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-49",
+          "source": "v1-ext",
+          "title": "Rocky: Um Lutador",
+          "relevant_id": 1366,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-51",
+          "source": "v1-ext",
+          "title": "Indiana Jones e os Caçadores da Arca Perdida",
+          "relevant_id": 85,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-003",
+          "source": "v2",
+          "title": "Kill Bill: Volume 1",
+          "relevant_id": 24,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-004",
+          "source": "v2",
+          "title": "À Espera de um Milagre",
+          "relevant_id": 497,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-005",
+          "source": "v2",
+          "title": "Um Estranho no Ninho",
+          "relevant_id": 510,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-008",
+          "source": "v2",
+          "title": "La La Land: Cantando Estações",
+          "relevant_id": 313369,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-010",
+          "source": "v2",
+          "title": "Cantando na Chuva",
+          "relevant_id": 872,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-018",
+          "source": "v2",
+          "title": "Batman: O Cavaleiro das Trevas",
+          "relevant_id": 155,
+          "rank": 85,
+          "rr": 0.0118
+        },
+        {
+          "qid": "v2-019",
+          "source": "v2",
+          "title": "Os Suspeitos",
+          "relevant_id": 629,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-021",
+          "source": "v2",
+          "title": "Trainspotting: Sem Limites",
+          "relevant_id": 627,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-022",
+          "source": "v2",
+          "title": "Beleza Americana",
+          "relevant_id": 14,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v2-025",
+          "source": "v2",
+          "title": "O Lobo de Wall Street",
+          "relevant_id": 106646,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-026",
+          "source": "v2",
+          "title": "A Rede Social",
+          "relevant_id": 37799,
+          "rank": 11,
+          "rr": 0.0909
+        },
+        {
+          "qid": "v2-028",
+          "source": "v2",
+          "title": "Touro Indomável",
+          "relevant_id": 1578,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-035",
+          "source": "v2",
+          "title": "A Chegada",
+          "relevant_id": 329865,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-036",
+          "source": "v2",
+          "title": "Gravidade",
+          "relevant_id": 49047,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-039",
+          "source": "v2",
+          "title": "Distrito 9",
+          "relevant_id": 17654,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-041",
+          "source": "v2",
+          "title": "Minority Report: A Nova Lei",
+          "relevant_id": 180,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-048",
+          "source": "v2",
+          "title": "A Hora do Pesadelo",
+          "relevant_id": 377,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-050",
+          "source": "v2",
+          "title": "O Exorcista",
+          "relevant_id": 9552,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-053",
+          "source": "v2",
+          "title": "O Enigma de Outro Mundo",
+          "relevant_id": 1091,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-060",
+          "source": "v2",
+          "title": "Carandiru",
+          "relevant_id": 8440,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-064",
+          "source": "v2",
+          "title": "Corpo Fechado",
+          "relevant_id": 9741,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-066",
+          "source": "v2",
+          "title": "O Grande Hotel Budapeste",
+          "relevant_id": 120467,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-070",
+          "source": "v2",
+          "title": "Onde os Fracos Não Têm Vez",
+          "relevant_id": 6977,
+          "rank": 72,
+          "rr": 0.0139
+        },
+        {
+          "qid": "v2-073",
+          "source": "v2",
+          "title": "Ender's Game: O Jogo do Exterminador",
+          "relevant_id": 80274,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-075",
+          "source": "v2",
+          "title": "O Sol é Para Todos",
+          "relevant_id": 595,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-081",
+          "source": "v2",
+          "title": "007 Contra Goldfinger",
+          "relevant_id": 658,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v2-084",
+          "source": "v2",
+          "title": "A Bela e a Fera",
+          "relevant_id": 10020,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-085",
+          "source": "v2",
+          "title": "Alice no País das Maravilhas",
+          "relevant_id": 12092,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-087",
+          "source": "v2",
+          "title": "Os Incríveis",
+          "relevant_id": 9806,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-089",
+          "source": "v2",
+          "title": "Boyhood: Da Infância à Juventude",
+          "relevant_id": 85350,
+          "rank": 1,
+          "rr": 1.0
+        }
+      ]
+    },
+    "fusion_rerank": {
+      "metrics": {
+        "n": 47,
+        "found": 47,
+        "mrr": 0.7049,
+        "median_rank": 1,
+        "mean_rank": 7.7,
+        "recall@1": 0.5957,
+        "recall@3": 0.7872,
+        "recall@5": 0.8298,
+        "recall@10": 0.9149,
+        "recall@20": 0.9149,
+        "recall@50": 0.9362,
+        "precision@1": 0.5957,
+        "precision@5": 0.166,
+        "precision@10": 0.0915,
+        "ndcg@10": 0.7541,
+        "hits@1": 28,
+        "hits@3": 37,
+        "hits@10": 43
+      },
+      "latency_ms": {
+        "mean_ms": 719.4,
+        "p50_ms": 646.3,
+        "p90_ms": 787.7,
+        "max_ms": 3137.2
+      },
+      "per_query": [
+        {
+          "qid": "v1-core-05",
+          "source": "v1-core",
+          "title": "O Grande Truque",
+          "relevant_id": 1124,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-12",
+          "source": "v1-ext",
+          "title": "Matrix",
+          "relevant_id": 603,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v1-ext-14",
+          "source": "v1-ext",
+          "title": "Cidade de Deus",
+          "relevant_id": 598,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-18",
+          "source": "v1-ext",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-20",
+          "source": "v1-ext",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-23",
+          "source": "v1-ext",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-26",
+          "source": "v1-ext",
+          "title": "Bastardos Inglórios",
+          "relevant_id": 16869,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-28",
+          "source": "v1-ext",
+          "title": "O Resgate do Soldado Ryan",
+          "relevant_id": 857,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-29",
+          "source": "v1-ext",
+          "title": "Procurando Nemo",
+          "relevant_id": 12,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-32",
+          "source": "v1-ext",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 9,
+          "rr": 0.1111
+        },
+        {
+          "qid": "v1-ext-35",
+          "source": "v1-ext",
+          "title": "O Fabuloso Destino de Amélie Poulain",
+          "relevant_id": 194,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v1-ext-36",
+          "source": "v1-ext",
+          "title": "Cidadão Kane",
+          "relevant_id": 15,
+          "rank": 9,
+          "rr": 0.1111
+        },
+        {
+          "qid": "v1-ext-40",
+          "source": "v1-ext",
+          "title": "Os Bons Companheiros",
+          "relevant_id": 769,
+          "rank": 76,
+          "rr": 0.0132
+        },
+        {
+          "qid": "v1-ext-43",
+          "source": "v1-ext",
+          "title": "A Lista de Schindler",
+          "relevant_id": 424,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-45",
+          "source": "v1-ext",
+          "title": "Up: Altas Aventuras",
+          "relevant_id": 14160,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v1-ext-49",
+          "source": "v1-ext",
+          "title": "Rocky: Um Lutador",
+          "relevant_id": 1366,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v1-ext-51",
+          "source": "v1-ext",
+          "title": "Indiana Jones e os Caçadores da Arca Perdida",
+          "relevant_id": 85,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-003",
+          "source": "v2",
+          "title": "Kill Bill: Volume 1",
+          "relevant_id": 24,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v2-004",
+          "source": "v2",
+          "title": "À Espera de um Milagre",
+          "relevant_id": 497,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-005",
+          "source": "v2",
+          "title": "Um Estranho no Ninho",
+          "relevant_id": 510,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-008",
+          "source": "v2",
+          "title": "La La Land: Cantando Estações",
+          "relevant_id": 313369,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-010",
+          "source": "v2",
+          "title": "Cantando na Chuva",
+          "relevant_id": 872,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-018",
+          "source": "v2",
+          "title": "Batman: O Cavaleiro das Trevas",
+          "relevant_id": 155,
+          "rank": 85,
+          "rr": 0.0118
+        },
+        {
+          "qid": "v2-019",
+          "source": "v2",
+          "title": "Os Suspeitos",
+          "relevant_id": 629,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-021",
+          "source": "v2",
+          "title": "Trainspotting: Sem Limites",
+          "relevant_id": 627,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-022",
+          "source": "v2",
+          "title": "Beleza Americana",
+          "relevant_id": 14,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v2-025",
+          "source": "v2",
+          "title": "O Lobo de Wall Street",
+          "relevant_id": 106646,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-026",
+          "source": "v2",
+          "title": "A Rede Social",
+          "relevant_id": 37799,
+          "rank": 36,
+          "rr": 0.0278
+        },
+        {
+          "qid": "v2-028",
+          "source": "v2",
+          "title": "Touro Indomável",
+          "relevant_id": 1578,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v2-035",
+          "source": "v2",
+          "title": "A Chegada",
+          "relevant_id": 329865,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-036",
+          "source": "v2",
+          "title": "Gravidade",
+          "relevant_id": 49047,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-039",
+          "source": "v2",
+          "title": "Distrito 9",
+          "relevant_id": 17654,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-041",
+          "source": "v2",
+          "title": "Minority Report: A Nova Lei",
+          "relevant_id": 180,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-048",
+          "source": "v2",
+          "title": "A Hora do Pesadelo",
+          "relevant_id": 377,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-050",
+          "source": "v2",
+          "title": "O Exorcista",
+          "relevant_id": 9552,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-053",
+          "source": "v2",
+          "title": "O Enigma de Outro Mundo",
+          "relevant_id": 1091,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-060",
+          "source": "v2",
+          "title": "Carandiru",
+          "relevant_id": 8440,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-064",
+          "source": "v2",
+          "title": "Corpo Fechado",
+          "relevant_id": 9741,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-066",
+          "source": "v2",
+          "title": "O Grande Hotel Budapeste",
+          "relevant_id": 120467,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-070",
+          "source": "v2",
+          "title": "Onde os Fracos Não Têm Vez",
+          "relevant_id": 6977,
+          "rank": 72,
+          "rr": 0.0139
+        },
+        {
+          "qid": "v2-073",
+          "source": "v2",
+          "title": "Ender's Game: O Jogo do Exterminador",
+          "relevant_id": 80274,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-075",
+          "source": "v2",
+          "title": "O Sol é Para Todos",
+          "relevant_id": 595,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-081",
+          "source": "v2",
+          "title": "007 Contra Goldfinger",
+          "relevant_id": 658,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v2-084",
+          "source": "v2",
+          "title": "A Bela e a Fera",
+          "relevant_id": 10020,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-085",
+          "source": "v2",
+          "title": "Alice no País das Maravilhas",
+          "relevant_id": 12092,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v2-087",
+          "source": "v2",
+          "title": "Os Incríveis",
+          "relevant_id": 9806,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v2-089",
+          "source": "v2",
+          "title": "Boyhood: Da Infância à Juventude",
+          "relevant_id": 85350,
+          "rank": 1,
+          "rr": 1.0
+        }
+      ]
+    }
+  }
+}
