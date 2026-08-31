@@ -98,3 +98,6 @@ Procfile
 models/weights/
 
 
+
+# relatório gerado por `python -m core.validate` (números no README)
+data/quality_report.json
