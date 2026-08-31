@@ -10,6 +10,7 @@ exploração manual.
 .venv/bin/python -m eval.run --fast           # sem o cross-encoder (segundos, não minutos)
 .venv/bin/python -m eval.run --pipelines fusion,fusion_rerank
 .venv/bin/python -m eval.run --sweep-rerank   # curva qualidade × latência do pool do cross-encoder
+.venv/bin/python -m eval.latency              # p50/p95/p99 por etapa do pipeline + RSS
 ```
 
 > **Produção roda sem o cross-encoder** (`RECOMENDAI_RERANK=0`, o default em

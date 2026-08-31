@@ -5,8 +5,9 @@ Três rotas principais:
   - POST /submit_ratings → recomendar a partir de filmes favoritos (qualquer quantidade)
   - POST /recommend    → recomendação via upload ratings.csv do Letterboxd
 
-Os modelos (índice de busca / fatores do recomendador) são carregados sob
-demanda (singletons) no primeiro uso de cada rota.
+O motor de busca (índice + modelo de embeddings) é **pré-carregado no boot**
+(ver o bloco de warmup no fim deste arquivo); os fatores do recomendador
+carregam sob demanda no 1º uso da rota.
 """
 
 from __future__ import annotations
@@ -767,6 +768,24 @@ def health():
     return jsonify({"status": "ok"})
 
 
+# =========================================================================
+# WARMUP — pré-carrega o motor de busca no boot (não na 1ª requisição).
+# Roda no import do módulo, então vale tanto para `python app.py` quanto para
+# `gunicorn app:app` (cada worker aquece o seu). `RECOMENDAI_NO_WARMUP=1` pula.
+# =========================================================================
+if os.environ.get("RECOMENDAI_NO_WARMUP", "0").lower() not in ("1", "true", "yes"):
+    try:
+        from retrieval.search_engine import get_engine
+
+        get_engine()  # constrói o singleton + warmup() dos modelos
+        print("[boot] motor de busca pré-carregado")
+    except Exception as e:  # nunca deixa o warmup derrubar o processo
+        print(f"[boot] warmup do motor de busca falhou (segue sob demanda): {e}")
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    # use_reloader=False: o reloader do Werkzeug reimporta o módulo e o warmup
+    # carregaria o modelo de embeddings 2× em dev. Para hot-reload, rode
+    # `RECOMENDAI_NO_WARMUP=1 flask --app app run --debug`.
+    app.run(debug=True, host="0.0.0.0", port=port, use_reloader=False)

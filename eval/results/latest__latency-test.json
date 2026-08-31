@@ -1,0 +1,89 @@
+{
+  "run": {
+    "timestamp_utc": "2026-08-31T17:56:50Z",
+    "git_commit": "593fd28",
+    "mode": "latency",
+    "split": "test",
+    "n_queries": 47,
+    "repeats": 3,
+    "rerank_pool": 0,
+    "dataset_sha1": "88fd89edcf3906102a1aee31df725c41fffd1291",
+    "engine": {
+      "n_movies": 22029,
+      "embed_model": "intfloat/multilingual-e5-large",
+      "embed_dim": 1024,
+      "lexical": "bm25"
+    },
+    "device": "mps",
+    "rss_mb": {
+      "before_load": 32.9,
+      "after_load": 523.5,
+      "model_delta": 490.6
+    },
+    "query_cache": {
+      "size": 47,
+      "capacity": 4096,
+      "hits": 423,
+      "misses": 141,
+      "hit_rate": 0.75
+    }
+  },
+  "stages": {
+    "clean": {
+      "p50": 0.02,
+      "p95": 0.04,
+      "p99": 1.27,
+      "mean": 0.05,
+      "n": 141
+    },
+    "encode_cold": {
+      "p50": 42.55,
+      "p95": 138.71,
+      "p99": 167.01,
+      "mean": 56.68,
+      "n": 141
+    },
+    "encode_warm": {
+      "p50": 0.0,
+      "p95": 0.01,
+      "p99": 0.01,
+      "mean": 0.0,
+      "n": 141
+    },
+    "bm25": {
+      "p50": 0.96,
+      "p95": 1.32,
+      "p99": 3.67,
+      "mean": 1.04,
+      "n": 141
+    },
+    "emb_matmul": {
+      "p50": 3.0,
+      "p95": 20.89,
+      "p99": 42.31,
+      "mean": 7.04,
+      "n": 141
+    },
+    "kw_matmul": {
+      "p50": 3.01,
+      "p95": 23.03,
+      "p99": 39.47,
+      "mean": 6.84,
+      "n": 141
+    },
+    "fuse_argsort": {
+      "p50": 12.3,
+      "p95": 39.63,
+      "p99": 50.09,
+      "mean": 17.19,
+      "n": 141
+    },
+    "search_total": {
+      "p50": 12.35,
+      "p95": 34.4,
+      "p99": 45.85,
+      "mean": 15.81,
+      "n": 141
+    }
+  }
+}

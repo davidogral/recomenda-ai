@@ -17,6 +17,7 @@ from __future__ import annotations
 import os
 import re
 import unicodedata
+from collections import OrderedDict
 from typing import Any, Optional
 
 import numpy as np
@@ -165,6 +166,12 @@ RERANK_POOL = int(os.environ.get("RECOMENDAI_RERANK_POOL", "50"))
 RERANK_BLEND = float(os.environ.get("RECOMENDAI_RERANK_BLEND", "0.5"))
 RERANK_ENABLED = os.environ.get("RECOMENDAI_RERANK", "0").lower() not in ("0", "false", "no")
 
+# Cache LRU do embedding da consulta (por string já com prefixo). Consultas
+# repetem MUITO entre usuários ("filme do homem que perde a memória"); reusar o
+# vetor economiza o forward do transformer (~15–40 ms). Limite evita o dict
+# crescer sem fim num processo de vida longa. 0 desliga.
+QUERY_EMB_CACHE_SIZE = int(os.environ.get("RECOMENDAI_QUERY_CACHE", "4096"))
+
 # Fallback de título via TMDB: resolve títulos em qualquer idioma (ex.: inglês) e
 # tolera digitação aproximada, mapeando o resultado para o catálogo. Só dispara
 # quando o casamento LOCAL (títulos PT) é fraco — economiza chamadas — e a consulta
@@ -215,7 +222,9 @@ class SearchEngine:
         self._embed_model = None
         self._embed_model_name: Optional[str] = None
         self._embed_query_prefix: str = ""  # prefixo do lado-consulta (ex.: E5 "query: ")
-        self._query_emb_cache: dict[str, np.ndarray] = {}
+        self._query_emb_cache: "OrderedDict[str, np.ndarray]" = OrderedDict()  # LRU
+        self._query_emb_hits = 0
+        self._query_emb_misses = 0
         self._load_embeddings = load_embeddings
         # Re-ranker cross-encoder (2º estágio), carregado sob demanda.
         self.rerank_enabled = rerank
@@ -349,18 +358,61 @@ class SearchEngine:
         return reordered + scored[pool:]
 
     def _encode(self, query: str) -> np.ndarray:
-        """Embedding L2-normalizado da consulta (cacheado por string de consulta).
+        """Embedding L2-normalizado da consulta (cache **LRU** por string de consulta).
 
         Aplica o prefixo do lado-consulta exigido por alguns modelos (E5 usa
         'query: '); o índice foi gerado com o prefixo de passagem correspondente."""
-        cached = self._query_emb_cache.get(query)
-        if cached is None:
-            text = f"{self._embed_query_prefix}{query}" if self._embed_query_prefix else query
-            cached = self._get_embed_model().encode(
-                [text], normalize_embeddings=True, convert_to_numpy=True
-            ).astype(np.float32)[0]
-            self._query_emb_cache[query] = cached
-        return cached
+        c = self._query_emb_cache
+        cached = c.get(query)
+        if cached is not None:
+            c.move_to_end(query)
+            self._query_emb_hits += 1
+            return cached
+        self._query_emb_misses += 1
+        text = f"{self._embed_query_prefix}{query}" if self._embed_query_prefix else query
+        vec = self._get_embed_model().encode(
+            [text], normalize_embeddings=True, convert_to_numpy=True
+        ).astype(np.float32)[0]
+        if QUERY_EMB_CACHE_SIZE > 0:
+            c[query] = vec
+            if len(c) > QUERY_EMB_CACHE_SIZE:
+                c.popitem(last=False)
+        return vec
+
+    def query_cache_stats(self) -> dict:
+        """Diagnóstico do cache LRU do embedding da consulta."""
+        tot = self._query_emb_hits + self._query_emb_misses
+        return {
+            "size": len(self._query_emb_cache),
+            "capacity": QUERY_EMB_CACHE_SIZE,
+            "hits": self._query_emb_hits,
+            "misses": self._query_emb_misses,
+            "hit_rate": round(self._query_emb_hits / tot, 3) if tot else 0.0,
+        }
+
+    def warmup(self, reranker: Optional[bool] = None) -> "SearchEngine":
+        """Carrega os modelos pesados **agora** (no startup), não na 1ª requisição.
+
+        Baixa/instancia o modelo de embeddings e roda um forward de aquecimento;
+        se `reranker` (default = `self.rerank_enabled`), faz o mesmo com o
+        cross-encoder. Idempotente."""
+        if self.has_synopsis_index and self._embeddings is not None:
+            try:
+                self._get_embed_model()
+                self._get_embed_model().encode(
+                    [f"{self._embed_query_prefix}aquecimento"],
+                    normalize_embeddings=True, convert_to_numpy=True)
+            except Exception as e:  # pragma: no cover
+                print(f"[warmup] embeddings falhou: {e}")
+        want_rr = self.rerank_enabled if reranker is None else reranker
+        if want_rr:
+            rr = self._get_reranker()
+            if rr is not None:
+                try:
+                    rr._get_model()
+                except Exception as e:  # pragma: no cover
+                    print(f"[warmup] cross-encoder falhou: {e}")
+        return self
 
     # -------------------------------------------------------------- formatação
     def _format(self, tmdb_id: int, score: float) -> dict[str, Any]:
@@ -1079,8 +1131,13 @@ def suggest_people(prefix: str, role: Optional[str] = None, limit: int = 10
 _engine: Optional[SearchEngine] = None
 
 
-def get_engine() -> SearchEngine:
+def get_engine(warmup: bool = True) -> SearchEngine:
+    """Singleton do motor de busca. `warmup=True` (padrão) carrega os modelos
+    pesados agora — chame no boot do app, não deixe cair na 1ª requisição.
+    `RECOMENDAI_NO_WARMUP=1` força o carregamento preguiçoso (útil em testes)."""
     global _engine
     if _engine is None:
         _engine = SearchEngine()
+        if warmup and os.environ.get("RECOMENDAI_NO_WARMUP", "0").lower() not in ("1", "true", "yes"):
+            _engine.warmup()
     return _engine

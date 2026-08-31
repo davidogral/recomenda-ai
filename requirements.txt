@@ -8,6 +8,7 @@ scikit-surprise>=1.1.3
 sentence-transformers>=2.2.2
 rapidfuzz>=3.0.0
 nltk>=3.8
+psutil>=5.9          # medição de RSS no perfil de latência (eval/latency.py)
 SQLAlchemy==2.0.29
 python-dotenv==1.0.1
 requests==2.31.0
