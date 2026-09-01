@@ -140,15 +140,32 @@ def check_reconciliation() -> dict:
     }
 
 
+def _ratings_provenance() -> dict:
+    """Lê data/ratings_provenance.json (escrito por recommender.ingest_movielens).
+    Ausente = origem ainda não reconstruída (bloqueador)."""
+    p = os.path.join(_ROOT, "data", "ratings_provenance.json")
+    if not os.path.exists(p):
+        return {
+            "status": "unconfirmed",
+            "note": "data/ratings_provenance.json ausente — rode "
+            "`python -m recommender.ingest_movielens` para reconstruir "
+            "os ratings a partir do MovieLens ml-32m (origem documentada).",
+        }
+    with open(p, encoding="utf-8") as fh:
+        prov = json.load(fh)
+    prov["status"] = "documented"
+    prov["license_note"] = (
+        "MovieLens/GroupLens: uso NÃO-COMERCIAL sem permissão "
+        "explícita. Antes de monetizar: e-mail ao GroupLens ou "
+        "trocar por dataset com licença compatível."
+    )
+    return prov
+
+
 def build_report() -> dict:
     return {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "ratings_provenance": "unconfirmed",  # ver README §Proveniência dos Dados
-        "ratings_provenance_note": (
-            "~2,9M avaliações em movies.db.ratings — cara de MovieLens/GroupLens "
-            "(escala 0.5–5.0, reconciliação movieId->tmdb_id), release exato e "
-            "script de ingestão NÃO documentados. Bloqueador de deploy público."
-        ),
+        "ratings_provenance": _ratings_provenance(),
         "catalog": check_catalog(),
         "imdb_dump": check_imdb_dump(),
         "reconciliation": check_reconciliation(),
@@ -203,7 +220,15 @@ def _md(rep: dict) -> str:
                 + ", ".join(f"{m['title']} ({m['release_year']})" for m in mrr[:8])
             )
 
-    L.append(f"\n**Proveniência dos ratings**: ⚠️ `{rep['ratings_provenance']}` — {rep['ratings_provenance_note']}")
+    rp = rep["ratings_provenance"]
+    if rp.get("status") == "documented":
+        L.append(
+            f"\n**Proveniência dos ratings**: ✅ `{rp['source']}` — "
+            f"{rp['n_ratings']:,} avaliações, {rp['n_users']:,} usuários, "
+            f"{rp['n_items']:,} filmes. {rp['license_note']}"
+        )
+    else:
+        L.append(f"\n**Proveniência dos ratings**: ⚠️ `{rp['status']}` — {rp['note']}")
     return "\n".join(L)
 
 

@@ -10,6 +10,7 @@
 <body>
     <div class="container">
         <header class="header">
+            <div id="authBar" class="auth-bar"></div>
             <h1>RecomendAI</h1>
             <p>Ache aquele filme que você não lembra o nome — ou descubra o que assistir a seguir.</p>
         </header>
@@ -20,8 +21,8 @@
             <button class="tab-btn" data-tab="explore">🎭 Essenciais</button>
             <button class="tab-btn" data-tab="pick3">🎯 Escolher filmes</button>
             <button class="tab-btn" data-tab="recommend">🍿 Letterboxd</button>
-            <button class="tab-btn" data-tab="watched">📔 Assistidos</button>
-            <button class="tab-btn" data-tab="lists">🎞️ Listas</button>
+            <button class="tab-btn" data-tab="watched" data-needs-auth>📔 Assistidos</button>
+            <button class="tab-btn" data-tab="lists" data-needs-auth>🎞️ Listas</button>
         </nav>
 
         <!-- BARRA DE STREAMING (onde assistir) — aparece só com TMDB configurado -->
@@ -219,6 +220,39 @@
         </footer>
     </div>
 
+    <!-- MODAL: AUTENTICAÇÃO (login / cadastro / recuperar / redefinir senha) -->
+    <div id="authModal" class="modal-overlay" style="display:none">
+        <div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+            <button class="modal-close" id="authClose" type="button" aria-label="Fechar">&times;</button>
+            <h2 id="authTitle">Entrar</h2>
+            <div class="auth-tabs" id="authTabs">
+                <button type="button" data-authtab="login" class="active">Entrar</button>
+                <button type="button" data-authtab="register">Criar conta</button>
+                <button type="button" data-authtab="forgot">Esqueci a senha</button>
+            </div>
+            <form id="authFormLogin" class="auth-form" data-authview="login">
+                <input type="email" name="email" placeholder="e-mail" autocomplete="email" required>
+                <input type="password" name="password" placeholder="senha" autocomplete="current-password" required>
+                <button type="submit">Entrar</button>
+            </form>
+            <form id="authFormRegister" class="auth-form" data-authview="register" hidden>
+                <input type="email" name="email" placeholder="e-mail" autocomplete="email" required>
+                <input type="password" name="password" placeholder="senha (mín. 8)" autocomplete="new-password" minlength="8" required>
+                <button type="submit">Criar conta</button>
+            </form>
+            <form id="authFormForgot" class="auth-form" data-authview="forgot" hidden>
+                <input type="email" name="email" placeholder="e-mail" autocomplete="email" required>
+                <button type="submit">Enviar link de recuperação</button>
+            </form>
+            <form id="authFormReset" class="auth-form" data-authview="reset" hidden>
+                <p class="hint">Escolha uma nova senha.</p>
+                <input type="password" name="password" placeholder="nova senha (mín. 8)" autocomplete="new-password" minlength="8" required>
+                <button type="submit">Redefinir senha</button>
+            </form>
+            <div id="authMsg" class="auth-msg" role="status"></div>
+        </div>
+    </div>
+
     <!-- MODAL: FILMES PARECIDOS (item-to-item) -->
     <div id="similarModal" class="modal-overlay" style="display:none">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="similarTitle">
@@ -241,9 +275,125 @@
     </div>
 
     <script>
+        // ================= AUTENTICAÇÃO (sessão + CSRF) =================
+        // Envolve window.fetch: manda o cookie de sessão e o header X-CSRFToken
+        // em toda requisição que altera estado (POST/PUT/PATCH/DELETE).
+        (function () {
+            const _fetch = window.fetch.bind(window);
+            let _csrf = null;
+            async function token() {
+                if (_csrf) return _csrf;
+                try { _csrf = (await (await _fetch('/auth/csrf', { credentials: 'same-origin' })).json()).csrf_token; }
+                catch (e) { _csrf = null; }
+                return _csrf;
+            }
+            window.__csrfReset = () => { _csrf = null; };
+            window.fetch = async function (input, init) {
+                init = Object.assign({ credentials: 'same-origin' }, init || {});
+                const method = (init.method || 'GET').toUpperCase();
+                if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+                    const t = await token();
+                    if (t) init.headers = Object.assign({}, init.headers, { 'X-CSRFToken': t });
+                }
+                return _fetch(input, init);
+            };
+        })();
+
+        const AUTH = {
+            user: null,
+            async refresh() {
+                try { this.user = (await (await fetch('/auth/me')).json()).user; }
+                catch (e) { this.user = null; }
+                this.render();
+                return this.user;
+            },
+            render() {
+                const bar = document.getElementById('authBar');
+                if (this.user) {
+                    bar.innerHTML = `<span class="auth-email" title="${this.user.email}">${this.user.email}</span>`
+                        + (this.user.email_verified ? '' : ' <button class="auth-link" id="authResend">confirmar e-mail</button>')
+                        + ' <button class="auth-link" id="authLogout">Sair</button>';
+                    document.getElementById('authLogout').onclick = () => this.logout();
+                    const rs = document.getElementById('authResend');
+                    if (rs) rs.onclick = async () => { await fetch('/auth/resend-verification', { method: 'POST' }); rs.textContent = 'e-mail reenviado ✓'; };
+                } else {
+                    bar.innerHTML = '<button class="auth-link" id="authOpen">Entrar / Criar conta</button>';
+                    document.getElementById('authOpen').onclick = () => this.open('login');
+                }
+                document.querySelectorAll('[data-needs-auth]').forEach(el => el.classList.toggle('locked', !this.user));
+            },
+            open(view) {
+                document.getElementById('authModal').style.display = 'flex';
+                this.show(view || 'login');
+            },
+            close() { document.getElementById('authModal').style.display = 'none'; this.msg(''); },
+            show(view) {
+                document.querySelectorAll('#authTabs button').forEach(b => b.classList.toggle('active', b.dataset.authtab === view));
+                document.getElementById('authTabs').style.display = view === 'reset' ? 'none' : '';
+                document.querySelectorAll('.auth-form').forEach(f => f.hidden = f.dataset.authview !== view);
+                document.getElementById('authTitle').textContent =
+                    ({ login: 'Entrar', register: 'Criar conta', forgot: 'Recuperar senha', reset: 'Nova senha' })[view];
+                this.msg('');
+            },
+            msg(text, ok) {
+                const m = document.getElementById('authMsg');
+                m.textContent = text || ''; m.className = 'auth-msg' + (ok ? ' ok' : (text ? ' err' : ''));
+            },
+            async _post(url, body) {
+                window.__csrfReset();
+                const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+                let d = {}; try { d = await r.json(); } catch (e) { }
+                return { ok: r.ok, status: r.status, d };
+            },
+            async login(email, password) {
+                const { ok, d } = await this._post('/auth/login', { email, password });
+                if (!ok) return this.msg(d.error || 'Não foi possível entrar.');
+                this.close(); await this.refresh();
+            },
+            async register(email, password) {
+                const { ok, d } = await this._post('/auth/register', { email, password });
+                if (!ok) return this.msg(d.error || 'Não foi possível criar a conta.');
+                this.close(); await this.refresh();
+                if (d.needs_verification) this.msg('Conta criada! Confirme o e-mail pelo link que enviamos.', true);
+            },
+            async forgot(email) {
+                const { d } = await this._post('/auth/forgot', { email });
+                this.msg(d.message || 'Se o e-mail existir, enviamos um link.', true);
+            },
+            async reset(token, password) {
+                const { ok, d } = await this._post('/auth/reset', { token, password });
+                if (!ok) return this.msg(d.error || 'Não foi possível redefinir.');
+                this.msg('Senha redefinida! Você já pode entrar.', true);
+                this.show('login');
+            },
+            async logout() {
+                await fetch('/auth/logout', { method: 'POST' });
+                this.user = null; this.render(); location.href = '/';
+            },
+        };
+
+        document.getElementById('authClose').onclick = () => AUTH.close();
+        document.getElementById('authModal').addEventListener('click', e => { if (e.target.id === 'authModal') AUTH.close(); });
+        document.querySelectorAll('#authTabs button').forEach(b => b.onclick = () => AUTH.show(b.dataset.authtab));
+        document.getElementById('authFormLogin').addEventListener('submit', e => { e.preventDefault(); AUTH.login(e.target.email.value, e.target.password.value); });
+        document.getElementById('authFormRegister').addEventListener('submit', e => { e.preventDefault(); AUTH.register(e.target.email.value, e.target.password.value); });
+        document.getElementById('authFormForgot').addEventListener('submit', e => { e.preventDefault(); AUTH.forgot(e.target.email.value); });
+        document.getElementById('authFormReset').addEventListener('submit', e => { e.preventDefault(); AUTH.reset(AUTH._resetToken, e.target.password.value); });
+
+        function AUTH_TOAST(t) { const b = document.getElementById('authBar'); const s = document.createElement('span'); s.className = 'auth-toast'; s.textContent = t; b.appendChild(s); setTimeout(() => s.remove(), 6000); }
+
+        AUTH.refresh().then(() => {
+            const q = new URLSearchParams(location.search);
+            if (q.get('verify') === 'ok') AUTH_TOAST('E-mail confirmado! ✓');
+            else if (q.get('verify') === 'invalid') AUTH_TOAST('Link de confirmação inválido/expirado.');
+            if (q.get('reset')) { AUTH._resetToken = q.get('reset'); AUTH.open('reset'); }
+            if (q.toString()) history.replaceState({}, '', location.pathname);
+        });
+
         // ---------- Abas ----------
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                if (btn.hasAttribute('data-needs-auth') && !AUTH.user) { AUTH.open('login'); return; }
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
                 btn.classList.add('active');

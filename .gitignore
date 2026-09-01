@@ -101,3 +101,6 @@ models/weights/
 
 # relatório gerado por `python -m core.validate` (números no README)
 data/quality_report.json
+
+# MovieLens (baixado por recommender/ingest_movielens.py)
+data/movielens_cache/

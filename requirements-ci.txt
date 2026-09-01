@@ -6,6 +6,10 @@ mypy==1.19.1
 pytest>=8
 flask==3.0.3
 Flask-Limiter>=3.5
+Flask-Login>=0.6
+Flask-WTF>=1.2
+argon2-cffi>=23
+email-validator>=2
 prometheus-client>=0.20
 pandera>=0.20
 pydantic>=2

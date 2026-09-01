@@ -1,0 +1,273 @@
+# -*- coding: utf-8 -*-
+"""Contas de usuário — cadastro, login (e-mail + senha), verificação e reset.
+
+Fica no mesmo SQLite dos dados pessoais (`data/user.db`). Senha com **Argon2**;
+tokens de verificação de e-mail e reset de senha assinados com `itsdangerous`
+(`SECRET_KEY`), com validade.
+
+CLI utilitário:
+    python -m core.users create  <email> <senha>
+    python -m core.users verify  <email>            # marca e-mail como verificado
+    python -m core.users passwd  <email> <nova>
+    python -m core.users claim   <email>            # reassocia dados órfãos (user_id=1) a este usuário
+"""
+
+from __future__ import annotations
+
+import os
+import sqlite3
+import sys
+from datetime import datetime, timezone
+from typing import Optional
+
+from core.user_data import _connect  # mesmo banco / migração de schema
+
+_MIN_PASSWORD = 8
+TOKEN_MAX_AGE = int(os.environ.get("RECOMENDAI_TOKEN_MAX_AGE", str(60 * 60 * 24)))  # 24 h
+
+_USERS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    user_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    email         TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    email_verified INTEGER NOT NULL DEFAULT 0,
+    is_active     INTEGER NOT NULL DEFAULT 1,
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+"""
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _hasher():
+    from argon2 import PasswordHasher
+
+    return PasswordHasher()
+
+
+def _serializer(salt: str):
+    from itsdangerous import URLSafeTimedSerializer
+
+    secret = os.environ.get("SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY")
+    if not secret:
+        # dev: chave efêmera estável por processo (tokens não sobrevivem a restart)
+        secret = "dev-insecure-" + str(os.getpid())
+    return URLSafeTimedSerializer(secret, salt=f"recomendaai-{salt}")
+
+
+class InvalidEmail(ValueError):
+    pass
+
+
+class WeakPassword(ValueError):
+    pass
+
+
+class EmailInUse(ValueError):
+    pass
+
+
+def normalize_email(email: str) -> str:
+    from email_validator import EmailNotValidError, validate_email
+
+    try:
+        return validate_email(email, check_deliverability=False).normalized.lower()
+    except EmailNotValidError as e:
+        raise InvalidEmail(str(e)) from e
+
+
+def init_db() -> None:
+    """Cria a tabela `users` (idempotente)."""
+    with _connect() as conn:  # _connect() já roda o schema + migração de user_data
+        conn.executescript(_USERS_SCHEMA)
+
+
+def _row_to_user(row: sqlite3.Row) -> dict:
+    d = dict(row)
+    d.pop("password_hash", None)
+    d["email_verified"] = bool(d["email_verified"])
+    d["is_active"] = bool(d["is_active"])
+    return d
+
+
+def create_user(email: str, password: str) -> dict:
+    email = normalize_email(email)
+    if len(password or "") < _MIN_PASSWORD:
+        raise WeakPassword(f"A senha precisa de pelo menos {_MIN_PASSWORD} caracteres.")
+    init_db()
+    now = _now()
+    ph = _hasher().hash(password)
+    with _connect() as conn:
+        try:
+            cur = conn.execute(
+                "INSERT INTO users (email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                (email, ph, now, now),
+            )
+        except sqlite3.IntegrityError as e:
+            raise EmailInUse("Já existe uma conta com esse e-mail.") from e
+        row = conn.execute("SELECT * FROM users WHERE user_id = ?", (cur.lastrowid,)).fetchone()
+    return _row_to_user(row)
+
+
+def get_user(user_id: int) -> Optional[dict]:
+    init_db()
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE user_id = ?", (int(user_id),)).fetchone()
+    return _row_to_user(row) if row else None
+
+
+def get_user_by_email(email: str) -> Optional[dict]:
+    init_db()
+    try:
+        email = normalize_email(email)
+    except InvalidEmail:
+        return None
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    return _row_to_user(row) if row else None
+
+
+def authenticate(email: str, password: str) -> Optional[dict]:
+    """Devolve o usuário se e-mail+senha batem e a conta está ativa; senão None.
+    Reidrata o hash Argon2 se os parâmetros mudaram."""
+    from argon2.exceptions import VerifyMismatchError
+
+    init_db()
+    try:
+        email = normalize_email(email)
+    except InvalidEmail:
+        return None
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        if not row or not row["is_active"]:
+            return None
+        ph = _hasher()
+        try:
+            ph.verify(row["password_hash"], password)
+        except VerifyMismatchError:
+            return None
+        if ph.check_needs_rehash(row["password_hash"]):
+            conn.execute(
+                "UPDATE users SET password_hash = ?, updated_at = ? WHERE user_id = ?",
+                (ph.hash(password), _now(), row["user_id"]),
+            )
+    return _row_to_user(row)
+
+
+def set_password(user_id: int, password: str) -> None:
+    if len(password or "") < _MIN_PASSWORD:
+        raise WeakPassword(f"A senha precisa de pelo menos {_MIN_PASSWORD} caracteres.")
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ?, updated_at = ? WHERE user_id = ?",
+            (_hasher().hash(password), _now(), int(user_id)),
+        )
+
+
+def mark_verified(user_id: int) -> None:
+    with _connect() as conn:
+        conn.execute("UPDATE users SET email_verified = 1, updated_at = ? WHERE user_id = ?", (_now(), int(user_id)))
+
+
+def delete_user(user_id: int) -> bool:
+    """Apaga a conta e os dados pessoais dela (avaliações e listas). As `versions`
+    são curadoria compartilhada — não pertencem a um usuário e ficam."""
+    uid = int(user_id)
+    with _connect() as conn:
+        conn.execute("DELETE FROM ratings WHERE user_id = ?", (uid,))
+        conn.execute("DELETE FROM list_items WHERE list_id IN (SELECT list_id FROM lists WHERE user_id = ?)", (uid,))
+        conn.execute("DELETE FROM lists WHERE user_id = ?", (uid,))
+        cur = conn.execute("DELETE FROM users WHERE user_id = ?", (uid,))
+    return cur.rowcount > 0
+
+
+# --------------------------------------------------------------- tokens
+def make_token(kind: str, user_id: int) -> str:
+    """kind: 'verify' (e-mail) | 'reset' (senha)."""
+    return _serializer(kind).dumps({"uid": int(user_id)})
+
+
+def read_token(kind: str, token: str, max_age: Optional[int] = None) -> Optional[int]:
+    from itsdangerous import BadSignature, SignatureExpired
+
+    try:
+        data = _serializer(kind).loads(token, max_age=max_age or TOKEN_MAX_AGE)
+        return int(data["uid"])
+    except (BadSignature, SignatureExpired, KeyError, ValueError):
+        return None
+
+
+# --------------------------------------------------------------- Flask-Login
+class AuthUser:
+    """Adaptador para o Flask-Login."""
+
+    def __init__(self, row: dict):
+        self.id = row["user_id"]
+        self.email = row["email"]
+        self.email_verified = row["email_verified"]
+        self._active = row["is_active"]
+
+    @property
+    def is_authenticated(self) -> bool:
+        return True
+
+    @property
+    def is_active(self) -> bool:
+        return bool(self._active)
+
+    @property
+    def is_anonymous(self) -> bool:
+        return False
+
+    def get_id(self) -> str:
+        return str(self.id)
+
+
+def load_auth_user(user_id: str) -> Optional["AuthUser"]:
+    u = get_user(int(user_id))
+    return AuthUser(u) if u and u["is_active"] else None
+
+
+# --------------------------------------------------------------- CLI
+def _claim_orphans(email: str) -> None:
+    """Reassocia dados com user_id=1 (backfill da migração) ao usuário `email`."""
+    u = get_user_by_email(email)
+    if not u:
+        sys.exit(f"nenhuma conta com {email!r} — crie primeiro (`create`).")
+    uid = u["user_id"]
+    with _connect() as conn:
+        n = 0
+        for tbl in ("ratings", "lists"):
+            n += conn.execute(f"UPDATE {tbl} SET user_id = ? WHERE user_id = 1", (uid,)).rowcount
+    print(f"» {n} linhas reassociadas de user_id=1 para {email} (user_id={uid}).")
+
+
+def main(argv=None) -> int:
+    args = list(argv if argv is not None else sys.argv[1:])
+    if not args:
+        print(__doc__)
+        return 1
+    cmd, rest = args[0], args[1:]
+    if cmd == "create" and len(rest) == 2:
+        print(create_user(rest[0], rest[1]))
+    elif cmd == "verify" and len(rest) == 1:
+        u = get_user_by_email(rest[0]) or sys.exit("conta não encontrada")
+        mark_verified(u["user_id"])
+        print("verificado.")
+    elif cmd == "passwd" and len(rest) == 2:
+        u = get_user_by_email(rest[0]) or sys.exit("conta não encontrada")
+        set_password(u["user_id"], rest[1])
+        print("senha trocada.")
+    elif cmd == "claim" and len(rest) == 1:
+        _claim_orphans(rest[0])
+    else:
+        print(__doc__)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

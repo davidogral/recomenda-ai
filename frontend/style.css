@@ -1394,3 +1394,32 @@ body {
 .site-footer a:hover { color: var(--light); }
 .tmdb-attribution { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tmdb-logo { height: 20px; width: auto; display: block; border-radius: 4px; }
+
+/* ─────────────────────────  Autenticação  ───────────────────────── */
+.auth-bar { position: absolute; top: 14px; right: 4px; display: flex; align-items: center;
+    gap: 10px; font-size: 0.82rem; color: var(--gray); }
+.header { position: relative; }
+.auth-email { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-link { background: none; border: 1px solid var(--input-border); color: var(--gray);
+    padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: 0.8rem; }
+.auth-link:hover { color: var(--light); border-color: var(--border-strong); }
+.auth-toast { background: var(--accent-soft); border: 1px solid var(--accent-border);
+    color: var(--light); padding: 4px 10px; border-radius: 999px; }
+.tab-btn.locked { opacity: 0.55; }
+.tab-btn.locked::after { content: " 🔒"; font-size: 0.85em; }
+
+.auth-modal { max-width: 380px; }
+.auth-modal h2 { margin: 0 0 14px; }
+.auth-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.auth-tabs button { flex: 1; background: var(--input-bg); border: 1px solid var(--input-border);
+    color: var(--gray); padding: 7px 6px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; }
+.auth-tabs button.active { color: var(--light); border-color: var(--accent-border); background: var(--accent-soft); }
+.auth-form { display: flex; flex-direction: column; gap: 10px; }
+.auth-form input { background: var(--input-bg); border: 1px solid var(--input-border);
+    color: var(--light); padding: 10px 12px; border-radius: 8px; font-size: 0.95rem; }
+.auth-form button[type="submit"] { background: var(--primary); border: none; color: #fff;
+    padding: 11px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.auth-form button[type="submit"]:hover { filter: brightness(1.08); }
+.auth-msg { margin-top: 12px; font-size: 0.85rem; min-height: 1.2em; }
+.auth-msg.err { color: #f5b5b8; }
+.auth-msg.ok { color: #9fe0b0; }

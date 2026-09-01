@@ -24,3 +24,8 @@ httpx>=0.27          # cliente do serviço de inferência (core/inference_client
 # --- serviço de inferência (inference/main.py) ---
 fastapi>=0.110
 uvicorn[standard]>=0.27
+# --- contas de usuário (core/users.py, core/auth_routes.py) ---
+Flask-Login>=0.6
+Flask-WTF>=1.2
+argon2-cffi>=23
+email-validator>=2

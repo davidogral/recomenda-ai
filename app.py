@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 
 from flask import Flask, jsonify, render_template, request
+from flask_login import current_user, login_required
 
 from core import catalog, metrics, posters
 
@@ -41,6 +42,11 @@ except Exception:  # flask-limiter ausente → decorador vira no-op
         def limit(self, *_a, **_k):
             return lambda f: f
     limiter = _NoLimiter()
+
+# --- Autenticação: sessão, CSRF, rotas /auth/* (cadastro, login, reset…) ---
+from core import auth_routes  # noqa: E402
+
+auth_routes.init_auth(app, limiter)
 
 
 def _parse_providers(raw) -> "list[int] | None":
@@ -276,11 +282,13 @@ def movie_sheet(tmdb_id: int):
 
     from core import user_data
 
+    my_rating = (user_data.get_rating(current_user.id, tmdb_id)
+                 if current_user.is_authenticated else None)
     return jsonify({
         "region": (region or tmdb.WATCH_REGION).upper(),
         "details": details,
         "providers": tmdb.movie_watch_providers_full(tmdb_id, region),
-        "my_rating": user_data.get_rating(tmdb_id),
+        "my_rating": my_rating,
         "versions": user_data.list_versions(tmdb_id),
     })
 
@@ -298,6 +306,7 @@ def versions_list(tmdb_id: int):
 
 
 @app.route("/versions", methods=["POST"])
+@login_required
 def versions_save():
     """Cria (sem version_id) ou edita (com version_id) uma versão. Body JSON:
     {tmdb_id, name, runtime?, notes?, is_best?, version_id?}. Marcar is_best
@@ -338,6 +347,7 @@ def versions_save():
 
 
 @app.route("/versions/<int:version_id>", methods=["DELETE"])
+@login_required
 def versions_delete(version_id: int):
     """Remove uma versão registrada."""
     from core import user_data
@@ -348,19 +358,21 @@ def versions_delete(version_id: int):
 
 
 # =========================================================================
-# ROTAS: MINHAS AVALIAÇÕES (diário estilo Letterboxd — local, single-user)
+# ROTAS: MINHAS AVALIAÇÕES (diário estilo Letterboxd — por usuário)
 # =========================================================================
 
 @app.route("/ratings")
+@login_required
 def ratings_list():
     """Meu diário: todas as avaliações (nota, ❤, resenha, data), recentes primeiro."""
     from core import user_data
 
-    rows = user_data.list_ratings()
+    rows = user_data.list_ratings(current_user.id)
     return jsonify({"count": len(rows), "ratings": rows})
 
 
 @app.route("/ratings", methods=["POST"])
+@login_required
 def ratings_save():
     """Grava/substitui a avaliação de um filme. Body JSON: {tmdb_id, rating?,
     liked?, review?, watched_date?, title?, release_year?, poster?}. O frontend
@@ -394,7 +406,7 @@ def ratings_save():
         poster = None  # placeholder não é pôster — o diário regenera na exibição
 
     saved = user_data.upsert_rating(
-        tid, rating=rating, liked=bool(data.get("liked")),
+        current_user.id, tid, rating=rating, liked=bool(data.get("liked")),
         review=str(data.get("review") or "").strip()[:10000],
         watched_date=watched, title=title, release_year=year, poster=poster,
     )
@@ -402,11 +414,12 @@ def ratings_save():
 
 
 @app.route("/ratings/<int:tmdb_id>", methods=["DELETE"])
+@login_required
 def ratings_delete(tmdb_id: int):
     """Remove a avaliação de um filme do diário."""
     from core import user_data
 
-    if not user_data.delete_rating(tmdb_id):
+    if not user_data.delete_rating(current_user.id, tmdb_id):
         return jsonify({"error": "Este filme não está no seu diário."}), 404
     return jsonify({"message": "Avaliação removida."})
 
@@ -480,14 +493,16 @@ def explore_essentials():
 # =========================================================================
 
 @app.route("/lists")
+@login_required
 def lists_index():
     """Todas as minhas listas (com contagem e pôsteres para a colagem)."""
     from core import user_data
 
-    return jsonify({"lists": user_data.get_lists()})
+    return jsonify({"lists": user_data.get_lists(current_user.id)})
 
 
 @app.route("/lists", methods=["POST"])
+@login_required
 def lists_create():
     """Cria uma lista. Body JSON: {name, description?}."""
     from core import user_data
@@ -496,32 +511,35 @@ def lists_create():
     name = str(data.get("name") or "").strip()[:200]
     if not name:
         return jsonify({"error": "Dê um nome para a lista."}), 400
-    lst = user_data.create_list(name, str(data.get("description") or "")[:2000])
+    lst = user_data.create_list(current_user.id, name, str(data.get("description") or "")[:2000])
     return jsonify({"message": "Lista criada!", "list": lst})
 
 
 @app.route("/lists/<int:list_id>")
+@login_required
 def lists_get(list_id: int):
     """Uma lista com os itens na ordem de assistir."""
     from core import user_data
 
-    lst = user_data.get_list(list_id)
+    lst = user_data.get_list(current_user.id, list_id)
     if lst is None:
         return jsonify({"error": "Lista não encontrada."}), 404
     return jsonify(lst)
 
 
 @app.route("/lists/<int:list_id>", methods=["DELETE"])
+@login_required
 def lists_delete(list_id: int):
     """Apaga a lista inteira."""
     from core import user_data
 
-    if not user_data.delete_list(list_id):
+    if not user_data.delete_list(current_user.id, list_id):
         return jsonify({"error": "Lista não encontrada."}), 404
     return jsonify({"message": "Lista apagada."})
 
 
 @app.route("/lists/<int:list_id>/items", methods=["POST"])
+@login_required
 def lists_add_item(list_id: int):
     """Acrescenta um filme ao fim da lista. Body: {tmdb_id, title?,
     release_year?, poster?} (a ficha manda tudo; catálogo local de reserva)."""
@@ -546,7 +564,7 @@ def lists_add_item(list_id: int):
     if not poster or poster.startswith("https://placehold.co"):
         poster = None
 
-    added = user_data.add_list_item(list_id, tid, title=title,
+    added = user_data.add_list_item(current_user.id, list_id, tid, title=title,
                                     release_year=year, poster=poster)
     if added is None:
         return jsonify({"error": "Lista não encontrada."}), 404
@@ -555,16 +573,18 @@ def lists_add_item(list_id: int):
 
 
 @app.route("/lists/<int:list_id>/items/<int:tmdb_id>", methods=["DELETE"])
+@login_required
 def lists_remove_item(list_id: int, tmdb_id: int):
     """Remove um filme da lista (posições são renumeradas)."""
     from core import user_data
 
-    if not user_data.remove_list_item(list_id, tmdb_id):
+    if not user_data.remove_list_item(current_user.id, list_id, tmdb_id):
         return jsonify({"error": "Filme não está nessa lista."}), 404
     return jsonify({"message": "Removido da lista."})
 
 
 @app.route("/lists/<int:list_id>/order", methods=["PUT"])
+@login_required
 def lists_reorder(list_id: int):
     """Define a ordem de assistir. Body: {tmdb_ids: [...]} na ordem desejada."""
     from core import user_data
@@ -573,12 +593,13 @@ def lists_reorder(list_id: int):
     ids = data.get("tmdb_ids")
     if not isinstance(ids, list) or not ids:
         return jsonify({"error": "Envie tmdb_ids na ordem desejada."}), 400
-    if not user_data.reorder_list(list_id, ids):
+    if not user_data.reorder_list(current_user.id, list_id, ids):
         return jsonify({"error": "Lista não encontrada."}), 404
     return jsonify({"message": "Ordem salva."})
 
 
 @app.route("/lists/from_collection", methods=["POST"])
+@login_required
 def lists_from_collection():
     """Cria uma lista a partir de uma franquia da TMDB (collection), já na
     ordem de lançamento. Body: {collection_id, name?}."""
@@ -600,16 +621,17 @@ def lists_from_collection():
 
     name = str(data.get("name") or "").strip()[:200] or coll["name"] or "Franquia"
     lst = user_data.create_list(
-        name, "Franquia importada da TMDB — ordem de lançamento.")
+        current_user.id, name, "Franquia importada da TMDB — ordem de lançamento.")
     for p in coll["parts"]:
-        user_data.add_list_item(lst["list_id"], p["tmdb_id"], title=p["title"],
+        user_data.add_list_item(current_user.id, lst["list_id"], p["tmdb_id"], title=p["title"],
                                 release_year=p["release_year"], poster=p["poster"])
     return jsonify({"message": "Lista da franquia criada!",
-                    "list": user_data.get_list(lst["list_id"])})
+                    "list": user_data.get_list(current_user.id, lst["list_id"])})
 
 
 @app.route("/recommend_history", methods=["POST"])
 @limiter.limit(RATE_HEAVY)
+@login_required
 def recommend_history():
     """Recomendações a partir do meu diário (avaliações locais com estrelas/❤).
 
@@ -624,7 +646,7 @@ def recommend_history():
         n = 15
 
     detail = []
-    for r in user_data.list_ratings():
+    for r in user_data.list_ratings(current_user.id):
         rating = r.get("rating")
         if rating is None and r.get("liked"):
             rating = 4.5  # curtiu sem dar estrelas → conta como amado

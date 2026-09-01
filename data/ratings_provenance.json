@@ -1,0 +1,19 @@
+{
+  "source": "MovieLens ml-32m (GroupLens)",
+  "source_url": "https://files.grouplens.org/datasets/movielens/ml-32m.zip",
+  "version": "ml-32m",
+  "generated_by_grouplens": "2023-10-13",
+  "license": "GroupLens — uso NÃO-COMERCIAL sem permissão; ver README.txt do pacote",
+  "citation": "F. Maxwell Harper and Joseph A. Konstan. 2015. The MovieLens Datasets: History and Context. ACM TiiS 5, 4: 19:1-19:19. https://doi.org/10.1145/2827872",
+  "reconciliation": "movieId → tmdbId via links.csv oficial do pacote",
+  "ingested_at": "2026-08-31T23:59:00Z",
+  "min_user_ratings": 5,
+  "n_ratings": 30932302,
+  "n_users": 200948,
+  "n_items": 19713,
+  "rating_scale": [
+    0.5,
+    5.0
+  ],
+  "replaces": "tabela ratings anterior (~2,9M, proveniência não confirmada)"
+}

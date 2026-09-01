@@ -1,17 +1,18 @@
-"""Dados pessoais do usuário — avaliações e listas (uso local, single-user).
+"""Dados pessoais do usuário — avaliações e listas (agora **multi-usuário**).
 
 Banco separado do catálogo (`data/user.db`), para sobreviver a rebuilds do
-índice/catálogo. Duas famílias de dados:
+índice/catálogo. Famílias de dados:
 
-1. **Avaliações** (estilo Letterboxd): cada filme tem no máximo uma avaliação —
-   nota em meias-estrelas (0.5–5.0), curtida (❤), resenha e data de visualização,
-   todos opcionais (dá para resenhar sem dar nota, ou só marcar como assistido).
-2. **Listas ordenadas** (ordem de assistir): listas nomeadas de filmes com
-   posição explícita — reordenáveis; franquias podem ser importadas das
-   collections da TMDB.
+1. **Avaliações** (estilo Letterboxd), **por usuário**: cada filme tem no máximo
+   uma avaliação por conta — nota em meias-estrelas (0.5–5.0), curtida (❤),
+   resenha e data de visualização, todos opcionais.
+2. **Listas ordenadas** (ordem de assistir), **por usuário**: listas nomeadas de
+   filmes com posição explícita, reordenáveis.
+3. **Versões dos filmes** (cortes / qual é o melhor): dado **curado e
+   compartilhado** — não é por usuário. Semeado uma vez.
 
-Título/ano/pôster ficam desnormalizados nas linhas: a ficha funciona para
-qualquer filme da TMDB (não só o catálogo local), então diário e listas também.
+Toda função de (1) e (2) recebe `user_id` como primeiro argumento. `contas` de
+usuário: `core/users.py`.
 """
 
 from __future__ import annotations
@@ -25,9 +26,12 @@ from typing import Any, Optional
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.environ.get("USER_DB_PATH", os.path.join(_PROJECT_ROOT, "data", "user.db"))
 
+LEGACY_USER_ID = 1  # dados do modo single-user antigo vão para cá na migração
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS ratings (
-    tmdb_id      INTEGER PRIMARY KEY,
+    user_id      INTEGER NOT NULL,
+    tmdb_id      INTEGER NOT NULL,
     rating       REAL,                      -- 0.5–5.0 em passos de 0.5; NULL = sem nota
     liked        INTEGER NOT NULL DEFAULT 0,
     review       TEXT NOT NULL DEFAULT '',
@@ -36,11 +40,13 @@ CREATE TABLE IF NOT EXISTS ratings (
     release_year INTEGER,
     poster       TEXT,
     created_at   TEXT NOT NULL,
-    updated_at   TEXT NOT NULL
+    updated_at   TEXT NOT NULL,
+    PRIMARY KEY (user_id, tmdb_id)
 );
 
 CREATE TABLE IF NOT EXISTS lists (
     list_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
     name        TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     created_at  TEXT NOT NULL,
@@ -62,14 +68,13 @@ CREATE TABLE IF NOT EXISTS list_items (
 CREATE TABLE IF NOT EXISTS versions (
     version_id INTEGER PRIMARY KEY AUTOINCREMENT,
     tmdb_id    INTEGER NOT NULL,
-    name       TEXT NOT NULL,               -- ex: "Final Cut (2007)"
-    runtime    INTEGER,                     -- minutos (opcional)
-    notes      TEXT NOT NULL DEFAULT '',    -- diferenças, onde achar, etc.
-    is_best    INTEGER NOT NULL DEFAULT 0,  -- no máx. 1 por filme (invariante no código)
+    name       TEXT NOT NULL,
+    runtime    INTEGER,
+    notes      TEXT NOT NULL DEFAULT '',
+    is_best    INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_versions_movie ON versions(tmdb_id);
 
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
@@ -77,21 +82,64 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 """
 
+# Índices criados DEPOIS da migração (dependem de colunas que a migração adiciona).
+_INDEXES = """
+CREATE INDEX IF NOT EXISTS idx_lists_user ON lists(user_id);
+CREATE INDEX IF NOT EXISTS idx_versions_movie ON versions(tmdb_id);
+"""
+
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Traz um `user.db` do modo single-user para o multi-usuário (idempotente).
+    Dados antigos vão para `user_id = LEGACY_USER_ID` (reassocie com
+    `python -m core.users claim <email>`)."""
+    if conn.execute("SELECT 1 FROM meta WHERE key = 'schema_multiuser'").fetchone():
+        return
+
+    def cols(table: str) -> set:
+        return {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+
+    if "ratings" in {r["name"] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")} and "user_id" not in cols("ratings"):
+        conn.execute("ALTER TABLE ratings RENAME TO _ratings_old")
+        conn.executescript(_SCHEMA)  # recria com o PK novo
+        conn.execute(
+            "INSERT INTO ratings (user_id, tmdb_id, rating, liked, review, watched_date, "
+            "title, release_year, poster, created_at, updated_at) "
+            f"SELECT {LEGACY_USER_ID}, tmdb_id, rating, liked, review, watched_date, "
+            "title, release_year, poster, created_at, updated_at FROM _ratings_old")
+        conn.execute("DROP TABLE _ratings_old")
+
+    if "user_id" not in cols("lists"):
+        conn.execute(f"ALTER TABLE lists ADD COLUMN user_id INTEGER NOT NULL DEFAULT {LEGACY_USER_ID}")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lists_user ON lists(user_id)")
+
+    conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_multiuser', '1')")
+
+
 def _connect() -> sqlite3.Connection:
-    """Conexão por operação (volume minúsculo — simplicidade > pooling)."""
+    """Conexão por operação (volume por-requisição minúsculo — simplicidade > pooling)."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.executescript(_SCHEMA)
+    conn.executescript(_SCHEMA)   # tabelas (com user_id em bancos novos)
+    _migrate(conn)                # ALTER em bancos vindos do modo single-user
+    conn.executescript(_INDEXES)  # índices — agora as colunas existem
     return conn
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _uid(user_id: Any) -> int:
+    n = int(user_id)
+    if n <= 0:
+        raise ValueError("user_id inválido")
+    return n
 
 
 def normalize_rating(value: Any) -> Optional[float]:
@@ -114,53 +162,53 @@ def normalize_date(value: Any) -> Optional[str]:
     return s
 
 
-def upsert_rating(tmdb_id: int, *, rating: Optional[float] = None, liked: bool = False,
+# --------------------------------------------------------------------------
+# Avaliações (por usuário)
+# --------------------------------------------------------------------------
+
+def upsert_rating(user_id: int, tmdb_id: int, *, rating: Optional[float] = None, liked: bool = False,
                   review: str = "", watched_date: Optional[str] = None,
                   title: str = "", release_year: Optional[int] = None,
                   poster: Optional[str] = None) -> dict:
-    """Grava (ou substitui) a avaliação de um filme e devolve a linha salva.
-
-    Substituição total: o chamador manda o estado completo do formulário —
-    preserva `created_at` de uma avaliação anterior, se houver."""
-    now = _now()
+    """Grava (ou substitui) a avaliação de um filme para o usuário."""
+    uid, now = _uid(user_id), _now()
     with _connect() as conn:
-        row = conn.execute("SELECT created_at FROM ratings WHERE tmdb_id = ?",
-                           (int(tmdb_id),)).fetchone()
+        row = conn.execute("SELECT created_at FROM ratings WHERE user_id = ? AND tmdb_id = ?",
+                           (uid, int(tmdb_id))).fetchone()
         created = row["created_at"] if row else now
         conn.execute(
             """INSERT OR REPLACE INTO ratings
-               (tmdb_id, rating, liked, review, watched_date, title, release_year,
+               (user_id, tmdb_id, rating, liked, review, watched_date, title, release_year,
                 poster, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (int(tmdb_id), rating, 1 if liked else 0, review or "", watched_date,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (uid, int(tmdb_id), rating, 1 if liked else 0, review or "", watched_date,
              title or "", release_year, poster, created, now),
         )
-    return get_rating(tmdb_id)  # type: ignore[return-value]
+    return get_rating(uid, tmdb_id)  # type: ignore[return-value]
 
 
-def get_rating(tmdb_id: int) -> Optional[dict]:
-    """Avaliação de um filme, ou None se nunca avaliado."""
+def get_rating(user_id: int, tmdb_id: int) -> Optional[dict]:
     with _connect() as conn:
-        row = conn.execute("SELECT * FROM ratings WHERE tmdb_id = ?",
-                           (int(tmdb_id),)).fetchone()
+        row = conn.execute("SELECT * FROM ratings WHERE user_id = ? AND tmdb_id = ?",
+                           (_uid(user_id), int(tmdb_id))).fetchone()
     return _shape(row) if row else None
 
 
-def list_ratings() -> list[dict]:
-    """Todas as avaliações, mais recentes primeiro (data assistida > atualização)."""
+def list_ratings(user_id: int) -> list[dict]:
+    """Avaliações do usuário, mais recentes primeiro (data assistida > atualização)."""
     with _connect() as conn:
         rows = conn.execute(
-            """SELECT * FROM ratings
+            """SELECT * FROM ratings WHERE user_id = ?
                ORDER BY COALESCE(watched_date, substr(updated_at, 1, 10)) DESC,
-                        updated_at DESC"""
+                        updated_at DESC""", (_uid(user_id),)
         ).fetchall()
     return [_shape(r) for r in rows]
 
 
-def delete_rating(tmdb_id: int) -> bool:
-    """Remove a avaliação. True se existia."""
+def delete_rating(user_id: int, tmdb_id: int) -> bool:
     with _connect() as conn:
-        cur = conn.execute("DELETE FROM ratings WHERE tmdb_id = ?", (int(tmdb_id),))
+        cur = conn.execute("DELETE FROM ratings WHERE user_id = ? AND tmdb_id = ?",
+                           (_uid(user_id), int(tmdb_id)))
     return cur.rowcount > 0
 
 
@@ -171,69 +219,72 @@ def _shape(row: sqlite3.Row) -> dict:
 
 
 # --------------------------------------------------------------------------
-# Listas ordenadas (ordem de assistir)
+# Listas ordenadas (por usuário)
 # --------------------------------------------------------------------------
 
-def create_list(name: str, description: str = "") -> dict:
-    """Cria uma lista vazia e devolve-a (com `items`)."""
-    now = _now()
+def _owns_list(conn: sqlite3.Connection, user_id: int, list_id: int) -> bool:
+    return conn.execute("SELECT 1 FROM lists WHERE list_id = ? AND user_id = ?",
+                        (int(list_id), user_id)).fetchone() is not None
+
+
+def create_list(user_id: int, name: str, description: str = "") -> dict:
+    uid, now = _uid(user_id), _now()
     with _connect() as conn:
         cur = conn.execute(
-            "INSERT INTO lists (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (name.strip(), description.strip(), now, now),
+            "INSERT INTO lists (user_id, name, description, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?)", (uid, name.strip(), description.strip(), now, now),
         )
         lid = cur.lastrowid
-    return get_list(lid)  # type: ignore[return-value]
+    return get_list(uid, lid)  # type: ignore[return-value]
 
 
-def get_lists() -> list[dict]:
-    """Todas as listas (recém-mexidas primeiro), com contagem e até 4 pôsteres
-    (para a colagem do card)."""
+def get_lists(user_id: int) -> list[dict]:
+    """Listas do usuário (recém-mexidas primeiro), com contagem e até 4 pôsteres."""
     with _connect() as conn:
-        lists = [dict(r) for r in
-                 conn.execute("SELECT * FROM lists ORDER BY updated_at DESC").fetchall()]
-        for l in lists:
-            lid = l["list_id"]
-            l["n_items"] = conn.execute(
+        lists = [dict(r) for r in conn.execute(
+            "SELECT * FROM lists WHERE user_id = ? ORDER BY updated_at DESC",
+            (_uid(user_id),)).fetchall()]
+        for lst in lists:
+            lid = lst["list_id"]
+            lst["n_items"] = conn.execute(
                 "SELECT COUNT(*) FROM list_items WHERE list_id = ?", (lid,)).fetchone()[0]
-            l["posters"] = [r[0] for r in conn.execute(
+            lst["posters"] = [r[0] for r in conn.execute(
                 """SELECT poster FROM list_items
                    WHERE list_id = ? AND poster IS NOT NULL
                    ORDER BY position LIMIT 4""", (lid,)).fetchall()]
     return lists
 
 
-def get_list(list_id: int) -> Optional[dict]:
-    """Uma lista com seus itens em ordem de assistir, ou None."""
+def get_list(user_id: int, list_id: int) -> Optional[dict]:
+    """Uma lista do usuário com os itens em ordem de assistir, ou None."""
     with _connect() as conn:
-        row = conn.execute("SELECT * FROM lists WHERE list_id = ?",
-                           (int(list_id),)).fetchone()
+        row = conn.execute("SELECT * FROM lists WHERE list_id = ? AND user_id = ?",
+                           (int(list_id), _uid(user_id))).fetchone()
         if row is None:
             return None
-        l = dict(row)
-        l["items"] = [dict(r) for r in conn.execute(
+        lst = dict(row)
+        lst["items"] = [dict(r) for r in conn.execute(
             "SELECT * FROM list_items WHERE list_id = ? ORDER BY position",
             (int(list_id),)).fetchall()]
-    return l
+    return lst
 
 
-def delete_list(list_id: int) -> bool:
-    """Apaga a lista e seus itens. True se existia."""
+def delete_list(user_id: int, list_id: int) -> bool:
     with _connect() as conn:
+        if not _owns_list(conn, _uid(user_id), list_id):
+            return False
         conn.execute("DELETE FROM list_items WHERE list_id = ?", (int(list_id),))
         cur = conn.execute("DELETE FROM lists WHERE list_id = ?", (int(list_id),))
     return cur.rowcount > 0
 
 
-def add_list_item(list_id: int, tmdb_id: int, *, title: str = "",
+def add_list_item(user_id: int, list_id: int, tmdb_id: int, *, title: str = "",
                   release_year: Optional[int] = None,
                   poster: Optional[str] = None) -> Optional[bool]:
-    """Acrescenta o filme ao fim da lista. None = lista não existe;
-    True = adicionado; False = já estava (idempotente)."""
-    now = _now()
+    """None = lista não é do usuário / não existe; True = adicionado; False = já estava."""
+    uid, now = _uid(user_id), _now()
     with _connect() as conn:
-        if conn.execute("SELECT 1 FROM lists WHERE list_id = ?",
-                        (int(list_id),)).fetchone() is None:
+        if not _owns_list(conn, uid, list_id):
             return None
         if conn.execute("SELECT 1 FROM list_items WHERE list_id = ? AND tmdb_id = ?",
                         (int(list_id), int(tmdb_id))).fetchone():
@@ -250,9 +301,10 @@ def add_list_item(list_id: int, tmdb_id: int, *, title: str = "",
     return True
 
 
-def remove_list_item(list_id: int, tmdb_id: int) -> bool:
-    """Remove o filme da lista e renumera as posições (1..N). True se existia."""
+def remove_list_item(user_id: int, list_id: int, tmdb_id: int) -> bool:
     with _connect() as conn:
+        if not _owns_list(conn, _uid(user_id), list_id):
+            return False
         cur = conn.execute("DELETE FROM list_items WHERE list_id = ? AND tmdb_id = ?",
                            (int(list_id), int(tmdb_id)))
         if cur.rowcount == 0:
@@ -263,18 +315,13 @@ def remove_list_item(list_id: int, tmdb_id: int) -> bool:
         for i, tid in enumerate(remaining, start=1):
             conn.execute("UPDATE list_items SET position = ? WHERE list_id = ? AND tmdb_id = ?",
                          (i, int(list_id), tid))
-        conn.execute("UPDATE lists SET updated_at = ? WHERE list_id = ?",
-                     (_now(), int(list_id)))
+        conn.execute("UPDATE lists SET updated_at = ? WHERE list_id = ?", (_now(), int(list_id)))
     return True
 
 
-def reorder_list(list_id: int, tmdb_ids: list) -> bool:
-    """Define a ordem de assistir pela ordem do array. Ids desconhecidos são
-    ignorados; itens não citados mantêm a ordem antiga, depois dos citados.
-    False se a lista não existe."""
+def reorder_list(user_id: int, list_id: int, tmdb_ids: list) -> bool:
     with _connect() as conn:
-        if conn.execute("SELECT 1 FROM lists WHERE list_id = ?",
-                        (int(list_id),)).fetchone() is None:
+        if not _owns_list(conn, _uid(user_id), list_id):
             return False
         current = [r[0] for r in conn.execute(
             "SELECT tmdb_id FROM list_items WHERE list_id = ? ORDER BY position",
@@ -293,23 +340,19 @@ def reorder_list(list_id: int, tmdb_ids: list) -> bool:
         for i, tid in enumerate(ordered, start=1):
             conn.execute("UPDATE list_items SET position = ? WHERE list_id = ? AND tmdb_id = ?",
                          (i, int(list_id), tid))
-        conn.execute("UPDATE lists SET updated_at = ? WHERE list_id = ?",
-                     (_now(), int(list_id)))
+        conn.execute("UPDATE lists SET updated_at = ? WHERE list_id = ?", (_now(), int(list_id)))
     return True
 
 
 # --------------------------------------------------------------------------
-# Versões dos filmes (curadoria: cortes existentes + qual é a melhor)
+# Versões dos filmes — dado CURADO e COMPARTILHADO (não é por usuário)
 # --------------------------------------------------------------------------
 
 _seed_checked = False
 
 
 def ensure_versions_seed() -> None:
-    """Carga única do pacote inicial de versões famosas (Blade Runner etc.).
-
-    Roda no primeiro acesso; o marcador em `meta` garante que apagar/editar
-    as sementes nunca as ressuscita."""
+    """Carga única do pacote inicial de versões famosas (Blade Runner etc.)."""
     global _seed_checked
     if _seed_checked:
         return
@@ -332,7 +375,6 @@ def ensure_versions_seed() -> None:
 
 
 def list_versions(tmdb_id: int) -> list[dict]:
-    """Versões registradas do filme, em ordem de cadastro (≈ cronológica)."""
     ensure_versions_seed()
     with _connect() as conn:
         rows = conn.execute("SELECT * FROM versions WHERE tmdb_id = ? ORDER BY version_id",
@@ -348,8 +390,6 @@ def list_versions(tmdb_id: int) -> list[dict]:
 def save_version(tmdb_id: int, name: str, *, runtime: Optional[int] = None,
                  notes: str = "", is_best: bool = False,
                  version_id: Optional[int] = None) -> Optional[dict]:
-    """Cria (version_id=None) ou edita uma versão. Marcar `is_best` desmarca
-    as demais do mesmo filme (no máx. uma melhor). None se o id não existe."""
     ensure_versions_seed()
     now = _now()
     with _connect() as conn:
@@ -380,7 +420,6 @@ def save_version(tmdb_id: int, name: str, *, runtime: Optional[int] = None,
 
 
 def delete_version(version_id: int) -> bool:
-    """Remove uma versão. True se existia."""
     with _connect() as conn:
         cur = conn.execute("DELETE FROM versions WHERE version_id = ?", (int(version_id),))
     return cur.rowcount > 0

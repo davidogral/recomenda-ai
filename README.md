@@ -96,7 +96,9 @@ dvc remote modify --local b2 secret_access_key <B2_APP_KEY>
 dvc pull                                   # baixa index/ + weights/
 ```
 
-> `.dvc/config` tem um `url`/`endpointurl` **placeholder** (`s3://CHANGE-ME-bucket/...`) — ajuste para o seu bucket/região B2. Sem o `dvc pull`, reconstrua os artefatos localmente (passo 5).
+> `.dvc/config` tem um `url`/`endpointurl` **placeholder** (`s3://CHANGE-ME-bucket/...`) — ajuste para o seu bucket/região B2. Sem o `dvc pull`, reconstrua os artefatos localmente (passo 6).
+>
+> O `data/raw/movies.db` (catálogo + ratings) **não** é gerido por DVC — é reconstruído por `python -m recommender.ingest_movielens` (ratings) + `python -m core.enrich` (sinais IMDb/crítica). Mantenha uma cópia à parte ou coloque no seu bucket manualmente.
 
 ### 3. (Opcional) Credenciais da TMDB para pôsteres
 Copie `.env.example` para `.env` e preencha com seu token da TMDB. Sem isso, o sistema funciona normalmente, exibindo placeholders no lugar das imagens.
@@ -242,6 +244,15 @@ A `api` chama a `inference` por HTTP quando `RECOMENDAI_INFERENCE_URL` está set
 | `recomendaai_tmdb_calls_total{result}` | `ok` / `error` / `capped` |
 | `recomendaai_process_rss_bytes` | memória residente |
 
+### Contas de usuário
+
+Login por **e-mail + senha** (Argon2), sessão em cookie assinado (Flask-Login), **CSRF** em toda requisição que altera estado (header `X-CSRFToken`; o frontend busca em `GET /auth/csrf`). Fluxo completo: cadastro, **verificação de e-mail**, **reset de senha** e **exclusão de conta** (`core/users.py`, `core/auth_routes.py`).
+
+- **E-mail**: SMTP por env (`SMTP_HOST`…); sem provedor, o app **imprime o link no stdout** — dá para testar tudo sem configurar nada.
+- **Multi-usuário**: diário e listas são por conta (`data/user.db`, migração automática de bancos single-user → usuário `LEGACY_USER_ID=1`; reassocie com `python -m core.users claim <email>`). As *versões* de filme são curadoria compartilhada.
+- **CLI**: `python -m core.users create|verify|passwd|claim`.
+- Rotas `/auth/*` têm rate limit próprio (login 10/min, cadastro 5/h). `SECRET_KEY` é **obrigatória** em produção.
+
 ### Limites
 
 - **Rate limit** (Flask-Limiter): `/search` a **30/min** por IP, endpoints pesados (`/similar`, `/recommend*`, `/explore/essentials`) a **12/min**. Configurável (`RECOMENDAI_RATE_SEARCH`, `RECOMENDAI_RATE_HEAVY`); `memory://` por padrão, aponte `RATELIMIT_STORAGE_URI` para Redis em multi-worker.
@@ -263,17 +274,21 @@ A `api` chama a `inference` por HTTP quando `RECOMENDAI_INFERENCE_URL` está set
 | Nota e nº de votos de filmes (`imdb_rating`, `imdb_votes`) | **[IMDb Non-Commercial Datasets](https://developer.imdb.com/non-commercial-datasets/)** (`title.ratings.tsv.gz`) | Uso **pessoal e não-comercial** apenas; sem redistribuição. Baixado por `core/enrich.py` | ranking de "Essenciais" |
 | Crítica (`metascore`, `rt_score`) | **[OMDb API](https://www.omdbapi.com/)** (agrega Metacritic / Rotten Tomatoes) | Termos do OMDb; requer `OMDB_API_KEY` | ranking de "Essenciais" |
 | Cânone (`canon_rank`) | Lista **curada** no repositório (`core/enrich.py::CANON`) — base Sight & Sound 2022 + clássicos de consenso | Curadoria própria | ranking de "Essenciais" |
-| **~2,9 M de avaliações** que treinam o SVD colaborativo | **MovieLens / GroupLens** — *release exato a confirmar* (ver ⚠️ abaixo) | **[Termos do GroupLens](https://files.grouplens.org/datasets/movielens/ml-25m-README.html)** | recomendação colaborativa |
-| Notas do usuário (aba Letterboxd / Assistidos) | *Upload do próprio usuário* | Dado do usuário; fica só no `data/user.db` local, não é redistribuído | recomendação a partir do perfil |
+| **~31 M de avaliações** que treinam o SVD colaborativo | **MovieLens ml-32m** (GroupLens, out/2023) — reconstruído por [`recommender/ingest_movielens.py`](recommender/ingest_movielens.py), reconciliação `movieId → tmdbId` pelo **`links.csv` oficial** | **GroupLens: uso NÃO-comercial sem permissão** — [termos](https://files.grouplens.org/datasets/movielens/ml-25m-README.html). Cite Harper & Konstan (2015). | recomendação colaborativa |
+| Notas do usuário (diário, listas) | *Do próprio usuário* (por conta, `data/user.db`) | Dado do usuário; não é redistribuído | recomendação a partir do perfil |
 
-### ⚠️ Bloqueador de produção — avaliações do modelo colaborativo
+### Ratings do recomendador — reconstruídos e documentados
 
-Os ~2,9 M de ratings (`movies.db → ratings`, escala meia-estrela 0,5–5,0, *timestamps* de 1996–2018) **têm forte cara de MovieLens** (escala, formato, reconciliação `movieId → tmdb_id`), mas:
+Os ~2,9 M de ratings originais **vieram sem proveniência** no `movies.db`. Foram **substituídos** por uma base rastreável:
 
-- **o *release* exato não está documentado** (ml-25m? ml-latest? um subconjunto filtrado?) e o script de reconciliação **não está no repositório** — o dado veio pronto no `movies.db`;
-- os **termos do GroupLens proíbem uso comercial ou "revenue-bearing" sem permissão** de um pesquisador do GroupLens, e exigem citar Harper & Konstan (2015), *The MovieLens Datasets: History and Context*, ACM TiiS.
+```bash
+python -m recommender.ingest_movielens   # baixa o ml-32m, reconcilia pelo links.csv, grava em movies.db
+python -m recommender.train               # retreina o SVD
+```
 
-**Antes de qualquer deploy público:** (1) confirmar a origem exata com quem montou o `movies.db`; (2) versionar o script de ingestão/reconciliação; (3) decidir conformidade — se houver monetização, obter permissão do GroupLens **ou** trocar por um dataset com licença compatível (ex.: MovieLens com permissão, ou ratings próprios). Rastreado em `data/quality_report.json` (`ratings_provenance: "unconfirmed"`).
+`data/ratings_provenance.json` registra fonte, versão, MD5 conferido, contagens e licença. Resultado: **30,9 M avaliações · 200,9 k usuários · 19,7 k filmes** (vs. 2,9 M / 19,8 k / 15,2 k antes) — ~10× mais dado e cobertura maior.
+
+> ⚠️ **Licença**: ml-32m é do **GroupLens** e **proíbe uso comercial/"revenue-bearing" sem permissão** (basta um e-mail a um docente do GroupLens/UMN — costumam liberar para projetos sem receita). O `files.grouplens.org` está com **certificado TLS expirado**; o script baixa com `verify=False` e **valida o MD5** publicado. **Antes de monetizar**: obter a permissão do GroupLens **ou** migrar para um dataset com licença compatível.
 
 ### Validação de schema (Pandera)
 

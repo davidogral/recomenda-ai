@@ -20,7 +20,11 @@ jobs:
       - name: ruff check
         run: ruff check --output-format=github .
       - name: ruff format (módulos novos)
-        run: ruff format --check core/metrics.py core/schemas.py core/validate.py core/inference_client.py inference eval
+        run: >
+          ruff format --check
+          core/metrics.py core/schemas.py core/validate.py core/inference_client.py
+          core/users.py core/mailer.py core/auth_routes.py
+          recommender/ingest_movielens.py inference eval tests
 
   types:
     runs-on: ubuntu-latest
