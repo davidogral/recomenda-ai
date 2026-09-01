@@ -1,0 +1,872 @@
+{
+  "run": {
+    "timestamp_utc": "2026-09-01T01:49:36Z",
+    "git_commit": "c608153",
+    "split": "hard",
+    "n_queries": 30,
+    "dataset_file": "eval/datasets/queries.jsonl",
+    "dataset_sha1": "c2aea9d470e6b6d70343aa927334185ecd67ff91",
+    "split_counts": {
+      "total": 172,
+      "by_split": {
+        "dev": 95,
+        "test": 47,
+        "hard": 30
+      },
+      "by_source": {
+        "v1-core": {
+          "dev": 11,
+          "test": 1
+        },
+        "v1-ext": {
+          "test": 16,
+          "dev": 24
+        },
+        "v2": {
+          "dev": 60,
+          "test": 30
+        },
+        "v3-hard": {
+          "hard": 30
+        }
+      }
+    },
+    "engine": {
+      "n_movies": 22029,
+      "embed_model": "intfloat/multilingual-e5-large",
+      "embed_dim": 1024,
+      "lexical": "bm25"
+    },
+    "config": {
+      "embed_weight": 0.6,
+      "keyword_weight": 0.5,
+      "lexical_weight": "adaptativo (0.20–0.30)",
+      "pop_prior": 0.35,
+      "rerank_pool": 50,
+      "rerank_blend": 0.5,
+      "intent_thresholds": [
+        0.92,
+        0.85
+      ],
+      "tmdb_name_fallback": false,
+      "query_slm": false
+    },
+    "pipelines": [
+      "bm25",
+      "fusion",
+      "fusion_prf"
+    ]
+  },
+  "results": {
+    "bm25": {
+      "metrics": {
+        "n": 30,
+        "found": 30,
+        "mrr": 0.1437,
+        "median_rank": 246,
+        "mean_rank": 2994.3,
+        "recall@1": 0.1,
+        "recall@3": 0.1333,
+        "recall@5": 0.1667,
+        "recall@10": 0.2667,
+        "recall@20": 0.3333,
+        "recall@50": 0.4,
+        "precision@1": 0.1,
+        "precision@5": 0.0333,
+        "precision@10": 0.0267,
+        "ndcg@10": 0.1651,
+        "hits@1": 3,
+        "hits@3": 4,
+        "hits@10": 8
+      },
+      "latency_ms": {
+        "mean_ms": 6.1,
+        "p50_ms": 4.8,
+        "p90_ms": 8.7,
+        "max_ms": 18.3
+      },
+      "per_query": [
+        {
+          "qid": "v3-hard-000",
+          "source": "v3-hard",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 7694,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-hard-001",
+          "source": "v3-hard",
+          "title": "Matrix",
+          "relevant_id": 603,
+          "rank": 1039,
+          "rr": 0.001
+        },
+        {
+          "qid": "v3-hard-002",
+          "source": "v3-hard",
+          "title": "Guerra nas Estrelas",
+          "relevant_id": 11,
+          "rank": 10120,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-hard-003",
+          "source": "v3-hard",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 42,
+          "rr": 0.0238
+        },
+        {
+          "qid": "v3-hard-004",
+          "source": "v3-hard",
+          "title": "O Sexto Sentido",
+          "relevant_id": 745,
+          "rank": 374,
+          "rr": 0.0027
+        },
+        {
+          "qid": "v3-hard-005",
+          "source": "v3-hard",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-006",
+          "source": "v3-hard",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 237,
+          "rr": 0.0042
+        },
+        {
+          "qid": "v3-hard-007",
+          "source": "v3-hard",
+          "title": "Jurassic Park: O Parque dos Dinossauros",
+          "relevant_id": 329,
+          "rank": 15,
+          "rr": 0.0667
+        },
+        {
+          "qid": "v3-hard-008",
+          "source": "v3-hard",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 8819,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-hard-009",
+          "source": "v3-hard",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 6761,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-hard-010",
+          "source": "v3-hard",
+          "title": "O Rei Leão",
+          "relevant_id": 8587,
+          "rank": 9,
+          "rr": 0.1111
+        },
+        {
+          "qid": "v3-hard-011",
+          "source": "v3-hard",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 9,
+          "rr": 0.1111
+        },
+        {
+          "qid": "v3-hard-012",
+          "source": "v3-hard",
+          "title": "Toy Story: Um Mundo de Aventuras",
+          "relevant_id": 862,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v3-hard-013",
+          "source": "v3-hard",
+          "title": "Procurando Nemo",
+          "relevant_id": 12,
+          "rank": 70,
+          "rr": 0.0143
+        },
+        {
+          "qid": "v3-hard-014",
+          "source": "v3-hard",
+          "title": "WALL-E",
+          "relevant_id": 10681,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v3-hard-015",
+          "source": "v3-hard",
+          "title": "Interestelar",
+          "relevant_id": 157336,
+          "rank": 2462,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v3-hard-016",
+          "source": "v3-hard",
+          "title": "Coringa",
+          "relevant_id": 475557,
+          "rank": 14407,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-hard-017",
+          "source": "v3-hard",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 9486,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-hard-018",
+          "source": "v3-hard",
+          "title": "Parasita",
+          "relevant_id": 496243,
+          "rank": 54,
+          "rr": 0.0185
+        },
+        {
+          "qid": "v3-hard-019",
+          "source": "v3-hard",
+          "title": "Whiplash: Em Busca da Perfeição",
+          "relevant_id": 244786,
+          "rank": 15,
+          "rr": 0.0667
+        },
+        {
+          "qid": "v3-hard-020",
+          "source": "v3-hard",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 8585,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-hard-021",
+          "source": "v3-hard",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-022",
+          "source": "v3-hard",
+          "title": "O Grande Truque",
+          "relevant_id": 1124,
+          "rank": 2632,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v3-hard-023",
+          "source": "v3-hard",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-024",
+          "source": "v3-hard",
+          "title": "O Show de Truman: O Show da Vida",
+          "relevant_id": 37165,
+          "rank": 6668,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-hard-025",
+          "source": "v3-hard",
+          "title": "Feitiço do Tempo",
+          "relevant_id": 137,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-hard-026",
+          "source": "v3-hard",
+          "title": "Corra!",
+          "relevant_id": 419430,
+          "rank": 256,
+          "rr": 0.0039
+        },
+        {
+          "qid": "v3-hard-027",
+          "source": "v3-hard",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 29,
+          "rr": 0.0345
+        },
+        {
+          "qid": "v3-hard-028",
+          "source": "v3-hard",
+          "title": "Cidade de Deus",
+          "relevant_id": 598,
+          "rank": 8216,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-hard-029",
+          "source": "v3-hard",
+          "title": "Amnésia",
+          "relevant_id": 77,
+          "rank": 1812,
+          "rr": 0.0006
+        }
+      ]
+    },
+    "fusion": {
+      "metrics": {
+        "n": 30,
+        "found": 30,
+        "mrr": 0.4369,
+        "median_rank": 4,
+        "mean_rank": 176.4,
+        "recall@1": 0.3333,
+        "recall@3": 0.4667,
+        "recall@5": 0.5333,
+        "recall@10": 0.6333,
+        "recall@20": 0.6667,
+        "recall@50": 0.7667,
+        "precision@1": 0.3333,
+        "precision@5": 0.1067,
+        "precision@10": 0.0633,
+        "ndcg@10": 0.4796,
+        "hits@1": 10,
+        "hits@3": 14,
+        "hits@10": 19
+      },
+      "latency_ms": {
+        "mean_ms": 13.4,
+        "p50_ms": 10.5,
+        "p90_ms": 13.7,
+        "max_ms": 86.2
+      },
+      "per_query": [
+        {
+          "qid": "v3-hard-000",
+          "source": "v3-hard",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 751,
+          "rr": 0.0013
+        },
+        {
+          "qid": "v3-hard-001",
+          "source": "v3-hard",
+          "title": "Matrix",
+          "relevant_id": 603,
+          "rank": 1117,
+          "rr": 0.0009
+        },
+        {
+          "qid": "v3-hard-002",
+          "source": "v3-hard",
+          "title": "Guerra nas Estrelas",
+          "relevant_id": 11,
+          "rank": 29,
+          "rr": 0.0345
+        },
+        {
+          "qid": "v3-hard-003",
+          "source": "v3-hard",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-004",
+          "source": "v3-hard",
+          "title": "O Sexto Sentido",
+          "relevant_id": 745,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v3-hard-005",
+          "source": "v3-hard",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v3-hard-006",
+          "source": "v3-hard",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 426,
+          "rr": 0.0023
+        },
+        {
+          "qid": "v3-hard-007",
+          "source": "v3-hard",
+          "title": "Jurassic Park: O Parque dos Dinossauros",
+          "relevant_id": 329,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v3-hard-008",
+          "source": "v3-hard",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-hard-009",
+          "source": "v3-hard",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 20,
+          "rr": 0.05
+        },
+        {
+          "qid": "v3-hard-010",
+          "source": "v3-hard",
+          "title": "O Rei Leão",
+          "relevant_id": 8587,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-011",
+          "source": "v3-hard",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-012",
+          "source": "v3-hard",
+          "title": "Toy Story: Um Mundo de Aventuras",
+          "relevant_id": 862,
+          "rank": 299,
+          "rr": 0.0033
+        },
+        {
+          "qid": "v3-hard-013",
+          "source": "v3-hard",
+          "title": "Procurando Nemo",
+          "relevant_id": 12,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-014",
+          "source": "v3-hard",
+          "title": "WALL-E",
+          "relevant_id": 10681,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-015",
+          "source": "v3-hard",
+          "title": "Interestelar",
+          "relevant_id": 157336,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-hard-016",
+          "source": "v3-hard",
+          "title": "Coringa",
+          "relevant_id": 475557,
+          "rank": 26,
+          "rr": 0.0385
+        },
+        {
+          "qid": "v3-hard-017",
+          "source": "v3-hard",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 159,
+          "rr": 0.0063
+        },
+        {
+          "qid": "v3-hard-018",
+          "source": "v3-hard",
+          "title": "Parasita",
+          "relevant_id": 496243,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-019",
+          "source": "v3-hard",
+          "title": "Whiplash: Em Busca da Perfeição",
+          "relevant_id": 244786,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-020",
+          "source": "v3-hard",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 2299,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v3-hard-021",
+          "source": "v3-hard",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-022",
+          "source": "v3-hard",
+          "title": "O Grande Truque",
+          "relevant_id": 1124,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v3-hard-023",
+          "source": "v3-hard",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-024",
+          "source": "v3-hard",
+          "title": "O Show de Truman: O Show da Vida",
+          "relevant_id": 37165,
+          "rank": 75,
+          "rr": 0.0133
+        },
+        {
+          "qid": "v3-hard-025",
+          "source": "v3-hard",
+          "title": "Feitiço do Tempo",
+          "relevant_id": 137,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-hard-026",
+          "source": "v3-hard",
+          "title": "Corra!",
+          "relevant_id": 419430,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-027",
+          "source": "v3-hard",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v3-hard-028",
+          "source": "v3-hard",
+          "title": "Cidade de Deus",
+          "relevant_id": 598,
+          "rank": 43,
+          "rr": 0.0233
+        },
+        {
+          "qid": "v3-hard-029",
+          "source": "v3-hard",
+          "title": "Amnésia",
+          "relevant_id": 77,
+          "rank": 2,
+          "rr": 0.5
+        }
+      ]
+    },
+    "fusion_prf": {
+      "metrics": {
+        "n": 30,
+        "found": 30,
+        "mrr": 0.3662,
+        "median_rank": 5,
+        "mean_rank": 283.3,
+        "recall@1": 0.2667,
+        "recall@3": 0.4667,
+        "recall@5": 0.5,
+        "recall@10": 0.5667,
+        "recall@20": 0.6,
+        "recall@50": 0.6333,
+        "precision@1": 0.2667,
+        "precision@5": 0.1,
+        "precision@10": 0.0567,
+        "ndcg@10": 0.4098,
+        "hits@1": 8,
+        "hits@3": 14,
+        "hits@10": 17
+      },
+      "latency_ms": {
+        "mean_ms": 22.0,
+        "p50_ms": 20.4,
+        "p90_ms": 29.2,
+        "max_ms": 34.3
+      },
+      "per_query": [
+        {
+          "qid": "v3-hard-000",
+          "source": "v3-hard",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 1348,
+          "rr": 0.0007
+        },
+        {
+          "qid": "v3-hard-001",
+          "source": "v3-hard",
+          "title": "Matrix",
+          "relevant_id": 603,
+          "rank": 885,
+          "rr": 0.0011
+        },
+        {
+          "qid": "v3-hard-002",
+          "source": "v3-hard",
+          "title": "Guerra nas Estrelas",
+          "relevant_id": 11,
+          "rank": 74,
+          "rr": 0.0135
+        },
+        {
+          "qid": "v3-hard-003",
+          "source": "v3-hard",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-hard-004",
+          "source": "v3-hard",
+          "title": "O Sexto Sentido",
+          "relevant_id": 745,
+          "rank": 11,
+          "rr": 0.0909
+        },
+        {
+          "qid": "v3-hard-005",
+          "source": "v3-hard",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v3-hard-006",
+          "source": "v3-hard",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 578,
+          "rr": 0.0017
+        },
+        {
+          "qid": "v3-hard-007",
+          "source": "v3-hard",
+          "title": "Jurassic Park: O Parque dos Dinossauros",
+          "relevant_id": 329,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-hard-008",
+          "source": "v3-hard",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-hard-009",
+          "source": "v3-hard",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 367,
+          "rr": 0.0027
+        },
+        {
+          "qid": "v3-hard-010",
+          "source": "v3-hard",
+          "title": "O Rei Leão",
+          "relevant_id": 8587,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-011",
+          "source": "v3-hard",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-012",
+          "source": "v3-hard",
+          "title": "Toy Story: Um Mundo de Aventuras",
+          "relevant_id": 862,
+          "rank": 244,
+          "rr": 0.0041
+        },
+        {
+          "qid": "v3-hard-013",
+          "source": "v3-hard",
+          "title": "Procurando Nemo",
+          "relevant_id": 12,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-014",
+          "source": "v3-hard",
+          "title": "WALL-E",
+          "relevant_id": 10681,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-015",
+          "source": "v3-hard",
+          "title": "Interestelar",
+          "relevant_id": 157336,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-hard-016",
+          "source": "v3-hard",
+          "title": "Coringa",
+          "relevant_id": 475557,
+          "rank": 151,
+          "rr": 0.0066
+        },
+        {
+          "qid": "v3-hard-017",
+          "source": "v3-hard",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 330,
+          "rr": 0.003
+        },
+        {
+          "qid": "v3-hard-018",
+          "source": "v3-hard",
+          "title": "Parasita",
+          "relevant_id": 496243,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-019",
+          "source": "v3-hard",
+          "title": "Whiplash: Em Busca da Perfeição",
+          "relevant_id": 244786,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-020",
+          "source": "v3-hard",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 4171,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-hard-021",
+          "source": "v3-hard",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-022",
+          "source": "v3-hard",
+          "title": "O Grande Truque",
+          "relevant_id": 1124,
+          "rank": 23,
+          "rr": 0.0435
+        },
+        {
+          "qid": "v3-hard-023",
+          "source": "v3-hard",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-hard-024",
+          "source": "v3-hard",
+          "title": "O Show de Truman: O Show da Vida",
+          "relevant_id": 37165,
+          "rank": 86,
+          "rr": 0.0116
+        },
+        {
+          "qid": "v3-hard-025",
+          "source": "v3-hard",
+          "title": "Feitiço do Tempo",
+          "relevant_id": 137,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-hard-026",
+          "source": "v3-hard",
+          "title": "Corra!",
+          "relevant_id": 419430,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-hard-027",
+          "source": "v3-hard",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v3-hard-028",
+          "source": "v3-hard",
+          "title": "Cidade de Deus",
+          "relevant_id": 598,
+          "rank": 187,
+          "rr": 0.0053
+        },
+        {
+          "qid": "v3-hard-029",
+          "source": "v3-hard",
+          "title": "Amnésia",
+          "relevant_id": 77,
+          "rank": 10,
+          "rr": 0.1
+        }
+      ]
+    }
+  }
+}

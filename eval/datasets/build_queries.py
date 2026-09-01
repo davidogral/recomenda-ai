@@ -18,8 +18,12 @@ Split (semente fixa `SPLIT_SEED`):
   os 17 de teste do v1 são "vistos"; leia-os como continuidade histórica.
 - **v2** (novos, nunca usados em calibração): ~2/3 dev, ~1/3 teste — held-out
   de verdade. É neles que os números de teste têm valor de generalização.
+- **v3-hard** (30 casos): split `"hard"` — descrições DELIBERADAMENTE oblíquas
+  (sem título, sem nome próprio, sem o termo que define o filme). Mede o pior
+  caso: consulta genérica com vocabulário que não bate. Pode reusar o mesmo
+  filme do v1/v2 (fraseado difícil da mesma alvo).
 
-Só o split de **teste** é reportado no README/METODOLOGIA.
+Só o split de **teste** é reportado como resultado; **hard** é diagnóstico.
 """
 
 from __future__ import annotations
@@ -601,6 +605,158 @@ NEW_V2 = [
     ),
 ]
 
+# ---------------------------------------------------------------------------
+# v3 — split "hard": descrições DELIBERADAMENTE oblíquas de filmes muito
+# famosos. Sem título, sem nome próprio, sem o termo que define o filme (nada de
+# "anel", "hobbit", "Matrix", "dinossauro"). Mede o pior caso: consulta genérica
+# em que o vocabulário não bate. Pode reusar tmdb_ids do v1/v2 de propósito
+# (mesma alvo, fraseado mais difícil) — só o teste/dev evita contaminação.
+# ---------------------------------------------------------------------------
+HARD_V3 = [
+    (
+        "um grupo improvável se junta para levar um objeto perigoso demais até o único lugar onde ele pode ser destruído; quem carrega é o menor e mais frágil de todos",
+        "Senhor dos Anéis",
+        2001,
+    ),
+    (
+        "um homem descobre que o mundo em que ele vive foi fabricado para mantê-lo dócil, e aprende que ali as regras podem ser dobradas",
+        "Matrix",
+        1999,
+    ),
+    (
+        "um jovem preso num planeta de deserto descobre que tem um dom raro e entra na luta contra um regime comandado por um homem de armadura preta e respiração pesada",
+        "Guerra nas Estrelas",
+        1977,
+    ),
+    (
+        "um homem entediado com a própria vida conhece um estranho que o ensina a se libertar destruindo tudo — e no fim a conta não fecha",
+        "Clube da Luta",
+        1999,
+    ),
+    (
+        "um menino carrega um segredo aterrorizante e um profissional tenta ajudá-lo sem enxergar uma verdade sobre a própria situação",
+        "O Sexto Sentido",
+        1999,
+    ),
+    (
+        "um adolescente para no passado por acidente e precisa garantir que os pais dele se apaixonem, ou deixa de existir",
+        "De Volta para o Futuro",
+        1985,
+    ),
+    (
+        "o filho que queria ficar longe dos negócios da família acaba virando o homem mais frio dela",
+        "O Poderoso Chefão",
+        1972,
+    ),
+    (
+        "um parque de atrações com bichos trazidos de volta em laboratório inaugura, e a energia cai bem na hora errada",
+        "Jurassic Park",
+        1993,
+    ),
+    (
+        "um romance entre dois mundos sociais opostos a bordo de um navio que todo mundo já sabe como termina",
+        "Titanic",
+        1997,
+    ),
+    (
+        "um homem de raciocínio simples se vê sem querer no meio dos maiores acontecimentos do país, sem entender a importância de nada disso",
+        "Forrest Gump",
+        1994,
+    ),
+    (
+        "um herdeiro foge culpado pela morte do pai e cresce longe de casa até alguém do passado aparecer para cobrar a volta ao trono",
+        "O Rei Leão",
+        1994,
+    ),
+    (
+        "uma família passa o inverno cuidando de um lugar enorme e vazio, e o lugar vai apagando a sanidade do pai aos poucos",
+        "O Iluminado",
+        1980,
+    ),
+    (
+        "os brinquedos preferidos de um menino ganham vida quando ninguém olha, e um deles não aceita a chegada de um novo favorito",
+        "Toy Story",
+        1995,
+    ),
+    ("um pai medroso atravessa o oceano inteiro atrás do filho que foi levado por estranhos", "Procurando Nemo", 2003),
+    (
+        "sozinho num planeta soterrado de lixo, alguém que só sabe trabalhar se apaixona e resolve seguir quem foi embora",
+        "WALL",
+        2008,
+    ),
+    (
+        "um pai deixa os filhos para trás e cruza o espaço atrás de um lugar onde a humanidade ainda possa viver",
+        "Interestelar",
+        2014,
+    ),
+    (
+        "um homem que ninguém leva a sério vai sendo empurrado pela cidade até virar o oposto de tudo que tentou ser",
+        "Coringa",
+        2019,
+    ),
+    (
+        "uma agente iniciante pede ajuda a um preso genial e perigoso para encontrar outro assassino antes que ele mate de novo",
+        "O Silêncio dos Inocentes",
+        1991,
+    ),
+    (
+        "uma família sem dinheiro vai entrando um a um no emprego de uma família rica, fingindo que não se conhecem",
+        "Parasita",
+        2019,
+    ),
+    (
+        "um jovem quer ser o melhor de todos e um mestre decide quebrá-lo por dentro pra ver se ele aguenta",
+        "Whiplash",
+        2014,
+    ),
+    (
+        "um caçador persegue seres fabricados que só querem um pouco mais de tempo de vida, numa cidade onde nunca para de chover e nunca aparece o sol",
+        "Blade Runner",
+        1982,
+    ),
+    (
+        "trabalhadores no espaço respondem a um pedido de socorro e trazem de volta algo que vai caçando a tripulação um por um",
+        "Alien",
+        1979,
+    ),
+    (
+        "dois profissionais obcecados um pelo outro pagam qualquer preço para descobrir o segredo que o rival guarda",
+        "O Grande Truque",
+        2006,
+    ),
+    (
+        "uma equipe entra no sono de um herdeiro para plantar uma ideia sem que ele perceba que ela não é dele",
+        "A Origem",
+        2010,
+    ),
+    (
+        "um homem comum não sabe que todos à sua volta são pagos para fingir, e que existe uma parede onde deveria estar o horizonte",
+        "O Show de Truman",
+        1998,
+    ),
+    (
+        "um sujeito amargo fica preso repetindo o mesmo dia sem fim até virar alguém que presta",
+        "Feitiço do Tempo",
+        1993,
+    ),
+    (
+        "um rapaz vai conhecer a família da namorada e demora a entender por que todo mundo ali é gentil demais com ele",
+        "Corra",
+        2017,
+    ),
+    (
+        "um general é traído, perde a família e vira escravo de arena, lutando pra chegar de novo até quem mandou matá-los",
+        "Gladiador",
+        2000,
+    ),
+    ("dois meninos crescem no mesmo lugar perigoso; um pega uma câmera, o outro pega uma arma", "Cidade de Deus", 2002),
+    (
+        "um homem que perde a capacidade de guardar lembranças novas caça o culpado de uma tragédia usando bilhetes e marcas no corpo",
+        "Amnésia",
+        2000,
+    ),
+]
+
 
 # ---------------------------------------------------------------------------
 # Resolução (dica de título PT, ano) -> tmdb_id — cópia autocontida da lógica
@@ -644,27 +800,36 @@ def build():
 
     v1 = [("v1-core", q, h, y) for (q, h, y) in CORE_V1] + [("v1-ext", q, h, y) for (q, h, y) in EXT_V1]
     v2 = [("v2", q, h, y) for (q, h, y) in NEW_V2]
+    v3 = [("v3-hard", q, h, y) for (q, h, y) in HARD_V3]
 
     # Split: v1 com 35/52 em dev (~0.673, = a divisão 35/17 pedida); v2 com 2/3.
+    # v3 é o split "hard" inteiro (descrições oblíquas) — não entra em dev/test.
     dev_v1 = _split_indices(len(v1), 35 / 52, SPLIT_SEED)
     dev_v2 = _split_indices(len(v2), 2 / 3, SPLIT_SEED + 1)
 
     rows, errors, seen = [], [], {}
-    for group, items, dev_set in (("v1", v1, dev_v1), ("v2", v2, dev_v2)):
+    for group, items, dev_set in (("v1", v1, dev_v1), ("v2", v2, dev_v2), ("v3", v3, set())):
         for i, (source, query, hint, year) in enumerate(items):
             tid = resolve_target(hint, year)
-            qid = f"{source}-{i:03d}" if group == "v2" else f"{source}-{i:02d}"
+            qid = f"{source}-{i:03d}" if group in ("v2", "v3") else f"{source}-{i:02d}"
             if tid is None:
                 errors.append(f"{qid}: '{hint}' ({year}) não resolveu")
                 continue
-            if tid in seen:
+            # v1/v2 não podem colidir entre si; v3 PODE reusar alvo de v1/v2
+            # (mesmo filme, fraseado difícil), mas não pode duplicar dentro do v3.
+            if group != "v3" and tid in seen:
                 errors.append(f"{qid}: '{hint}' ({year}) colide com {seen[tid]} (tmdb {tid})")
                 continue
-            seen[tid] = qid
+            if group == "v3" and any(r["source"] == "v3-hard" and r["relevant_tmdb_id"] == tid for r in rows):
+                errors.append(f"{qid}: '{hint}' ({year}) duplicado dentro do v3 (tmdb {tid})")
+                continue
+            if group != "v3":
+                seen[tid] = qid
+            split = "hard" if group == "v3" else ("dev" if i in dev_set else "test")
             rows.append(
                 {
                     "qid": qid,
-                    "split": "dev" if i in dev_set else "test",
+                    "split": split,
                     "query": query,
                     "title_hint": hint,
                     "year": year,
@@ -684,16 +849,14 @@ def build():
         for r in rows:
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
 
-    n_dev = sum(r["split"] == "dev" for r in rows)
-    n_test = len(rows) - n_dev
-    by_src = {}
-    for r in rows:
-        by_src.setdefault(r["source"], [0, 0])
-        by_src[r["source"]][0 if r["split"] == "dev" else 1] += 1
+    from collections import Counter
+
+    by_split = Counter(r["split"] for r in rows)
     print(f"OK — {len(rows)} consultas -> {OUT_PATH}")
-    print(f"     dev={n_dev}  test={n_test}")
-    for src, (d, t) in sorted(by_src.items()):
-        print(f"     {src:<8} dev={d:<3} test={t}")
+    print("     " + "  ".join(f"{k}={v}" for k, v in sorted(by_split.items())))
+    by_src = Counter(r["source"] for r in rows)
+    for src, n in sorted(by_src.items()):
+        print(f"     {src:<9} {n}")
 
 
 if __name__ == "__main__":

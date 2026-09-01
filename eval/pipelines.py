@@ -19,6 +19,7 @@ sinal e do re-ranker.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -72,11 +73,39 @@ def _fusion_rerank(engine, ctx: QueryCtx) -> list[int]:
     return engine.synopsis_ranked_ids(ctx.raw, rerank=True, pool=POOL)
 
 
+# Pseudo-relevance feedback (PRF, "Rocchio"): assume que o topo da 1ª busca está
+# ~certo, calcula o centroide dos embeddings de sinopse desses K filmes e o mistura
+# de volta no vetor da consulta (peso alpha), depois re-funde. Sem LLM, sem rede —
+# só numpy sobre o índice que já existe. Ajuda consulta genérica: "grupo destrói
+# objeto poderoso" puxa Vingadores no 1º passo, mas o centroide dos vizinhos certos
+# empurra o vetor na direção de fantasia épica.
+PRF_K = int(os.environ.get("RECOMENDAI_PRF_K", "8"))
+PRF_ALPHA = float(os.environ.get("RECOMENDAI_PRF_ALPHA", "0.35"))
+
+
+def _l2(v: np.ndarray) -> np.ndarray:
+    n = float(np.linalg.norm(v))
+    return v / n if n > 0 else v
+
+
+def _fusion_prf(engine, ctx: QueryCtx, k: int = PRF_K, alpha: float = PRF_ALPHA) -> list[int]:
+    cq, q_emb = ctx.clean, ctx.q_emb
+    comps0 = engine._synopsis_components(cq, q_emb=q_emb)
+    fused0 = comps0["lexical"] + comps0["synopsis"] + comps0["keyword"] + comps0["prior"]
+    top = np.argsort(fused0)[::-1][:k]
+    centroid = _l2(engine._embeddings[top].astype(np.float64).mean(axis=0))
+    q_prf = _l2((1.0 - alpha) * q_emb.astype(np.float64) + alpha * centroid).astype(np.float32)
+    comps = engine._synopsis_components(cq, q_emb=q_prf)
+    fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["prior"]
+    return _order_to_ids(engine, np.argsort(fused)[::-1])
+
+
 PIPELINES: dict[str, Callable] = {
     "bm25": _bm25,
     "embedding": _embedding,
     "thematic": _thematic,
     "fusion": _fusion,
+    "fusion_prf": _fusion_prf,
     "fusion_rerank": _fusion_rerank,
 }
 
@@ -86,11 +115,12 @@ PIPELINE_LABELS: list[tuple[str, str]] = [
     ("embedding", "Só embedding (semântico)"),
     ("thematic", "Só temático (keywords)"),
     ("fusion", "Fusão (produção)"),
+    ("fusion_prf", f"Fusão + PRF (k={PRF_K}, α={PRF_ALPHA})"),
     ("fusion_rerank", f"Fusão + re-ranker (pool {POOL})"),
 ]
 
 # Variantes que dependem do modelo de embeddings / cross-encoder (mais lentas).
-NEEDS_EMBEDDINGS = {"embedding", "thematic", "fusion", "fusion_rerank"}
+NEEDS_EMBEDDINGS = {"embedding", "thematic", "fusion", "fusion_prf", "fusion_rerank"}
 NEEDS_RERANKER = {"fusion_rerank"}
 
 

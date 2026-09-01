@@ -58,7 +58,7 @@ def load_queries(split: str | None = None, path: str = QUERIES_PATH) -> list[Eva
                 )
             )
     if split and split != "all":
-        if split not in ("dev", "test"):
+        if split not in ("dev", "test", "hard"):
             raise ValueError(f"split inválido: {split!r} (use dev|test|all)")
         out = [q for q in out if q.split == split]
     if not out:
@@ -67,10 +67,11 @@ def load_queries(split: str | None = None, path: str = QUERIES_PATH) -> list[Eva
 
 
 def split_counts(path: str = QUERIES_PATH) -> dict:
+    from collections import Counter
+
     qs = load_queries("all", path)
-    counts: dict = {"total": len(qs), "dev": 0, "test": 0, "by_source": {}}
+    counts: dict = {"total": len(qs), "by_split": dict(Counter(q.split for q in qs)), "by_source": {}}
     for q in qs:
-        counts[q.split] += 1
-        bs = counts["by_source"].setdefault(q.source, {"dev": 0, "test": 0})
-        bs[q.split] += 1
+        counts["by_source"].setdefault(q.source, Counter())[q.split] += 1
+    counts["by_source"] = {k: dict(v) for k, v in counts["by_source"].items()}
     return counts

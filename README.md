@@ -204,6 +204,26 @@ Regerar: `python -m eval.bench embed` → `eval/results/latest__bench-embed.json
 
 ---
 
+## 🧩 Consultas difíceis — onde o retrieval tem teto
+
+O split **`hard`** (`eval/datasets/queries.jsonl`, `source = v3-hard`) tem **30 descrições deliberadamente oblíquas** de filmes famosos: sem título, sem nome próprio, **sem o termo que define o filme** (nada de "anel", "hobbit", "dinossauro", "replicante"). É o pior caso — consulta genérica cujo vocabulário não bate com a sinopse.
+
+| Pipeline | nDCG@10 | MRR | Recall@10 | Recall@50 | mediana |
+|---|---|---|---|---|---|
+| BM25 puro | 0,165 | 0,144 | 0,27 | 0,40 | #246 |
+| **Fusão** *(produção)* | **0,480** | **0,437** | **0,63** | **0,77** | **#4** |
+| Fusão + PRF (Rocchio) | 0,410 | 0,366 | 0,57 | 0,63 | #5 |
+
+**Leitura honesta:**
+- A fusão **não é ruim mesmo aqui**: o filme certo fica no **top-3 em 14/30**, no top-10 em 19/30, no top-50 em **23/30**, mediana **#4**. O caso do usuário ("grupo destrói objeto poderoso, guardião minúsculo" → *Senhor dos Anéis* fora do top-18) é real mas **pontual** — um punhado de consultas onde a descrição é toda de palavras genéricas que caem num bairro semântico lotado: *Blade Runner* (#2299), *Matrix* (#1117), *O Poderoso Chefão* (#426). As outras 22 a fusão acha bem.
+- **Nenhuma alavanca "mais esperta" ajuda**: o cross-encoder ([acima](#cross-encoder-2º-estágio-desligado-em-produção)) não melhora de forma confiável; o **PRF/Rocchio** (`fusion_prf`, realimenta o centroide do top-K na consulta — só numpy, sem LLM) **piora** (0,48 → 0,41): em consulta genérica o top-K inicial está errado, e realimentá-lo puxa a consulta pro cluster errado (*query drift*).
+- **A régua já mostra o caminho barato**: adicionar **um** detalhe à consulta resolve. *"...joga um anel num vulcão"* → LOTR #3; *"...hobbit... terra-média"* → #1. Nas consultas de fraseado normal (`test`/`dev`) a fusão faz nDCG@10 **0,73–0,82**.
+- **Conclusão de produto**: o retrieval tem um teto medido em entrada maximamente oblíqua — documentado, não escondido. O ganho está na **UI pedir um detalhe** ("sabe o gênero? um ator? a época?"), não em bolar um 2º estágio que a medição já reprovou.
+
+Rodar: `python -m eval.run --split hard --pipelines bm25,fusion,fusion_prf`.
+
+---
+
 ## 📈 Pipeline de Dados
 
 1.  **Coleta:** metadados dos filmes (sinopses, gêneros, elenco) vêm da TMDB; os ratings reais alimentam o modelo colaborativo.
