@@ -1724,3 +1724,78 @@ body {
     .header { margin-bottom: 16px; }
     .nav { margin-bottom: 22px; }
 }
+
+/* ============================================================
+   Aba Engenharia — vitrine do motor de recuperação
+   ============================================================ */
+#tab-engenharia h2 { font-size: var(--fs-xl); margin-bottom: 8px; }
+#tab-engenharia h3 {
+    font-size: var(--fs-lg); margin-bottom: 6px;
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+#tab-engenharia h4 { font-size: var(--fs-md); margin-bottom: 4px; color: var(--light); }
+.eng-prov { font-size: var(--fs-xs); color: var(--gray); font-weight: 400; }
+.eng-prov em { color: var(--primary-hover); font-style: normal; }
+.eng-reload {
+    font: inherit; font-size: var(--fs-xs); color: var(--gray);
+    background: none; border: 1px solid var(--input-border); border-radius: 999px;
+    padding: 2px 10px; cursor: pointer;
+}
+.eng-reload:hover { color: var(--light); border-color: var(--border-strong); }
+.eng-take { margin-top: 10px; color: var(--light); }
+
+.eng-scroll { overflow-x: auto; margin-top: 10px; border-radius: var(--radius-sm); }
+.eng-table { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); min-width: 520px; }
+.eng-table th, .eng-table td {
+    text-align: right; padding: 9px 14px; border-bottom: 1px solid var(--card-border);
+    white-space: nowrap;
+}
+.eng-table th:first-child, .eng-table td:first-child { text-align: left; white-space: normal; }
+.eng-table thead th {
+    color: var(--gray); font-weight: 600; font-size: var(--fs-xs);
+    text-transform: uppercase; letter-spacing: 0.04em; border-bottom-color: var(--border-strong);
+}
+.eng-table tbody tr:hover { background: var(--card-hover); }
+.eng-table tr.eng-hot { background: var(--accent-soft); }
+.eng-table tr.eng-hot td { border-bottom-color: var(--accent-border); }
+.eng-table tr.eng-hot td strong { color: var(--primary-hover); }
+.eng-table tr.eng-dim td { color: var(--gray); }
+.eng-table td.eng-empty { text-align: left; white-space: normal; color: var(--gray); }
+.eng-tag {
+    font-size: var(--fs-xs); background: var(--accent-soft); color: var(--primary-hover);
+    border: 1px solid var(--accent-border); border-radius: 999px; padding: 1px 7px; margin-left: 6px;
+}
+
+.eng-facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.eng-fact {
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--input-bg); border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm); padding: 8px 12px; min-width: 140px;
+}
+.eng-fact span { font-size: var(--fs-xs); color: var(--gray); text-transform: uppercase; letter-spacing: 0.04em; }
+.eng-fact strong { font-size: var(--fs-sm); color: var(--light); }
+
+.eng-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 8px; }
+.eng-card {
+    background: var(--input-bg); border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm); padding: 14px 16px;
+}
+.eng-card p { font-size: var(--fs-sm); color: var(--gray); line-height: 1.5; }
+
+.eng-links #engLinks { font-size: var(--fs-sm); line-height: 2; }
+.eng-links a { color: var(--primary-hover); }
+
+.eng-link { color: var(--primary-hover); white-space: nowrap; font-weight: 600; }
+
+/* diagrama do pipeline (SVG inline, tema escuro) */
+.eng-diagram { margin-top: 14px; }
+.eng-svg { width: 100%; max-width: 760px; height: auto; }
+.eng-svg-stroke { stroke: var(--border-strong); }
+.eng-svg-fill { fill: var(--border-strong); }
+.eng-svg-node rect { fill: var(--input-bg); stroke: var(--card-border); stroke-width: 1; }
+.eng-svg-node text { fill: var(--light); font-size: 12px; text-anchor: middle; }
+.eng-svg-node text.eng-svg-sub { fill: var(--gray); font-size: 10px; }
+.eng-svg-node rect.eng-svg-hot { fill: var(--accent-soft); stroke: var(--accent-border); }
+.eng-svg-ghost path { stroke: var(--input-border); }
+.eng-svg-ghost rect { fill: none; stroke: var(--input-border); stroke-dasharray: 4 3; }
+.eng-svg-ghost text { fill: var(--gray); font-size: 10px; text-anchor: middle; }

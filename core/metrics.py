@@ -13,12 +13,52 @@ Expõe, em `/metrics` (tanto na API Flask quanto no serviço de inferência):
   recomendaai_process_rss_bytes                        memória residente do processo
 
 Se `prometheus_client` não estiver instalado, tudo vira no-op — o app roda igual.
+
+Além do histograma Prometheus, mantém um **reservatório em memória** dos últimos
+`_STAGE_CAP` tempos por etapa (`stage_percentiles()`) — dá p50/p95/p99 exatos do
+tráfego real do processo para a página "Engenharia" do site, sem depender de um
+scrape do Prometheus. Reinicia a cada boot.
 """
 
 from __future__ import annotations
 
 import time
+from collections import deque
 from contextlib import contextmanager
+
+# ---- reservatório de amostras por etapa (para percentis exatos ao vivo) ----
+_STAGE_CAP = 1024
+_STAGE_SAMPLES: "dict[str, deque[float]]" = {}
+
+
+def _record_stage_sample(stage: str, seconds: float) -> None:
+    dq = _STAGE_SAMPLES.get(stage)
+    if dq is None:
+        dq = _STAGE_SAMPLES[stage] = deque(maxlen=_STAGE_CAP)
+    dq.append(seconds * 1000.0)  # guarda em ms
+
+
+def stage_percentiles() -> "dict[str, dict[str, float]]":
+    """{stage: {p50, p95, p99, mean, n}} em ms, sobre as amostras recentes."""
+    out: dict[str, dict[str, float]] = {}
+    for stage, dq in list(_STAGE_SAMPLES.items()):
+        xs = sorted(dq)
+        n = len(xs)
+        if n == 0:
+            continue
+
+        def _p(p: float) -> float:
+            return xs[min(n - 1, max(0, int(round(p / 100.0 * n)) - 1))]
+
+        out[stage] = {
+            "p50": round(_p(50), 2),
+            "p95": round(_p(95), 2),
+            "p99": round(_p(99), 2),
+            "mean": round(sum(xs) / n, 2),
+            "n": n,
+        }
+    return out
+
 
 try:  # prometheus é opcional
     from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
@@ -79,11 +119,14 @@ def stage_timer(stage: str):
     try:
         yield
     finally:
-        STAGE_SECONDS.labels(stage=stage).observe(time.perf_counter() - t0)
+        dt = time.perf_counter() - t0
+        STAGE_SECONDS.labels(stage=stage).observe(dt)
+        _record_stage_sample(stage, dt)
 
 
 def observe_stage(stage: str, seconds: float) -> None:
     STAGE_SECONDS.labels(stage=stage).observe(seconds)
+    _record_stage_sample(stage, seconds)
 
 
 def query_cache_event(hit: bool) -> None:

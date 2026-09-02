@@ -131,6 +131,8 @@ Cada consulta é uma **paráfrase de enredo** e existe **um único** filme relev
 
 ## 📊 Tabela de ablação por sinal
 
+> 🌐 **Ao vivo no site:** a aba **Engenharia** (`GET /engineering`) renderiza esta tabela, o orçamento de latência do encoder, o protocolo de avaliação e a **latência por etapa do tráfego real** — lendo os JSON de `eval/results/` a cada deploy, sem número copiado à mão.
+
 Cada sinal **isolado** vs. a **fusão** — split de teste, 47 consultas *held-out*:
 
 | Pipeline | nDCG@10 | MRR | Recall@10 | Recall@50 | Precision@10 | mediana | latência p50 |
@@ -263,6 +265,8 @@ A `api` chama a `inference` por HTTP quando `RECOMENDAI_INFERENCE_URL` está set
 | `recomendaai_query_cache_events_total{result}` | hit/miss do cache de embedding da consulta |
 | `recomendaai_tmdb_calls_total{result}` | `ok` / `error` / `capped` |
 | `recomendaai_process_rss_bytes` | memória residente |
+
+Além do histograma, `metrics.stage_percentiles()` mantém um reservatório dos últimos ~1000 tempos por etapa → p50/p95/p99 exatos do tráfego real, servidos em `GET /engineering` e renderizados na aba **Engenharia** do site (não precisa de scrape do Prometheus para a vitrine).
 
 ### Contas & segurança
 

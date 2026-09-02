@@ -158,6 +158,7 @@
             if (tab === 'watched') loadWatched();
             if (tab === 'lists') showListsHome();
             if (tab === 'explore' && !exploreLoaded) { exploreLoaded = true; loadExploreOptions(); }
+            if (tab === 'engenharia' && !engLoaded) { engLoaded = true; loadEngineering(); }
 
             if (!opts.noScroll && !opts.silent) {
                 NAV.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -167,6 +168,10 @@
 
         NAV.querySelectorAll('[data-tab]').forEach(btn => {
             btn.addEventListener('click', () => goTo(btn.dataset.tab));
+        });
+        // Links "leva para uma aba" fora da nav (ex.: "como a busca funciona").
+        document.querySelectorAll('[data-goto]').forEach(el => {
+            el.addEventListener('click', e => { e.preventDefault(); goTo(el.dataset.goto); });
         });
         NAV.querySelectorAll('.nav-trigger').forEach(trigger => {
             trigger.addEventListener('click', e => {
@@ -1723,3 +1728,131 @@
         }
         // 1ª visita: dá um tempo pro layout assentar e abre o guia.
         setTimeout(() => startTour(false), 800);
+
+        // ========== ABA: ENGENHARIA (vitrine do motor) ==========
+        let engLoaded = false;
+
+        const ENG_PIPE_SVG = `
+<svg viewBox="0 0 760 150" role="img" aria-label="Pipeline do motor de recuperação" class="eng-svg">
+  <defs><marker id="engArr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+    <path d="M0 0l6 3-6 3z" class="eng-svg-fill"/></marker></defs>
+  <g class="eng-svg-stroke" fill="none" stroke-width="1.5" marker-end="url(#engArr)">
+    <path d="M120 75h48"/>
+    <path d="M300 40h60c8 0 8 0 8 8v16"/><path d="M300 75h68"/><path d="M300 110h60c8 0 8 0 8-8v-16"/>
+    <path d="M496 75h48"/>
+    <path d="M636 75h44"/>
+  </g>
+  <g class="eng-svg-node">
+    <rect x="6"   y="55" width="114" height="40" rx="8"/><text x="63"  y="79">consulta</text>
+    <rect x="176" y="22" width="124" height="34" rx="8"/><text x="238" y="43">BM25 · lexical</text>
+    <rect x="176" y="58" width="124" height="34" rx="8"/><text x="238" y="79">embedding · e5</text>
+    <rect x="176" y="94" width="124" height="34" rx="8"/><text x="238" y="115">temático · KW</text>
+    <rect x="376" y="52" width="120" height="46" rx="8" class="eng-svg-hot"/><text x="436" y="72">fusão z-score</text><text x="436" y="88" class="eng-svg-sub">+ prior pop.</text>
+    <rect x="552" y="55" width="84" height="40" rx="8"/><text x="594" y="79">resultados</text>
+  </g>
+  <g class="eng-svg-ghost">
+    <path d="M436 98v14h150v-30h-10" stroke-dasharray="4 3"/>
+    <rect x="470" y="118" width="150" height="26" rx="7"/><text x="545" y="135">cross-encoder — OFF</text>
+  </g>
+</svg>`;
+
+        function engProv(src, stale) {
+            if (!src) return stale ? '<em>(reserva)</em>' : '';
+            const bits = [];
+            if (src.git_commit) bits.push('commit ' + esc(src.git_commit));
+            if (src.device) bits.push(esc(src.device));
+            if (src.n_queries) bits.push(src.n_queries + ' consultas');
+            if (src.timestamp_utc) bits.push(esc(String(src.timestamp_utc).slice(0, 10)));
+            return (stale ? '<em>(reserva)</em> ' : '') + bits.join(' · ');
+        }
+        const engNum = (v, d = 3) => (v == null ? '—' : Number(v).toFixed(d));
+
+        function engRenderAblation(a) {
+            document.getElementById('engAblProv').innerHTML = engProv(a.source, a.stale);
+            const head = '<thead><tr><th>Pipeline</th><th>nDCG@10</th><th>MRR</th><th>Recall@10</th><th>Recall@50</th><th>mediana</th></tr></thead>';
+            const body = a.rows.map(r => {
+                const hot = r.pipeline === 'fusion' ? ' class="eng-hot"' : (r.pipeline === 'fusion_rerank' ? ' class="eng-dim"' : '');
+                return `<tr${hot}><td>${esc(r.label || r.pipeline)}</td><td><strong>${engNum(r['ndcg@10'])}</strong></td>` +
+                    `<td>${engNum(r.mrr)}</td><td>${engNum(r['recall@10'], 2)}</td><td>${engNum(r['recall@50'], 2)}</td><td>#${r.median_rank ?? '—'}</td></tr>`;
+            }).join('');
+            document.getElementById('engAblation').innerHTML = head + '<tbody>' + body + '</tbody>';
+            const f = a.rows.find(r => r.pipeline === 'fusion'), b = a.rows.filter(r => r.pipeline !== 'fusion' && r.pipeline !== 'fusion_rerank');
+            if (f && b.length) {
+                const best = Math.max(...b.map(r => r['ndcg@10'] || 0));
+                document.getElementById('engAblTake').textContent =
+                    `Nenhum sinal isolado passa de nDCG@10 ≈ ${best.toFixed(2)}. A fusão dos três + prior de popularidade salta para ${Number(f['ndcg@10']).toFixed(2)} e leva a mediana da posição para #${f.median_rank}.`;
+            }
+        }
+
+        function engRenderEncoder(e) {
+            document.getElementById('engEncProv').innerHTML = engProv(e.source, e.stale);
+            const head = '<thead><tr><th>Config</th><th>nDCG@10</th><th>Recall@10</th><th>Recall@50</th><th>encode p50 / p99</th><th>RSS</th></tr></thead>';
+            const body = e.rows.map(r => {
+                const tag = r.default ? ' <span class="eng-tag">padrão</span>' : '';
+                return `<tr${r.default ? ' class="eng-hot"' : ''}><td>${esc(r.name)}${tag}</td><td><strong>${engNum(r['ndcg@10'])}</strong></td>` +
+                    `<td>${engNum(r['recall@10'], 2)}</td><td>${engNum(r['recall@50'], 2)}</td>` +
+                    `<td>${engNum(r.encode_p50, 0)} / ${engNum(r.encode_p99, 0)} ms</td><td>${engNum(r.rss_mb, 0)} MB</td></tr>`;
+            }).join('');
+            document.getElementById('engEncoder').innerHTML = head + '<tbody>' + body + '</tbody>';
+        }
+
+        function engRenderLive(live, offline) {
+            document.getElementById('engLiveProv').innerHTML =
+                '<button type="button" class="eng-reload" id="engReload">recarregar</button>';
+            document.getElementById('engReload').onclick = () => loadEngineering(true);
+            const stages = live && live.stages || {};
+            const keys = Object.keys(stages);
+            const tbl = document.getElementById('engLive');
+            if (!keys.length) {
+                const off = offline && Object.keys(offline).length;
+                tbl.innerHTML = `<tbody><tr><td class="eng-empty">Sem tráfego suficiente neste processo ainda — faça algumas buscas e recarregue.` +
+                    (off ? ` (Perfil offline por etapa disponível em <code>eval/results/latest__latency-test.json</code>.)` : '') + `</td></tr></tbody>`;
+                return;
+            }
+            const order = ['encode', 'retrieval', 'rerank', 'total'];
+            keys.sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+            const head = '<thead><tr><th>Etapa</th><th>p50</th><th>p95</th><th>p99</th><th>amostras</th></tr></thead>';
+            const body = keys.map(k => {
+                const s = stages[k];
+                return `<tr${k === 'total' ? ' class="eng-hot"' : ''}><td>${esc(k)}</td><td>${engNum(s.p50, 1)} ms</td>` +
+                    `<td>${engNum(s.p95, 1)} ms</td><td>${engNum(s.p99, 1)} ms</td><td>${s.n}</td></tr>`;
+            }).join('');
+            tbl.innerHTML = head + '<tbody>' + body + '</tbody>';
+        }
+
+        function engRenderRest(d) {
+            const p = d.protocol || {};
+            document.getElementById('engProtocol').innerHTML = [
+                ['tarefa', p.task], ['consultas', `${p.n_queries} (dev ${p.dev} · teste ${p.test})`],
+                ['reportado', p.reported], ['seed do split', p.split_seed],
+            ].filter(x => x[1] != null).map(([k, v]) => `<div class="eng-fact"><span>${esc(k)}</span><strong>${esc(String(v))}</strong></div>`).join('');
+
+            document.getElementById('engDecisions').innerHTML = (d.decisions || []).map(x =>
+                `<div class="eng-card"><h4>${esc(x.title)}</h4><p>${esc(x.body)}</p></div>`).join('');
+
+            const L = d.links || {};
+            const link = (href, txt) => href ? `<a href="${esc(href)}" ${href.startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>${esc(txt)}</a>` : '';
+            document.getElementById('engLinks').innerHTML = [
+                link(L.metodologia, 'METODOLOGIA.md — cada técnica explicada'),
+                link(L.eval, 'eval/ — a avaliação executável'),
+                link(L.adr, 'docs/adr/ — decisões de arquitetura'),
+                link(L.metrics, '/metrics — Prometheus, ao vivo'),
+            ].filter(Boolean).join(' · ');
+        }
+
+        async function loadEngineering(quiet) {
+            const status = document.getElementById('engStatus'), body = document.getElementById('engBody');
+            document.getElementById('engDiagram').innerHTML = ENG_PIPE_SVG;
+            if (!quiet) { status.textContent = 'Carregando números da avaliação…'; status.hidden = false; body.hidden = true; }
+            try {
+                const d = await (await fetch('/engineering')).json();
+                engRenderAblation(d.ablation);
+                engRenderEncoder(d.encoder);
+                engRenderLive(d.live_latency, d.offline_latency);
+                engRenderRest(d);
+                status.hidden = true; body.hidden = false;
+            } catch (e) {
+                status.hidden = false; body.hidden = true;
+                status.textContent = 'Não deu para carregar os números agora.';
+            }
+        }
