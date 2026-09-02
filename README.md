@@ -300,7 +300,7 @@ Login por **e-mail + senha** com **Argon2id** (rehash automático quando os par�
 
 `.github/workflows/ci.yml` (a cada PR): **ruff** (`check` + `format`), **mypy** (checagem gradual — módulos novos), **pytest** (smoke hermético, sem modelo/rede).
 
-`.github/workflows/eval-smoke.yml` (**PRs que mexem no motor** — `retrieval/`, `core/`, `eval/`, `recommender/`): `dvc pull` do índice **e5-small** + catálogo e `python -m eval.run --split dev --fast --gate-ndcg 0.65` — **falha o PR se o nDCG@10 da fusão cair abaixo do limiar** (fusão e5-small no dev ≈ 0,71). ~4–6 min; PRs de frontend/docs pulam.
+`.github/workflows/eval-smoke.yml` (**PRs que afetam a recuperação** — `retrieval/`, `eval/`, `core/{catalog,db,metrics,device}.py`): roda `python -m eval.run --split dev --fast --gate-ndcg 0.65` com o índice **e5-small** — **falha o PR se o nDCG@10 da fusão cair abaixo do limiar** (fusão e5-small no dev ≈ 0,71). O `.dvc/cache` é cacheado pelo GitHub e chaveado pelos ponteiros `*.dvc`, então o `dvc pull` só toca o B2 quando o índice ou o catálogo mudam de verdade (o free tier do B2 dá 1 GB de download/dia; o `movies.db` tem 1,2 GB).
 
 `.github/workflows/eval-gate.yml` (semanal + sob demanda): o mesmo portão com o encoder **e5-large** e limiar `0.78` — o check pesado. Ambos requerem os secrets `DVC_ACCESS_KEY_ID` / `DVC_SECRET_ACCESS_KEY`.
 

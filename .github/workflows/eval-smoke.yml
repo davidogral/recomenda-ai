@@ -2,25 +2,35 @@ name: eval-smoke
 
 # Portão de qualidade do SRI **por PR** — versão leve do eval-gate.yml.
 # Roda a avaliação no split de DEV com o encoder **e5-small** (índice ~100 MB,
-# modelo ~470 MB) e falha se o nDCG@10 da fusão cair abaixo do limiar. Só dispara
-# quando o PR mexe no motor / na avaliação (ver `paths`) — PRs de frontend/docs
-# pulam. O eval-gate.yml semanal continua sendo o check pesado (e5-large).
+# modelo ~470 MB) e falha se o nDCG@10 da fusão cair abaixo do limiar.
+#
+# Só dispara quando o PR mexe no que afeta a recuperação (ver `paths`); PRs de
+# frontend/auth/docs pulam. O eval-gate.yml semanal (e5-large) segue como o
+# check pesado.
+#
+# CUSTO / B2: o `.dvc/cache` é cacheado pelo GitHub e chaveado pelos ponteiros
+# `*.dvc` deste job. Como o índice e o `movies.db` quase nunca mudam, o cache
+# acerta e o `dvc pull` roda **sem tocar no B2** (o free tier do B2 dá só 1 GB
+# de download/dia e o movies.db tem 1,2 GB). O B2 só é acessado quando o índice
+# ou o catálogo mudam de verdade.
 #
 # Requer os secrets DVC_ACCESS_KEY_ID / DVC_SECRET_ACCESS_KEY (mesmos do eval-gate).
 #
-# LIMIAR: medido localmente, a fusão e5-small no split dev dá nDCG@10 ≈ 0,707
-# (`python -m eval.run --split dev --fast` com RECOMENDAI_INDEX_DIR=retrieval/index_e5small).
-# O default 0,65 fica ~0,057 abaixo — pega regressão real (fusão quebrada cai para
-# ~0,3–0,5) sem falso-positivo por ruído. Aperte se quiser um tripwire mais fino.
+# LIMIAR: medido local e no CI, a fusão e5-small no split dev dá nDCG@10 ≈ 0,707.
+# O default 0,65 fica ~0,057 abaixo — pega regressão real (fusão quebrada cai
+# para ~0,3–0,5) sem falso-positivo por ruído.
 
 on:
   pull_request:
     paths:
       - "retrieval/**"
-      - "core/**"
       - "eval/**"
-      - "recommender/**"
-      - "requirements*.txt"
+      - "core/catalog.py"
+      - "core/db.py"
+      - "core/metrics.py"
+      - "core/device.py"
+      - "requirements.txt"
+      - "requirements-ci.txt"
       - ".github/workflows/eval-smoke.yml"
   workflow_dispatch:
     inputs:
@@ -43,7 +53,17 @@ jobs:
 
       - run: pip install -r requirements.txt "dvc-s3"
 
-      - name: dvc pull (índice e5-small + catálogo)
+      # .dvc/cache chaveado pelos ponteiros que este job puxa. Hit = dvc pull
+      # resolve tudo do cache local, sem request ao B2.
+      - name: cache do .dvc/cache (índice e5-small + catálogo)
+        uses: actions/cache@v4
+        with:
+          path: .dvc/cache
+          key: eval-smoke-dvc-${{ hashFiles('retrieval/index_e5small.dvc', 'data/raw/movies.db.dvc') }}
+          restore-keys: |
+            eval-smoke-dvc-
+
+      - name: dvc pull (só o que faltar no cache)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.DVC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DVC_SECRET_ACCESS_KEY }}
