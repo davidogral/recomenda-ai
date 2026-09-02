@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 """Contas de usuário — cadastro, login (e-mail + senha), verificação e reset.
 
-Fica no mesmo SQLite dos dados pessoais (`data/user.db`). Senha com **Argon2**;
-tokens de verificação de e-mail e reset de senha assinados com `itsdangerous`
-(`SECRET_KEY`), com validade.
+Fica no mesmo SQLite dos dados pessoais (`data/user.db`). Senha com **Argon2id**
+(default do `argon2-cffi`), com rehash automático quando os parâmetros mudam.
+Tokens de verificação de e-mail e de reset de senha são assinados com
+`itsdangerous` sobre a `SECRET_KEY` (via `core.security`), com validade **e**
+amarrados a um estado mutável da conta (ver `_token_fingerprint`) — trocar a
+senha invalida tokens de reset pendentes; confirmar o e-mail invalida o link de
+verificação. Na prática: **uso único**.
 
 CLI utilitário:
     python -m core.users create  <email> <senha>
@@ -14,7 +18,9 @@ CLI utilitário:
 
 from __future__ import annotations
 
+import hashlib
 import os
+import secrets
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -51,11 +57,21 @@ def _hasher():
 def _serializer(salt: str):
     from itsdangerous import URLSafeTimedSerializer
 
-    secret = os.environ.get("SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY")
-    if not secret:
-        # dev: chave efêmera estável por processo (tokens não sobrevivem a restart)
-        secret = "dev-insecure-" + str(os.getpid())
-    return URLSafeTimedSerializer(secret, salt=f"recomendaai-{salt}")
+    from core.security import resolve_secret_key
+
+    return URLSafeTimedSerializer(resolve_secret_key(), salt=f"recomendaai-{salt}")
+
+
+_DUMMY_HASH: Optional[str] = None
+
+
+def _dummy_hash() -> str:
+    """Hash Argon2 fixo para gastar o mesmo tempo quando o e-mail não existe —
+    fecha o canal lateral de timing que distinguia 'sem conta' de 'senha errada'."""
+    global _DUMMY_HASH
+    if _DUMMY_HASH is None:
+        _DUMMY_HASH = _hasher().hash("timing-equalizer-not-a-real-password")
+    return _DUMMY_HASH
 
 
 class InvalidEmail(ValueError):
@@ -142,9 +158,13 @@ def authenticate(email: str, password: str) -> Optional[dict]:
         return None
     with _connect() as conn:
         row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-        if not row or not row["is_active"]:
-            return None
         ph = _hasher()
+        if not row or not row["is_active"]:
+            try:  # gasta ~o mesmo tempo de um verify real (timing)
+                ph.verify(_dummy_hash(), password)
+            except Exception:
+                pass
+            return None
         try:
             ph.verify(row["password_hash"], password)
         except VerifyMismatchError:
@@ -185,9 +205,33 @@ def delete_user(user_id: int) -> bool:
 
 
 # --------------------------------------------------------------- tokens
+def _token_fingerprint(kind: str, row: sqlite3.Row) -> str:
+    """Amarra o token a um estado da conta que muda quando o token é 'usado':
+      - reset:  o hash da senha       → resetar (ou trocar) a senha mata o token
+      - verify: a flag email_verified → confirmar o e-mail mata o link
+    Assim o link vale **uma vez só**, mesmo dentro da janela de validade."""
+    if kind == "reset":
+        basis = f"{row['user_id']}:{row['password_hash']}"
+    elif kind == "verify":
+        basis = f"{row['user_id']}:{row['email']}:{int(row['email_verified'])}"
+    else:
+        basis = str(row["user_id"])
+    return hashlib.sha256(basis.encode()).hexdigest()[:16]
+
+
+def _fetch_row(conn: sqlite3.Connection, user_id: int) -> Optional[sqlite3.Row]:
+    return conn.execute("SELECT * FROM users WHERE user_id = ?", (int(user_id),)).fetchone()
+
+
 def make_token(kind: str, user_id: int) -> str:
-    """kind: 'verify' (e-mail) | 'reset' (senha)."""
-    return _serializer(kind).dumps({"uid": int(user_id)})
+    """kind: 'verify' (e-mail) | 'reset' (senha). O payload assinado leva o
+    fingerprint do estado atual da conta (ver `_token_fingerprint`)."""
+    init_db()
+    with _connect() as conn:
+        row = _fetch_row(conn, user_id)
+    if row is None:
+        raise ValueError(f"usuário {user_id} inexistente")
+    return _serializer(kind).dumps({"uid": int(user_id), "fp": _token_fingerprint(kind, row)})
 
 
 def read_token(kind: str, token: str, max_age: Optional[int] = None) -> Optional[int]:
@@ -195,9 +239,17 @@ def read_token(kind: str, token: str, max_age: Optional[int] = None) -> Optional
 
     try:
         data = _serializer(kind).loads(token, max_age=max_age or TOKEN_MAX_AGE)
-        return int(data["uid"])
-    except (BadSignature, SignatureExpired, KeyError, ValueError):
+        uid = int(data["uid"])
+        fp = str(data.get("fp", ""))
+    except (BadSignature, SignatureExpired, KeyError, ValueError, TypeError):
         return None
+    with _connect() as conn:
+        row = _fetch_row(conn, uid)
+    if row is None or not row["is_active"]:
+        return None
+    if not fp or not secrets.compare_digest(fp, _token_fingerprint(kind, row)):
+        return None  # token já usado, senha trocada, ou payload adulterado
+    return uid
 
 
 # --------------------------------------------------------------- Flask-Login

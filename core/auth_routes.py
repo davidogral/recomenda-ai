@@ -4,26 +4,54 @@ reset de senha e exclusão de conta. Sessão via cookie assinado (Flask-Login),
 CSRF via Flask-WTF (header `X-CSRFToken`).
 
 `init_auth(app, limiter)` liga tudo:
-  - `SECRET_KEY` (obrigatória em produção; dev cai num fallback com aviso)
+  - `SECRET_KEY` via `core.security` (fatal em produção; dev persiste em disco)
+  - cookies de sessão **e** *remember* com HttpOnly / SameSite=Lax / Secure
   - LoginManager + user_loader
   - CSRFProtect (isenta /metrics, /health e as rotas GET públicas)
-  - blueprint `/auth/*`
+  - blueprint `/auth/*` + rate limit por rota
 """
 
 from __future__ import annotations
 
 import os
-import secrets
+from datetime import timedelta
+from functools import wraps
 
 from flask import Blueprint, jsonify, redirect, request, url_for
 
-from core import mailer, users
+from core import mailer, security, users
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 def _me(u) -> dict:
     return {"user_id": u.id, "email": u.email, "email_verified": u.email_verified}
+
+
+def verified_required(fn):
+    """Barra rotas que **gravam** dado pessoal enquanto o e-mail não foi
+    confirmado — só quando há entrega de e-mail configurada (sem SMTP não dá
+    para exigir verificação, então o gate fica inerte). Leitura e exclusão
+    continuam livres. Aplicar **depois** de `@login_required`."""
+
+    @wraps(fn)
+    def _wrap(*args, **kwargs):
+        from flask_login import current_user
+
+        if (
+            mailer.is_configured()
+            and getattr(current_user, "is_authenticated", False)
+            and not getattr(current_user, "email_verified", False)
+        ):
+            return jsonify(
+                {
+                    "error": "Confirme seu e-mail para salvar. Reenvie o link em POST /auth/resend-verification.",
+                    "needs_verification": True,
+                }
+            ), 403
+        return fn(*args, **kwargs)
+
+    return _wrap
 
 
 def _verify_link(token: str) -> str:
@@ -49,7 +77,9 @@ def register():
         return jsonify({"error": str(e)}), 400
     token = users.make_token("verify", user["user_id"])
     mailer.send_verify(user["email"], _verify_link(token))
-    login_user(users.load_auth_user(str(user["user_id"])), remember=True)
+    # conta recém-criada entra só com cookie de sessão; o cookie remember de 30d
+    # (persistente) só é emitido num login explícito.
+    login_user(users.load_auth_user(str(user["user_id"])), remember=False)
     return jsonify(
         {"user": user, "needs_verification": True, "email_delivery": "smtp" if mailer.is_configured() else "console"}
     ), 201
@@ -156,20 +186,29 @@ def init_auth(app, limiter=None) -> None:
     from flask_login import LoginManager
     from flask_wtf.csrf import CSRFProtect
 
-    secret = os.environ.get("SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY")
-    if not secret:
-        secret = secrets.token_hex(32)
+    # Segredo único (sessão + remember + tokens de e-mail). Fatal em produção
+    # sem SECRET_KEY; em dev, persistido em data/.secret_key por core.security.
+    app.config["SECRET_KEY"] = security.resolve_secret_key()
+    if not (os.environ.get("SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY")):
         app.logger.warning(
-            "SECRET_KEY não definida — usando chave efêmera "
-            "(sessões e tokens não sobrevivem a restart). Defina em produção."
+            "SECRET_KEY fora do ambiente — usando a chave de dev (data/.secret_key). "
+            "Em produção, defina SECRET_KEY e RECOMENDAI_ENV=production."
         )
-    app.config["SECRET_KEY"] = secret
-    app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
-    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
-    app.config.setdefault(
-        "SESSION_COOKIE_SECURE", os.environ.get("RECOMENDAI_COOKIE_SECURE", "0").lower() in ("1", "true", "yes")
+
+    secure = security.cookie_secure()
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=secure,
+        REMEMBER_COOKIE_HTTPONLY=True,
+        REMEMBER_COOKIE_SAMESITE="Lax",
+        REMEMBER_COOKIE_SECURE=secure,
+        REMEMBER_COOKIE_DURATION=timedelta(days=30),
+        PERMANENT_SESSION_LIFETIME=timedelta(days=30),
     )
     app.config.setdefault("WTF_CSRF_TIME_LIMIT", None)
+    if security.is_production() and not secure:
+        app.logger.warning("RECOMENDAI_COOKIE_SECURE=0 em produção — cookies de sessão sem a flag Secure.")
 
     users.init_db()
 
@@ -195,6 +234,11 @@ def init_auth(app, limiter=None) -> None:
     app.register_blueprint(bp)
 
     if limiter is not None:
+        if os.environ.get("RATELIMIT_STORAGE_URI", "memory://").startswith("memory://"):
+            app.logger.warning(
+                "Rate limit em memory:// — o limite vale POR WORKER. Rode a API com "
+                "gunicorn -w 1 (--threads N) ou aponte RATELIMIT_STORAGE_URI para Redis."
+            )
         for rule, lim in (
             ("auth.login", "10 per minute"),
             ("auth.register", "5 per hour;20 per day"),

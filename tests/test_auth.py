@@ -92,3 +92,63 @@ def test_delete_account(client, csrf):
         == 204
     )
     assert users.get_user_by_email(email) is None
+
+
+def test_forgot_does_not_enumerate(client, csrf):
+    """`/auth/forgot` responde idêntico para e-mail conhecido e desconhecido."""
+    known = _email()
+    client.post("/auth/register", json={"email": known, "password": "password123"}, headers={"X-CSRFToken": csrf()})
+    client.post("/auth/logout", headers={"X-CSRFToken": csrf()})
+
+    r_known = client.post("/auth/forgot", json={"email": known}, headers={"X-CSRFToken": csrf()})
+    r_unknown = client.post("/auth/forgot", json={"email": _email()}, headers={"X-CSRFToken": csrf()})
+    assert r_known.status_code == r_unknown.status_code == 200
+    assert r_known.get_json() == r_unknown.get_json()
+
+
+def test_reset_token_is_single_use(client, csrf):
+    from core import users
+
+    email = _email()
+    client.post("/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": csrf()})
+    uid = users.get_user_by_email(email)["user_id"]
+    token = users.make_token("reset", uid)
+
+    r1 = client.post("/auth/reset", json={"token": token, "password": "brandnew999"}, headers={"X-CSRFToken": csrf()})
+    assert r1.status_code == 200
+    # o mesmo link não funciona de novo — o hash da senha mudou
+    r2 = client.post("/auth/reset", json={"token": token, "password": "another8888"}, headers={"X-CSRFToken": csrf()})
+    assert r2.status_code == 400
+    assert users.authenticate(email, "brandnew999") is not None
+    assert users.authenticate(email, "another8888") is None
+
+
+def test_reset_token_dies_on_password_change(client, csrf):
+    from core import users
+
+    email = _email()
+    client.post("/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": csrf()})
+    uid = users.get_user_by_email(email)["user_id"]
+    token = users.make_token("reset", uid)
+    users.set_password(uid, "changed12345")  # troca por fora → link pendente morre
+
+    r = client.post("/auth/reset", json={"token": token, "password": "willnotwork1"}, headers={"X-CSRFToken": csrf()})
+    assert r.status_code == 400
+
+
+def test_verify_token_is_single_use(client):
+    from core import users
+
+    email = _email()
+    c = client
+    t = c.get("/auth/csrf").get_json()["csrf_token"]
+    c.post("/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": t})
+    uid = users.get_user_by_email(email)["user_id"]
+    token = users.make_token("verify", uid)
+
+    r1 = c.get(f"/auth/verify/{token}")
+    assert r1.status_code == 302 and "verify=ok" in r1.headers["Location"]
+    assert users.get_user(uid)["email_verified"] is True
+
+    r2 = c.get(f"/auth/verify/{token}")  # e-mail já confirmado → link morto
+    assert "verify=invalid" in r2.headers["Location"]

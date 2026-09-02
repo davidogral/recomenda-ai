@@ -24,4 +24,8 @@ COPY . .
 EXPOSE 8000 9000
 
 # Default: a API. O serviço de inference sobrescreve o command no compose.
-CMD ["gunicorn", "-b", "0.0.0.0:8000", "-w", "2", "--timeout", "120", "app:app"]
+# 1 worker + threads: o rate limit (Flask-Limiter) usa storage em memória, que
+# só vale por processo — com N workers o limite fica N× mais frouxo. O trabalho
+# pesado de ML está no serviço `inference` à parte. Para escalar de verdade,
+# aponte RATELIMIT_STORAGE_URI para Redis e volte a subir o nº de workers.
+CMD ["gunicorn", "-b", "0.0.0.0:8000", "-w", "1", "--threads", "8", "-k", "gthread", "--timeout", "120", "app:app"]

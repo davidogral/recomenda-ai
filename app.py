@@ -18,9 +18,17 @@ import os
 from flask import Flask, jsonify, render_template, request
 from flask_login import current_user, login_required
 
-from core import catalog, metrics, posters
+from core import catalog, metrics, posters, security
 
 app = Flask(__name__, static_folder="frontend", template_folder="frontend")
+
+# --- Atrás do proxy (Caddy termina o TLS) em produção: confiar em UM hop de
+#     X-Forwarded-* para o Flask enxergar https/host reais — sem isso os links
+#     de verificação/reset saem com esquema http. ---
+if security.is_production():
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # --- Observabilidade: contadores/latência Prometheus + rota /metrics ---
 metrics.init_flask(app)
@@ -308,6 +316,7 @@ def versions_list(tmdb_id: int):
 
 @app.route("/versions", methods=["POST"])
 @login_required
+@auth_routes.verified_required
 def versions_save():
     """Cria (sem version_id) ou edita (com version_id) uma versão. Body JSON:
     {tmdb_id, name, runtime?, notes?, is_best?, version_id?}. Marcar is_best
@@ -374,6 +383,7 @@ def ratings_list():
 
 @app.route("/ratings", methods=["POST"])
 @login_required
+@auth_routes.verified_required
 def ratings_save():
     """Grava/substitui a avaliação de um filme. Body JSON: {tmdb_id, rating?,
     liked?, review?, watched_date?, title?, release_year?, poster?}. O frontend
@@ -504,6 +514,7 @@ def lists_index():
 
 @app.route("/lists", methods=["POST"])
 @login_required
+@auth_routes.verified_required
 def lists_create():
     """Cria uma lista. Body JSON: {name, description?}."""
     from core import user_data
@@ -541,6 +552,7 @@ def lists_delete(list_id: int):
 
 @app.route("/lists/<int:list_id>/items", methods=["POST"])
 @login_required
+@auth_routes.verified_required
 def lists_add_item(list_id: int):
     """Acrescenta um filme ao fim da lista. Body: {tmdb_id, title?,
     release_year?, poster?} (a ficha manda tudo; catálogo local de reserva)."""
@@ -586,6 +598,7 @@ def lists_remove_item(list_id: int, tmdb_id: int):
 
 @app.route("/lists/<int:list_id>/order", methods=["PUT"])
 @login_required
+@auth_routes.verified_required
 def lists_reorder(list_id: int):
     """Define a ordem de assistir. Body: {tmdb_ids: [...]} na ordem desejada."""
     from core import user_data
@@ -601,6 +614,7 @@ def lists_reorder(list_id: int):
 
 @app.route("/lists/from_collection", methods=["POST"])
 @login_required
+@auth_routes.verified_required
 def lists_from_collection():
     """Cria uma lista a partir de uma franquia da TMDB (collection), já na
     ordem de lançamento. Body: {collection_id, name?}."""
