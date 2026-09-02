@@ -1796,6 +1796,7 @@ body {
 .eng-svg-node text { fill: var(--light); font-size: 12px; text-anchor: middle; }
 .eng-svg-node text.eng-svg-sub { fill: var(--gray); font-size: 10px; }
 .eng-svg-node rect.eng-svg-hot { fill: var(--accent-soft); stroke: var(--accent-border); }
-.eng-svg-ghost path { stroke: var(--input-border); }
+.eng-svg-ghost { fill: none; }
+.eng-svg-ghost path { fill: none; stroke: var(--input-border); }
 .eng-svg-ghost rect { fill: none; stroke: var(--input-border); stroke-dasharray: 4 3; }
 .eng-svg-ghost text { fill: var(--gray); font-size: 10px; text-anchor: middle; }
