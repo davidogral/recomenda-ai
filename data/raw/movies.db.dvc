@@ -1,0 +1,5 @@
+outs:
+- md5: f21f636a835a9dbd2f133565574c141d
+  size: 1302433792
+  hash: md5
+  path: movies.db

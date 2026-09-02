@@ -45,7 +45,10 @@ build/
 data/*.csv
 data/*.zip
 data/*.tar.gz
-data/raw/
+data/raw/*
+!data/raw/*.dvc
+!data/raw/.gitignore
+
 data/processed/
 data/tmdb_cache/
 data/imdb_cache/
