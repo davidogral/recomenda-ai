@@ -11,8 +11,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="preconnect" href="https://image.tmdb.org">
     <link rel="dns-prefetch" href="https://image.tmdb.org">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
-    <script src="{{ url_for('static', filename='app.js') }}?v=2" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3">
+    <script src="{{ url_for('static', filename='app.js') }}?v=3" defer></script>
 </head>
 <body>
     <div class="container">
@@ -78,6 +78,10 @@
                 </div>
             </div>
 
+            <button class="nav-item" type="button" data-tab="engenharia">
+                <span class="nav-ic" aria-hidden="true">⚙️</span>Engenharia
+            </button>
+
             <button class="nav-help" id="tourBtn" type="button" aria-label="Como usar o Cinerd" title="Como usar">?</button>
         </nav>
 
@@ -129,7 +133,8 @@
                         <input type="number" id="filterYearMax" class="mini-input" placeholder="2025">
                     </label>
                 </div>
-                <p class="hint">Combine o que souber: escolha diretor e/ou ator e descreva um pouco a história — tudo soma para afunilar a busca.</p>
+                <p class="hint">Combine o que souber: escolha diretor e/ou ator e descreva um pouco a história — tudo soma para afunilar a busca.
+                    <a href="#" class="eng-link" data-goto="engenharia">Como a busca funciona por dentro →</a></p>
             </div>
 
             <div id="searchStatus" class="status"></div>
@@ -260,6 +265,54 @@
                 </div>
                 <div id="listDetailCount" class="status"></div>
                 <div class="list-items" id="listItems"></div>
+            </div>
+        </section>
+
+        <!-- ABA: ENGENHARIA (vitrine do motor de recuperação) -->
+        <section id="tab-engenharia" class="tab-panel">
+            <div class="form-section eng-intro">
+                <h2>Como o motor funciona</h2>
+                <p class="hint">Busca por <strong>sinopse</strong> = recuperação híbrida: três sinais independentes, fundidos e medidos.
+                    Recomendação = filtragem colaborativa (SVD) + perfil de conteúdo. Os números abaixo vêm da
+                    <strong>avaliação executável</strong> (<code>python -m eval.run</code>) versionada no repo — não são chute.</p>
+                <div class="eng-diagram" id="engDiagram"></div>
+            </div>
+
+            <div id="engStatus" class="status">Carregando…</div>
+            <div id="engBody" hidden>
+                <div class="form-section">
+                    <h3>Ablação por sinal <span class="eng-prov" id="engAblProv"></span></h3>
+                    <p class="hint">Cada sinal <strong>isolado</strong> vs. a <strong>fusão</strong> — recuperação known-item, split de teste held-out.</p>
+                    <div class="eng-scroll"><table class="eng-table" id="engAblation"></table></div>
+                    <p class="hint eng-take" id="engAblTake"></p>
+                </div>
+
+                <div class="form-section">
+                    <h3>Orçamento de latência do encoder <span class="eng-prov" id="engEncProv"></span></h3>
+                    <p class="hint">nDCG@10 × latência de <code>encode</code> × RAM. O servidor de produção é <strong>CPU</strong>, sem GPU.</p>
+                    <div class="eng-scroll"><table class="eng-table" id="engEncoder"></table></div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Latência por etapa, ao vivo <span class="eng-prov" id="engLiveProv"></span></h3>
+                    <p class="hint">p50 / p95 / p99 em ms do <strong>tráfego real deste processo</strong> — via <code>recomendaai_stage_seconds</code>.</p>
+                    <div class="eng-scroll"><table class="eng-table" id="engLive"></table></div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Protocolo de avaliação</h3>
+                    <div class="eng-facts" id="engProtocol"></div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Decisões de projeto</h3>
+                    <div class="eng-grid" id="engDecisions"></div>
+                </div>
+
+                <div class="form-section eng-links">
+                    <h3>Ir fundo</h3>
+                    <div id="engLinks"></div>
+                </div>
             </div>
         </section>
 

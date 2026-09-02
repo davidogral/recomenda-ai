@@ -825,6 +825,158 @@ def recommend():
 
 
 # =========================================================================
+# ENGENHARIA — números do motor de recuperação para a página "Engenharia".
+# Lê os JSON versionados em eval/results/ (atualizados por `python -m eval.run`
+# / `eval.bench`) + os percentis ao vivo deste processo. Sem os JSON, cai em
+# constantes de reserva. Cada campo diz sua proveniência (commit, device, data).
+# =========================================================================
+_EVAL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "eval", "results")
+
+_ABLATION_LABELS = {
+    "bm25": "BM25 — lexical",
+    "embedding": "Embedding — semântico",
+    "thematic": "Temático — keywords",
+    "fusion": "Fusão z-score (produção)",
+    "fusion_rerank": "Fusão + cross-encoder (experimental)",
+}
+_ENGINEERING_FALLBACK = {
+    "ablation": {
+        "stale": True,
+        "source": {"git_commit": "7d96851", "split": "test", "n_queries": 47},
+        "rows": [
+            {"pipeline": "bm25", "ndcg@10": 0.360, "mrr": 0.316, "recall@10": 0.532, "recall@50": 0.660, "median_rank": 7},
+            {"pipeline": "embedding", "ndcg@10": 0.299, "mrr": 0.260, "recall@10": 0.447, "recall@50": 0.532, "median_rank": 25},
+            {"pipeline": "thematic", "ndcg@10": 0.310, "mrr": 0.256, "recall@10": 0.511, "recall@50": 0.638, "median_rank": 10},
+            {"pipeline": "fusion", "ndcg@10": 0.733, "mrr": 0.686, "recall@10": 0.894, "recall@50": 0.936, "median_rank": 1},
+            {"pipeline": "fusion_rerank", "ndcg@10": 0.754, "mrr": 0.705, "recall@10": 0.915, "recall@50": 0.936, "median_rank": 1},
+        ],
+    },
+    "encoder": {
+        "stale": True,
+        "source": {"git_commit": "e2ed3ce", "device": "cpu"},
+        "rows": [
+            {"name": "e5-large fp32", "default": True, "ndcg@10": 0.733, "recall@10": 0.894, "recall@50": 0.936, "encode_p50": 169.2, "encode_p99": 352.1, "rss_mb": 2318},
+            {"name": "e5-large INT8 (ONNX)", "default": False, "ndcg@10": 0.729, "recall@10": 0.894, "recall@50": 0.936, "encode_p50": 212.0, "encode_p99": 368.9, "rss_mb": 1676},
+            {"name": "e5-small fp32", "default": False, "ndcg@10": 0.693, "recall@10": 0.830, "recall@50": 0.936, "encode_p50": 22.0, "encode_p99": 105.0, "rss_mb": 1026},
+        ],
+    },
+}
+
+
+def _load_eval(name: str):
+    try:
+        with open(os.path.join(_EVAL_DIR, f"latest__{name}.json"), encoding="utf-8") as fh:
+            import json
+
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def _engineering_payload() -> dict:
+    ablation = dict(_ENGINEERING_FALLBACK["ablation"])
+    test = _load_eval("test")
+    if test and test.get("results"):
+        run = test.get("run", {})
+        ablation = {
+            "stale": False,
+            "source": {
+                "git_commit": run.get("git_commit"),
+                "timestamp_utc": run.get("timestamp_utc"),
+                "split": run.get("split"),
+                "n_queries": run.get("n_queries"),
+                "dataset_sha1": run.get("dataset_sha1"),
+            },
+            "rows": [
+                {
+                    "pipeline": key,
+                    "ndcg@10": round(r["metrics"].get("ndcg@10", 0), 3),
+                    "mrr": round(r["metrics"].get("mrr", 0), 3),
+                    "recall@10": round(r["metrics"].get("recall@10", 0), 3),
+                    "recall@50": round(r["metrics"].get("recall@50", 0), 3),
+                    "median_rank": r["metrics"].get("median_rank"),
+                }
+                for key, r in test["results"].items()
+            ],
+        }
+    for row in ablation["rows"]:
+        row["label"] = _ABLATION_LABELS.get(row["pipeline"], row["pipeline"])
+
+    encoder = dict(_ENGINEERING_FALLBACK["encoder"])
+    bench = _load_eval("bench-embed")
+    if bench and bench.get("rows"):
+        brun = bench.get("run", {})
+        encoder = {
+            "stale": False,
+            "source": {"git_commit": brun.get("git_commit"), "device": brun.get("device"), "timestamp_utc": brun.get("timestamp_utc")},
+            "rows": [
+                {
+                    "name": row.get("name"),
+                    "default": row.get("name", "").startswith("e5-large fp32"),
+                    "ndcg@10": round(row["metrics"].get("ndcg@10", 0), 3),
+                    "recall@10": round(row["metrics"].get("recall@10", 0), 3),
+                    "recall@50": round(row["metrics"].get("recall@50", 0), 3),
+                    "encode_p50": row["latency"]["encode_cold"]["p50"],
+                    "encode_p99": row["latency"]["encode_cold"]["p99"],
+                    "rss_mb": round(row["rss_mb"]["after_load"]),
+                }
+                for row in bench["rows"]
+                if row.get("kind") == "embed"
+            ],
+        }
+
+    lat = _load_eval("latency-test")
+    protocol = {
+        "task": "known-item — 1 filme relevante por consulta sobre ~22 mil títulos",
+        "n_queries": 142, "dev": 95, "test": 47, "split_seed": 20260831,
+        "reported": "só o split de teste (held-out)",
+    }
+    if test and test.get("run", {}).get("split_counts"):
+        sc = test["run"]["split_counts"]
+        protocol.update(n_queries=sc.get("total", 142), dev=sc.get("dev", 95), test=sc.get("test", 47))
+
+    return {
+        "ablation": ablation,
+        "encoder": encoder,
+        "protocol": protocol,
+        "live_latency": {
+            "stages": metrics.stage_percentiles(),
+            "note": "p50/p95/p99 (ms) do tráfego real deste processo desde o último deploy",
+        },
+        "offline_latency": (lat or {}).get("stages", {}),
+        "decisions": [
+            {
+                "title": "Cross-encoder desligado em produção",
+                "body": "O re-ranker de 2º estágio era o default. A varredura (eval.run --sweep-rerank) mostra ganho "
+                        "dentro do ruído (teste +0,02 nDCG@10, dev −0,01) a ~250× de latência. Fica atrás de RECOMENDAI_RERANK=1.",
+            },
+            {
+                "title": "e5-large fp32 continua o encoder padrão",
+                "body": "INT8 dinâmico corta 28% de RAM mas não acelera o encode em CPU ARM (sem VNNI). e5-small é "
+                        "7,7× mais rápido no encode e usa metade da RAM, ao custo de −0,04 nDCG@10 — a um env var de distância.",
+            },
+            {
+                "title": "Fusão z-score + prior de popularidade",
+                "body": "Os 3 sinais são padronizados (z-score) e somados com um prior de popularidade. Nenhum sinal "
+                        "isolado passa de nDCG@10 ≈ 0,36; a fusão salta para ≈ 0,73 e leva a mediana da posição para #1.",
+            },
+        ],
+        "links": {
+            "metrics": "/metrics",
+            "metodologia": "https://github.com/davidogral/recomenda-ai/blob/main/docs/METODOLOGIA.md",
+            "eval": "https://github.com/davidogral/recomenda-ai/tree/main/eval",
+            "adr": "https://github.com/davidogral/recomenda-ai/tree/main/docs/adr",
+        },
+    }
+
+
+@app.route("/engineering")
+def engineering():
+    """Números do motor (ablação, encoder, protocolo, latência ao vivo) para a aba Engenharia."""
+    return jsonify(_engineering_payload())
+
+
+# =========================================================================
 # HEALTH CHECK
 # =========================================================================
 
