@@ -12,6 +12,7 @@ carregam sob demanda no 1º uso da rota.
 
 from __future__ import annotations
 
+import gzip
 import os
 
 from flask import Flask, jsonify, render_template, request
@@ -823,6 +824,53 @@ def _rate_limited(e):
     """Resposta JSON para o rate limit (o frontend lê `error`)."""
     return jsonify({"error": "Muitas requisições — tente de novo em instantes.",
                     "detail": str(getattr(e, "description", e))}), 429
+
+
+# =========================================================================
+# ENTREGA — cache de estáticos + gzip de texto.
+# Em produção o proxy (Caddy/Cloudflare) normalmente já comprime; isto cobre
+# `gunicorn app:app` cru e garante os cabeçalhos de cache.
+# =========================================================================
+_GZIP_TYPES = ("text/", "application/json", "application/javascript",
+               "application/xml", "image/svg+xml")
+
+
+_STATIC_PREFIX = (app.static_url_path or "/static").rstrip("/") + "/"
+
+
+@app.after_request
+def _delivery(resp):
+    path = request.path
+    if path.startswith(_STATIC_PREFIX):
+        # estáticos versionados por ?v= na tag → 1 dia é seguro. Sobrescreve o
+        # "no-cache" que o handler estático do Flask 3 põe por padrão.
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+    elif path == "/":
+        resp.headers.setdefault("Cache-Control", "no-cache")
+
+    try:
+        accepts_gzip = "gzip" in request.headers.get("Accept-Encoding", "")
+        ctype = resp.headers.get("Content-Type", "")
+        if (
+            accepts_gzip
+            and resp.status_code == 200
+            and not resp.headers.get("Content-Encoding")
+            and ctype.startswith(_GZIP_TYPES)
+        ):
+            if resp.direct_passthrough:  # arquivos estáticos são passthrough
+                resp.direct_passthrough = False
+            body = resp.get_data()
+            if len(body) > 1024:
+                packed = gzip.compress(body, 6)
+                if len(packed) < len(body):
+                    resp.set_data(packed)
+                    resp.headers["Content-Encoding"] = "gzip"
+                    resp.headers["Content-Length"] = str(len(packed))
+                    vary = resp.headers.get("Vary")
+                    resp.headers["Vary"] = f"{vary}, Accept-Encoding" if vary else "Accept-Encoding"
+    except Exception:  # compressão nunca pode derrubar a resposta
+        pass
+    return resp
 
 
 # =========================================================================
