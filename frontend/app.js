@@ -1750,9 +1750,9 @@
     <rect x="376" y="52" width="120" height="46" rx="8" class="eng-svg-hot"/><text x="436" y="72">fusão z-score</text><text x="436" y="88" class="eng-svg-sub">+ prior pop.</text>
     <rect x="552" y="55" width="84" height="40" rx="8"/><text x="594" y="79">resultados</text>
   </g>
-  <g class="eng-svg-ghost">
-    <path d="M436 98v14h150v-30h-10" stroke-dasharray="4 3"/>
-    <rect x="470" y="118" width="150" height="26" rx="7"/><text x="545" y="135">cross-encoder — OFF</text>
+  <g class="eng-svg-ghost" fill="none">
+    <path d="M436 98 V118 H492" stroke-dasharray="4 3"/>
+    <rect x="492" y="105" width="150" height="26" rx="7"/><text x="567" y="122">cross-encoder — OFF</text>
   </g>
 </svg>`;
 
