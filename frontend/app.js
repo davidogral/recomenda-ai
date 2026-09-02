@@ -79,8 +79,9 @@
                 if (!ok) return this.msg(d.error || 'Não foi possível entrar.');
                 this.close(); await this.refresh();
             },
-            async register(email, password) {
-                const { ok, d } = await this._post('/auth/register', { email, password });
+            async register(email, password, acceptedPrivacy) {
+                if (!acceptedPrivacy) return this.msg('Você precisa aceitar a Política de Privacidade.');
+                const { ok, d } = await this._post('/auth/register', { email, password, accepted_privacy: true });
                 if (!ok) return this.msg(d.error || 'Não foi possível criar a conta.');
                 this.close(); await this.refresh();
                 if (d.needs_verification) this.msg('Conta criada! Confirme o e-mail pelo link que enviamos.', true);
@@ -105,7 +106,7 @@
         document.getElementById('authModal').addEventListener('click', e => { if (e.target.id === 'authModal') AUTH.close(); });
         document.querySelectorAll('#authTabs button').forEach(b => b.onclick = () => AUTH.show(b.dataset.authtab));
         document.getElementById('authFormLogin').addEventListener('submit', e => { e.preventDefault(); AUTH.login(e.target.email.value, e.target.password.value); });
-        document.getElementById('authFormRegister').addEventListener('submit', e => { e.preventDefault(); AUTH.register(e.target.email.value, e.target.password.value); });
+        document.getElementById('authFormRegister').addEventListener('submit', e => { e.preventDefault(); AUTH.register(e.target.email.value, e.target.password.value, e.target.privacy.checked); });
         document.getElementById('authFormForgot').addEventListener('submit', e => { e.preventDefault(); AUTH.forgot(e.target.email.value); });
         document.getElementById('authFormReset').addEventListener('submit', e => { e.preventDefault(); AUTH.reset(AUTH._resetToken, e.target.password.value); });
 
