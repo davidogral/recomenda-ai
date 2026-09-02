@@ -31,7 +31,8 @@ services:
 
   api:
     build: .
-    command: gunicorn -b 0.0.0.0:8000 -w 2 --timeout 120 app:app
+    # 1 worker + threads: rate limit em memória vale só por processo (ver Dockerfile).
+    command: gunicorn -b 0.0.0.0:8000 -w 1 --threads 8 -k gthread --timeout 120 app:app
     environment:
       RECOMENDAI_INFERENCE_URL: http://inference:9000
       RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-memory://}

@@ -264,18 +264,29 @@ A `api` chama a `inference` por HTTP quando `RECOMENDAI_INFERENCE_URL` está set
 | `recomendaai_tmdb_calls_total{result}` | `ok` / `error` / `capped` |
 | `recomendaai_process_rss_bytes` | memória residente |
 
-### Contas de usuário
+### Contas & segurança
 
-Login por **e-mail + senha** (Argon2), sessão em cookie assinado (Flask-Login), **CSRF** em toda requisição que altera estado (header `X-CSRFToken`; o frontend busca em `GET /auth/csrf`). Fluxo completo: cadastro, **verificação de e-mail**, **reset de senha** e **exclusão de conta** (`core/users.py`, `core/auth_routes.py`).
+Login por **e-mail + senha** com **Argon2id** (rehash automático quando os parâmetros mudam), sessão em cookie assinado (Flask-Login) e **CSRF** em toda requisição que altera estado (header `X-CSRFToken`; o frontend busca em `GET /auth/csrf`). Fluxo completo: cadastro, verificação de e-mail, reset de senha e exclusão de conta (`core/users.py`, `core/auth_routes.py`, `core/security.py`). Decisões e trade-offs: [`docs/adr/0002-auth-hardening.md`](docs/adr/0002-auth-hardening.md).
+
+| superfície | tratamento |
+|---|---|
+| senha em repouso | **Argon2id**; nunca hash rápido |
+| cookies (sessão **e** *remember*) | `HttpOnly` + `SameSite=Lax` sempre; `Secure` automático em produção (`RECOMENDAI_COOKIE_SECURE` força/desliga) |
+| segredo de assinatura | fonte única (`core/security.py`); **fatal no boot** se `RECOMENDAI_ENV=production` sem `SECRET_KEY`; em dev, persistido em `data/.secret_key` |
+| recuperação de senha | `/auth/forgot` responde igual exista ou não o e-mail (sem enumeração); link amarrado ao hash da senha → **uso único** |
+| verificação de e-mail | link de uso único; grava dado pessoal só com e-mail confirmado (quando há SMTP) |
+| login | resposta em tempo ~constante (verify contra hash-dummy quando o e-mail não existe) |
+| rate limit `/auth/*` | login 10/min · cadastro 5/h · forgot 5/h · reset 10/h |
+| exclusão (LGPD) | `POST /auth/delete` re-autentica e apaga avaliações + listas da conta |
 
 - **E-mail**: SMTP por env (`SMTP_HOST`…); sem provedor, o app **imprime o link no stdout** — dá para testar tudo sem configurar nada.
-- **Multi-usuário**: diário e listas são por conta (`data/user.db`, migração automática de bancos single-user → usuário `LEGACY_USER_ID=1`; reassocie com `python -m core.users claim <email>`). As *versões* de filme são curadoria compartilhada.
+- **Multi-usuário**: diário e listas são por conta (`data/user.db`, migração automática de bancos single-user → `LEGACY_USER_ID=1`; reassocie com `python -m core.users claim <email>`). As *versões* de filme são curadoria compartilhada.
 - **CLI**: `python -m core.users create|verify|passwd|claim`.
-- Rotas `/auth/*` têm rate limit próprio (login 10/min, cadastro 5/h). `SECRET_KEY` é **obrigatória** em produção.
+- **Pendente (LGPD)**: página de política de privacidade + exportação de dados (`GET /auth/export`).
 
 ### Limites
 
-- **Rate limit** (Flask-Limiter): `/search` a **30/min** por IP, endpoints pesados (`/similar`, `/recommend*`, `/explore/essentials`) a **12/min**. Configurável (`RECOMENDAI_RATE_SEARCH`, `RECOMENDAI_RATE_HEAVY`); `memory://` por padrão, aponte `RATELIMIT_STORAGE_URI` para Redis em multi-worker.
+- **Rate limit** (Flask-Limiter): `/search` a **30/min** por IP, endpoints pesados (`/similar`, `/recommend*`, `/explore/essentials`) a **12/min**. Configurável (`RECOMENDAI_RATE_SEARCH`, `RECOMENDAI_RATE_HEAVY`). Storage `memory://` vale **por processo** — a API roda `gunicorn -w 1 --threads 8` (ML pesado fica no serviço `inference`); para escalar, aponte `RATELIMIT_STORAGE_URI` para Redis e volte a subir os workers.
 - **Teto de chamadas à TMDB**: `RECOMENDAI_TMDB_MAX_RPM` (240, janela deslizante de 60 s) no chokepoint `core/tmdb.py::_get` — ao estourar, degrada para placeholder/fuzzy, como já faz sem rede.
 
 ### CI — portão de qualidade

@@ -52,6 +52,8 @@ data/raw/*
 data/processed/
 data/tmdb_cache/
 data/imdb_cache/
+# chave de assinatura de dev gerada por core/security.py (nunca versionar)
+data/.secret_key
 # SQLite WAL/SHM sidecars (transitórios — nunca versionar)
 *.db-shm
 *.db-wal
