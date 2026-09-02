@@ -81,6 +81,11 @@ def home_page():
     return render_template("index.html")
 
 
+@app.route("/privacidade")
+def privacy_page():
+    return render_template("privacidade.html")
+
+
 # =========================================================================
 # ROTAS DE BUSCA (motor superior — davidogral)
 # =========================================================================
@@ -974,6 +979,73 @@ def _engineering_payload() -> dict:
 def engineering():
     """Números do motor (ablação, encoder, protocolo, latência ao vivo) para a aba Engenharia."""
     return jsonify(_engineering_payload())
+
+
+# =========================================================================
+# PAINEL ADMIN — allowlist RECOMENDAI_ADMIN_EMAILS. Não-admin recebe 404
+# (ver core/auth_routes.admin_required). Só o operador (LGPD: controlador dos
+# dados) acessa; nunca expõe hash de senha.
+# =========================================================================
+
+@app.route("/admin")
+@auth_routes.admin_required
+def admin_page():
+    return render_template("admin.html")
+
+
+@app.route("/admin/api/overview")
+@auth_routes.admin_required
+def admin_overview():
+    from core import users
+
+    return jsonify({"users": users.count_users(), "signups_by_day": users.signups_by_day(30)})
+
+
+@app.route("/admin/api/users")
+@auth_routes.admin_required
+def admin_users():
+    from core import users
+
+    return jsonify({"users": users.list_users()})
+
+
+@app.route("/admin/api/users/<int:uid>")
+@auth_routes.admin_required
+def admin_user_detail(uid: int):
+    from core import user_data, users
+
+    acc = users.get_user(uid)
+    if acc is None:
+        return jsonify({"error": "Conta não encontrada."}), 404
+    return jsonify({"account": acc, **user_data.export_user_data(uid)})
+
+
+@app.route("/admin/api/users/<int:uid>/<action>", methods=["POST"])
+@auth_routes.admin_required
+def admin_user_action(uid: int, action: str):
+    from core import mailer, users
+
+    acc = users.get_user(uid)
+    if acc is None:
+        return jsonify({"error": "Conta não encontrada."}), 404
+
+    if action == "deactivate":
+        users.set_active(uid, False)
+        return jsonify({"ok": True, "is_active": False})
+    if action == "reactivate":
+        users.set_active(uid, True)
+        return jsonify({"ok": True, "is_active": True})
+    if action == "delete":
+        users.delete_user(uid)
+        return jsonify({"ok": True, "deleted": True})
+    if action == "resend-verification":
+        if acc["email_verified"]:
+            return jsonify({"ok": True, "already": True})
+        token = users.make_token("verify", uid)
+        link = request.url_root.rstrip("/") + "/auth/verify/" + token
+        mailer.send_verify(acc["email"], link)
+        return jsonify({"ok": True, "sent": True})
+    return jsonify({"error": "Ação desconhecida."}), 400
 
 
 # =========================================================================

@@ -13,6 +13,7 @@ CSRF via Flask-WTF (header `X-CSRFToken`).
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import timedelta
 from functools import wraps
@@ -54,6 +55,24 @@ def verified_required(fn):
     return _wrap
 
 
+def admin_required(fn):
+    """Restringe a rota à allowlist `RECOMENDAI_ADMIN_EMAILS`. Responde **404**
+    (não 403) para quem não é admin — a rota não deve ser descobrível."""
+
+    @wraps(fn)
+    def _wrap(*args, **kwargs):
+        from flask import abort
+        from flask_login import current_user
+
+        if not (
+            getattr(current_user, "is_authenticated", False) and users.is_admin(getattr(current_user, "email", None))
+        ):
+            abort(404)
+        return fn(*args, **kwargs)
+
+    return _wrap
+
+
 def _verify_link(token: str) -> str:
     return request.url_root.rstrip("/") + url_for("auth.verify", token=token)
 
@@ -69,6 +88,8 @@ def register():
     from flask_login import login_user
 
     data = request.get_json(silent=True) or {}
+    if not data.get("accepted_privacy"):
+        return jsonify({"error": "É preciso aceitar a Política de Privacidade para criar a conta."}), 400
     try:
         user = users.create_user(data.get("email", ""), data.get("password", ""))
     except users.EmailInUse:
@@ -157,6 +178,32 @@ def reset():
     except users.WeakPassword as e:
         return jsonify({"error": str(e)}), 400
     return jsonify({"ok": True})
+
+
+@bp.get("/export")
+def export_data():
+    """LGPD — direito de acesso/portabilidade: baixa TUDO que a conta guarda
+    (dados da conta + diário + listas) num JSON."""
+    from flask import Response
+    from flask_login import current_user
+
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Faça login primeiro."}), 401
+
+    from core import user_data
+
+    account = users.get_user(current_user.id) or {}
+    payload = {
+        "exported_at": users._now(),
+        "account": account,
+        **user_data.export_user_data(current_user.id),
+    }
+    body = json.dumps(payload, ensure_ascii=False, indent=2)
+    return Response(
+        body,
+        mimetype="application/json",
+        headers={"Content-Disposition": 'attachment; filename="cinerd-meus-dados.json"'},
+    )
 
 
 @bp.post("/delete")

@@ -10,7 +10,11 @@ def _email():
 
 def test_register_login_logout(client, csrf):
     email = _email()
-    r = client.post("/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": csrf()})
+    r = client.post(
+        "/auth/register",
+        json={"email": email, "password": "password123", "accepted_privacy": True},
+        headers={"X-CSRFToken": csrf()},
+    )
     assert r.status_code == 201 and r.get_json()["needs_verification"] is True
     assert client.get("/auth/me").get_json()["user"]["email"] == email
 
@@ -31,19 +35,25 @@ def test_weak_password_and_dupe_email(client, csrf):
     email = _email()
     assert (
         client.post(
-            "/auth/register", json={"email": email, "password": "short"}, headers={"X-CSRFToken": csrf()}
+            "/auth/register",
+            json={"email": email, "password": "short", "accepted_privacy": True},
+            headers={"X-CSRFToken": csrf()},
         ).status_code
         == 400
     )
     assert (
         client.post(
-            "/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": csrf()}
+            "/auth/register",
+            json={"email": email, "password": "password123", "accepted_privacy": True},
+            headers={"X-CSRFToken": csrf()},
         ).status_code
         == 201
     )
     assert (
         client.post(
-            "/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": csrf()}
+            "/auth/register",
+            json={"email": email, "password": "password123", "accepted_privacy": True},
+            headers={"X-CSRFToken": csrf()},
         ).status_code
         == 409
     )
@@ -53,13 +63,21 @@ def test_user_data_isolation(client, csrf):
     import app
 
     a, b = _email(), _email()
-    client.post("/auth/register", json={"email": a, "password": "password123"}, headers={"X-CSRFToken": csrf()})
+    client.post(
+        "/auth/register",
+        json={"email": a, "password": "password123", "accepted_privacy": True},
+        headers={"X-CSRFToken": csrf()},
+    )
     client.post("/lists", json={"name": "lista da a"}, headers={"X-CSRFToken": csrf()})
     client.post("/auth/logout", headers={"X-CSRFToken": csrf()})
 
     c2 = app.app.test_client()
     t2 = c2.get("/auth/csrf").get_json()["csrf_token"]
-    rb = c2.post("/auth/register", json={"email": b, "password": "password123"}, headers={"X-CSRFToken": t2})
+    rb = c2.post(
+        "/auth/register",
+        json={"email": b, "password": "password123", "accepted_privacy": True},
+        headers={"X-CSRFToken": t2},
+    )
     assert rb.status_code == 201, rb.get_json()
     body = c2.get("/lists").get_json()
     assert body.get("lists") == [], body  # não vê a lista da conta A
@@ -70,7 +88,9 @@ def test_password_reset_flow(client, csrf):
 
     email = _email()
     rr = client.post(
-        "/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": csrf()}
+        "/auth/register",
+        json={"email": email, "password": "password123", "accepted_privacy": True},
+        headers={"X-CSRFToken": csrf()},
     )
     assert rr.status_code == 201, rr.get_json()
     uid = users.get_user_by_email(email)["user_id"]
@@ -85,7 +105,11 @@ def test_delete_account(client, csrf):
     from core import users
 
     email = _email()
-    client.post("/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": csrf()})
+    client.post(
+        "/auth/register",
+        json={"email": email, "password": "password123", "accepted_privacy": True},
+        headers={"X-CSRFToken": csrf()},
+    )
     assert client.post("/auth/delete", json={"password": "nope"}, headers={"X-CSRFToken": csrf()}).status_code == 403
     assert (
         client.post("/auth/delete", json={"password": "password123"}, headers={"X-CSRFToken": csrf()}).status_code
@@ -97,7 +121,11 @@ def test_delete_account(client, csrf):
 def test_forgot_does_not_enumerate(client, csrf):
     """`/auth/forgot` responde idêntico para e-mail conhecido e desconhecido."""
     known = _email()
-    client.post("/auth/register", json={"email": known, "password": "password123"}, headers={"X-CSRFToken": csrf()})
+    client.post(
+        "/auth/register",
+        json={"email": known, "password": "password123", "accepted_privacy": True},
+        headers={"X-CSRFToken": csrf()},
+    )
     client.post("/auth/logout", headers={"X-CSRFToken": csrf()})
 
     r_known = client.post("/auth/forgot", json={"email": known}, headers={"X-CSRFToken": csrf()})
@@ -110,7 +138,11 @@ def test_reset_token_is_single_use(client, csrf):
     from core import users
 
     email = _email()
-    client.post("/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": csrf()})
+    client.post(
+        "/auth/register",
+        json={"email": email, "password": "password123", "accepted_privacy": True},
+        headers={"X-CSRFToken": csrf()},
+    )
     uid = users.get_user_by_email(email)["user_id"]
     token = users.make_token("reset", uid)
 
@@ -127,7 +159,11 @@ def test_reset_token_dies_on_password_change(client, csrf):
     from core import users
 
     email = _email()
-    client.post("/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": csrf()})
+    client.post(
+        "/auth/register",
+        json={"email": email, "password": "password123", "accepted_privacy": True},
+        headers={"X-CSRFToken": csrf()},
+    )
     uid = users.get_user_by_email(email)["user_id"]
     token = users.make_token("reset", uid)
     users.set_password(uid, "changed12345")  # troca por fora → link pendente morre
@@ -142,7 +178,11 @@ def test_verify_token_is_single_use(client):
     email = _email()
     c = client
     t = c.get("/auth/csrf").get_json()["csrf_token"]
-    c.post("/auth/register", json={"email": email, "password": "password123"}, headers={"X-CSRFToken": t})
+    c.post(
+        "/auth/register",
+        json={"email": email, "password": "password123", "accepted_privacy": True},
+        headers={"X-CSRFToken": t},
+    )
     uid = users.get_user_by_email(email)["user_id"]
     token = users.make_token("verify", uid)
 

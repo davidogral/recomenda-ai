@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0d0d0f">
+    <meta name="color-scheme" content="dark">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Admin — Cinerd</title>
+    <link rel="icon" type="image/png" sizes="96x96" href="{{ url_for('static', filename='icon-96.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4">
+    <style>
+        .adm { max-width: 1080px; margin: 0 auto; padding: 32px 20px 80px; }
+        .adm h1 { font-size: 1.5rem; }
+        .adm .sub { color: var(--gray); font-size: var(--fs-sm); margin: 4px 0 24px; }
+        .adm .sub a { color: var(--primary-hover); }
+        .adm-tiles { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+        .adm-tile { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 12px 18px; min-width: 130px; }
+        .adm-tile .n { font-size: 1.6rem; font-weight: 700; color: var(--light); }
+        .adm-tile .l { font-size: var(--fs-xs); color: var(--gray); text-transform: uppercase; letter-spacing: .04em; }
+        .adm-spark { display: flex; align-items: flex-end; gap: 3px; height: 46px; margin: 10px 0 24px; }
+        .adm-spark i { flex: 1; background: var(--accent-border); border-radius: 2px 2px 0 0; min-height: 2px; }
+        .adm-spark i.z { background: var(--card-border); }
+        .adm-scroll { overflow-x: auto; border-radius: var(--radius-sm); }
+        table.adm-t { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); min-width: 640px; }
+        .adm-t th, .adm-t td { padding: 8px 12px; border-bottom: 1px solid var(--card-border); text-align: right; white-space: nowrap; }
+        .adm-t th:first-child, .adm-t td:first-child, .adm-t th:nth-child(2), .adm-t td:nth-child(2) { text-align: left; }
+        .adm-t thead th { color: var(--gray); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; }
+        .adm-t tbody tr { cursor: pointer; }
+        .adm-t tbody tr:hover { background: var(--card-hover); }
+        .adm-t tr.sel { background: var(--accent-soft); }
+        .adm-t .off { color: var(--gray); }
+        .pill { font-size: var(--fs-xs); border-radius: 999px; padding: 1px 7px; border: 1px solid var(--card-border); }
+        .pill.ok { color: #7fdca4; border-color: rgba(127,220,164,.35); }
+        .pill.no { color: var(--gray); }
+        .adm-detail { margin-top: 22px; background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 20px; }
+        .adm-detail h2 { font-size: 1.1rem; }
+        .adm-detail .meta { color: var(--gray); font-size: var(--fs-sm); margin: 4px 0 14px; }
+        .adm-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 18px; }
+        .adm-actions button { font: inherit; font-size: var(--fs-sm); padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--light); cursor: pointer; }
+        .adm-actions button:hover { border-color: var(--border-strong); }
+        .adm-actions button.danger { color: var(--primary-hover); border-color: var(--accent-border); }
+        .adm-detail h3 { font-size: var(--fs-md); margin: 14px 0 6px; color: var(--gray); }
+        .adm-detail ul { list-style: none; }
+        .adm-detail li { padding: 5px 0; border-bottom: 1px solid var(--card-border); font-size: var(--fs-sm); }
+        .adm-detail .rv { color: var(--gray); font-style: italic; }
+        .adm-msg { min-height: 1.3em; font-size: var(--fs-sm); color: var(--gray); }
+        .adm-empty { color: var(--gray); font-size: var(--fs-sm); }
+    </style>
+</head>
+<body>
+    <div class="adm">
+        <h1>Painel Admin</h1>
+        <p class="sub"><a href="/">← Cinerd</a> · dados de contas e uso · acesso restrito à allowlist</p>
+
+        <div class="adm-tiles" id="tiles"></div>
+        <div class="adm-spark" id="spark" title="cadastros por dia (30d)"></div>
+
+        <div class="adm-scroll">
+            <table class="adm-t">
+                <thead><tr>
+                    <th>#</th><th>e-mail</th><th>verif.</th><th>ativa</th>
+                    <th>diário</th><th>resenhas</th><th>listas</th><th>criada</th>
+                </tr></thead>
+                <tbody id="rows"></tbody>
+            </table>
+        </div>
+
+        <div id="detail"></div>
+    </div>
+
+    <script>
+        'use strict';
+        let CSRF = null;
+        async function csrf() {
+            if (CSRF) return CSRF;
+            try { CSRF = (await (await fetch('/auth/csrf')).json()).csrf_token; } catch (e) { CSRF = ''; }
+            return CSRF;
+        }
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const $ = id => document.getElementById(id);
+
+        async function loadOverview() {
+            const d = await (await fetch('/admin/api/overview')).json();
+            $('tiles').innerHTML = [
+                ['total', d.users.total], ['verificados', d.users.verified], ['ativas', d.users.active],
+            ].map(([l, n]) => `<div class="adm-tile"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+            const days = d.signups_by_day || [];
+            const max = Math.max(1, ...days.map(x => x.count));
+            $('spark').innerHTML = days.map(x =>
+                `<i class="${x.count ? '' : 'z'}" style="height:${Math.round(x.count / max * 100)}%" title="${x.date}: ${x.count}"></i>`).join('')
+                || '<span class="adm-empty">sem cadastros nos últimos 30 dias</span>';
+        }
+
+        let selRow = null;
+        async function loadUsers() {
+            const d = await (await fetch('/admin/api/users')).json();
+            $('rows').innerHTML = (d.users || []).map(u => {
+                const c = u.counts || {};
+                return `<tr data-uid="${u.user_id}">
+                    <td>${u.user_id}</td>
+                    <td>${esc(u.email)}</td>
+                    <td>${u.email_verified ? '<span class="pill ok">✓</span>' : '<span class="pill no">—</span>'}</td>
+                    <td>${u.is_active ? '<span class="pill ok">sim</span>' : '<span class="pill no">não</span>'}</td>
+                    <td>${c.ratings || 0}</td><td>${c.reviews || 0}</td><td>${c.lists || 0}</td>
+                    <td class="off">${esc((u.created_at || '').slice(0, 10))}</td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="8" class="adm-empty">nenhuma conta ainda</td></tr>';
+            $('rows').querySelectorAll('tr[data-uid]').forEach(tr =>
+                tr.onclick = () => { if (selRow) selRow.classList.remove('sel'); selRow = tr; tr.classList.add('sel'); showUser(tr.dataset.uid); });
+        }
+
+        async function showUser(uid) {
+            $('detail').innerHTML = '<div class="adm-detail adm-empty">carregando…</div>';
+            const d = await (await fetch('/admin/api/users/' + uid)).json();
+            if (d.error) { $('detail').innerHTML = `<div class="adm-detail adm-empty">${esc(d.error)}</div>`; return; }
+            const a = d.account;
+            const ratings = (d.ratings || []).map(r =>
+                `<li><strong>${esc(r.title || r.tmdb_id)}</strong>${r.release_year ? ' (' + r.release_year + ')' : ''}
+                 — ${r.rating != null ? r.rating + '★' : 'sem nota'}${r.liked ? ' ❤' : ''}${r.watched_date ? ' · ' + esc(r.watched_date) : ''}
+                 ${r.review ? `<br><span class="rv">"${esc(r.review)}"</span>` : ''}</li>`).join('') || '<li class="adm-empty">nada</li>';
+            const lists = (d.lists || []).map(l =>
+                `<li><strong>${esc(l.name)}</strong> — ${(l.items || []).length} filme(s)
+                 ${l.items && l.items.length ? '<br><span class="rv">' + l.items.map(i => esc(i.title || i.tmdb_id)).join(' · ') + '</span>' : ''}</li>`).join('') || '<li class="adm-empty">nada</li>';
+
+            $('detail').innerHTML = `<div class="adm-detail">
+                <h2>${esc(a.email)}</h2>
+                <div class="meta">conta #${a.user_id} · criada ${esc((a.created_at || '').slice(0, 16).replace('T', ' '))}
+                 · e-mail ${a.email_verified ? 'verificado' : 'não verificado'} · ${a.is_active ? 'ativa' : 'DESATIVADA'}</div>
+                <div class="adm-actions">
+                    ${a.is_active
+                        ? `<button data-act="deactivate">Desativar conta</button>`
+                        : `<button data-act="reactivate">Reativar conta</button>`}
+                    ${a.email_verified ? '' : `<button data-act="resend-verification">Reenviar verificação</button>`}
+                    <button class="danger" data-act="delete">Apagar conta e dados</button>
+                </div>
+                <div class="adm-msg" id="admMsg"></div>
+                <h3>Diário (${(d.ratings || []).length})</h3><ul>${ratings}</ul>
+                <h3>Listas (${(d.lists || []).length})</h3><ul>${lists}</ul>
+            </div>`;
+            $('detail').querySelectorAll('button[data-act]').forEach(b =>
+                b.onclick = () => act(uid, b.dataset.act, a.email));
+        }
+
+        async function act(uid, action, email) {
+            const labels = { deactivate: 'Desativar', reactivate: 'Reativar', delete: 'APAGAR (irreversível)', 'resend-verification': 'Reenviar verificação' };
+            if (!confirm(`${labels[action]} — conta ${email}?`)) return;
+            $('admMsg').textContent = '…';
+            const r = await fetch(`/admin/api/users/${uid}/${action}`, { method: 'POST', headers: { 'X-CSRFToken': await csrf() } });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) { $('admMsg').textContent = j.error || ('erro ' + r.status); return; }
+            $('admMsg').textContent = 'feito ✓';
+            await loadUsers();
+            await loadOverview();
+            if (action === 'delete') { $('detail').innerHTML = ''; }
+            else { showUser(uid); }
+        }
+
+        loadOverview();
+        loadUsers();
+    </script>
+</body>
+</html>

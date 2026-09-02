@@ -192,6 +192,69 @@ def mark_verified(user_id: int) -> None:
         conn.execute("UPDATE users SET email_verified = 1, updated_at = ? WHERE user_id = ?", (_now(), int(user_id)))
 
 
+def set_active(user_id: int, active: bool) -> bool:
+    with _connect() as conn:
+        cur = conn.execute(
+            "UPDATE users SET is_active = ?, updated_at = ? WHERE user_id = ?",
+            (1 if active else 0, _now(), int(user_id)),
+        )
+    return cur.rowcount > 0
+
+
+# --------------------------------------------------------------- admin
+def admin_emails() -> "set[str]":
+    """E-mails com acesso ao painel admin — allowlist por env, normalizada."""
+    raw = os.environ.get("RECOMENDAI_ADMIN_EMAILS", "")
+    return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
+
+def is_admin(email: Optional[str]) -> bool:
+    return bool(email) and email.strip().lower() in admin_emails()
+
+
+def list_users() -> list[dict]:
+    """Todas as contas (mais novas primeiro), sem hash de senha, com contagens
+    de diário/listas/resenhas anexadas."""
+    from core import user_data
+
+    init_db()
+    with _connect() as conn:
+        rows = conn.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()
+    counts = user_data.counts_by_user()
+    out = []
+    for r in rows:
+        u = _row_to_user(r)
+        u["counts"] = counts.get(u["user_id"], {"ratings": 0, "reviews": 0, "lists": 0})
+        out.append(u)
+    return out
+
+
+def count_users() -> dict:
+    init_db()
+    with _connect() as conn:
+        total, verified, active = conn.execute(
+            "SELECT COUNT(*), COALESCE(SUM(email_verified), 0), COALESCE(SUM(is_active), 0) FROM users"
+        ).fetchone()
+    return {"total": total, "verified": verified, "active": active}
+
+
+def signups_by_day(days: int = 30) -> list[dict]:
+    """Série densa [{date, count}] dos últimos `days` dias (zeros preenchidos),
+    do mais antigo ao mais recente — para o sparkline do painel."""
+    from datetime import date, timedelta
+
+    init_db()
+    with _connect() as conn:
+        rows = conn.execute("SELECT substr(created_at, 1, 10) AS d, COUNT(*) FROM users GROUP BY d").fetchall()
+    counts = {r[0]: r[1] for r in rows}
+    today = date.today()
+    out = []
+    for i in range(days - 1, -1, -1):
+        d = (today - timedelta(days=i)).isoformat()
+        out.append({"date": d, "count": counts.get(d, 0)})
+    return out
+
+
 def delete_user(user_id: int) -> bool:
     """Apaga a conta e os dados pessoais dela (avaliações e listas). As `versions`
     são curadoria compartilhada — não pertencem a um usuário e ficam."""

@@ -282,11 +282,14 @@ Login por **e-mail + senha** com **Argon2id** (rehash automático quando os par�
 | login | resposta em tempo ~constante (verify contra hash-dummy quando o e-mail não existe) |
 | rate limit `/auth/*` | login 10/min · cadastro 5/h · forgot 5/h · reset 10/h |
 | exclusão (LGPD) | `POST /auth/delete` re-autentica e apaga avaliações + listas da conta |
+| acesso / portabilidade (LGPD) | `GET /auth/export` baixa conta + diário + listas em JSON |
+| consentimento | cadastro exige aceite da [política de privacidade](/privacidade) (`accepted_privacy`) |
 
 - **E-mail**: SMTP por env (`SMTP_HOST`…); sem provedor, o app **imprime o link no stdout** — dá para testar tudo sem configurar nada.
 - **Multi-usuário**: diário e listas são por conta (`data/user.db`, migração automática de bancos single-user → `LEGACY_USER_ID=1`; reassocie com `python -m core.users claim <email>`). As *versões* de filme são curadoria compartilhada.
 - **CLI**: `python -m core.users create|verify|passwd|claim`.
-- **Pendente (LGPD)**: página de política de privacidade + exportação de dados (`GET /auth/export`).
+- **Política de privacidade**: `GET /privacidade` (página server-rendered, LGPD).
+- **Painel admin**: `GET /admin` — allowlist `RECOMENDAI_ADMIN_EMAILS` (vazio = ninguém; não-admin recebe **404**). Consulta contas, diário/listas de cada usuário, agregados; ações: desativar / reativar / apagar conta / reenviar verificação. Nunca expõe hash de senha.
 
 ### Limites
 

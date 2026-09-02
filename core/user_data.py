@@ -101,15 +101,17 @@ def _migrate(conn: sqlite3.Connection) -> None:
     def cols(table: str) -> set:
         return {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
 
-    if "ratings" in {r["name"] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'")} and "user_id" not in cols("ratings"):
+    if "ratings" in {
+        r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    } and "user_id" not in cols("ratings"):
         conn.execute("ALTER TABLE ratings RENAME TO _ratings_old")
         conn.executescript(_SCHEMA)  # recria com o PK novo
         conn.execute(
             "INSERT INTO ratings (user_id, tmdb_id, rating, liked, review, watched_date, "
             "title, release_year, poster, created_at, updated_at) "
             f"SELECT {LEGACY_USER_ID}, tmdb_id, rating, liked, review, watched_date, "
-            "title, release_year, poster, created_at, updated_at FROM _ratings_old")
+            "title, release_year, poster, created_at, updated_at FROM _ratings_old"
+        )
         conn.execute("DROP TABLE _ratings_old")
 
     if "user_id" not in cols("lists"):
@@ -125,8 +127,8 @@ def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.executescript(_SCHEMA)   # tabelas (com user_id em bancos novos)
-    _migrate(conn)                # ALTER em bancos vindos do modo single-user
+    conn.executescript(_SCHEMA)  # tabelas (com user_id em bancos novos)
+    _migrate(conn)  # ALTER em bancos vindos do modo single-user
     conn.executescript(_INDEXES)  # índices — agora as colunas existem
     return conn
 
@@ -166,31 +168,53 @@ def normalize_date(value: Any) -> Optional[str]:
 # Avaliações (por usuário)
 # --------------------------------------------------------------------------
 
-def upsert_rating(user_id: int, tmdb_id: int, *, rating: Optional[float] = None, liked: bool = False,
-                  review: str = "", watched_date: Optional[str] = None,
-                  title: str = "", release_year: Optional[int] = None,
-                  poster: Optional[str] = None) -> dict:
+
+def upsert_rating(
+    user_id: int,
+    tmdb_id: int,
+    *,
+    rating: Optional[float] = None,
+    liked: bool = False,
+    review: str = "",
+    watched_date: Optional[str] = None,
+    title: str = "",
+    release_year: Optional[int] = None,
+    poster: Optional[str] = None,
+) -> dict:
     """Grava (ou substitui) a avaliação de um filme para o usuário."""
     uid, now = _uid(user_id), _now()
     with _connect() as conn:
-        row = conn.execute("SELECT created_at FROM ratings WHERE user_id = ? AND tmdb_id = ?",
-                           (uid, int(tmdb_id))).fetchone()
+        row = conn.execute(
+            "SELECT created_at FROM ratings WHERE user_id = ? AND tmdb_id = ?", (uid, int(tmdb_id))
+        ).fetchone()
         created = row["created_at"] if row else now
         conn.execute(
             """INSERT OR REPLACE INTO ratings
                (user_id, tmdb_id, rating, liked, review, watched_date, title, release_year,
                 poster, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (uid, int(tmdb_id), rating, 1 if liked else 0, review or "", watched_date,
-             title or "", release_year, poster, created, now),
+            (
+                uid,
+                int(tmdb_id),
+                rating,
+                1 if liked else 0,
+                review or "",
+                watched_date,
+                title or "",
+                release_year,
+                poster,
+                created,
+                now,
+            ),
         )
     return get_rating(uid, tmdb_id)  # type: ignore[return-value]
 
 
 def get_rating(user_id: int, tmdb_id: int) -> Optional[dict]:
     with _connect() as conn:
-        row = conn.execute("SELECT * FROM ratings WHERE user_id = ? AND tmdb_id = ?",
-                           (_uid(user_id), int(tmdb_id))).fetchone()
+        row = conn.execute(
+            "SELECT * FROM ratings WHERE user_id = ? AND tmdb_id = ?", (_uid(user_id), int(tmdb_id))
+        ).fetchone()
     return _shape(row) if row else None
 
 
@@ -200,15 +224,15 @@ def list_ratings(user_id: int) -> list[dict]:
         rows = conn.execute(
             """SELECT * FROM ratings WHERE user_id = ?
                ORDER BY COALESCE(watched_date, substr(updated_at, 1, 10)) DESC,
-                        updated_at DESC""", (_uid(user_id),)
+                        updated_at DESC""",
+            (_uid(user_id),),
         ).fetchall()
     return [_shape(r) for r in rows]
 
 
 def delete_rating(user_id: int, tmdb_id: int) -> bool:
     with _connect() as conn:
-        cur = conn.execute("DELETE FROM ratings WHERE user_id = ? AND tmdb_id = ?",
-                           (_uid(user_id), int(tmdb_id)))
+        cur = conn.execute("DELETE FROM ratings WHERE user_id = ? AND tmdb_id = ?", (_uid(user_id), int(tmdb_id)))
     return cur.rowcount > 0
 
 
@@ -222,17 +246,20 @@ def _shape(row: sqlite3.Row) -> dict:
 # Listas ordenadas (por usuário)
 # --------------------------------------------------------------------------
 
+
 def _owns_list(conn: sqlite3.Connection, user_id: int, list_id: int) -> bool:
-    return conn.execute("SELECT 1 FROM lists WHERE list_id = ? AND user_id = ?",
-                        (int(list_id), user_id)).fetchone() is not None
+    return (
+        conn.execute("SELECT 1 FROM lists WHERE list_id = ? AND user_id = ?", (int(list_id), user_id)).fetchone()
+        is not None
+    )
 
 
 def create_list(user_id: int, name: str, description: str = "") -> dict:
     uid, now = _uid(user_id), _now()
     with _connect() as conn:
         cur = conn.execute(
-            "INSERT INTO lists (user_id, name, description, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?)", (uid, name.strip(), description.strip(), now, now),
+            "INSERT INTO lists (user_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (uid, name.strip(), description.strip(), now, now),
         )
         lid = cur.lastrowid
     return get_list(uid, lid)  # type: ignore[return-value]
@@ -241,31 +268,42 @@ def create_list(user_id: int, name: str, description: str = "") -> dict:
 def get_lists(user_id: int) -> list[dict]:
     """Listas do usuário (recém-mexidas primeiro), com contagem e até 4 pôsteres."""
     with _connect() as conn:
-        lists = [dict(r) for r in conn.execute(
-            "SELECT * FROM lists WHERE user_id = ? ORDER BY updated_at DESC",
-            (_uid(user_id),)).fetchall()]
+        lists = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM lists WHERE user_id = ? ORDER BY updated_at DESC", (_uid(user_id),)
+            ).fetchall()
+        ]
         for lst in lists:
             lid = lst["list_id"]
-            lst["n_items"] = conn.execute(
-                "SELECT COUNT(*) FROM list_items WHERE list_id = ?", (lid,)).fetchone()[0]
-            lst["posters"] = [r[0] for r in conn.execute(
-                """SELECT poster FROM list_items
+            lst["n_items"] = conn.execute("SELECT COUNT(*) FROM list_items WHERE list_id = ?", (lid,)).fetchone()[0]
+            lst["posters"] = [
+                r[0]
+                for r in conn.execute(
+                    """SELECT poster FROM list_items
                    WHERE list_id = ? AND poster IS NOT NULL
-                   ORDER BY position LIMIT 4""", (lid,)).fetchall()]
+                   ORDER BY position LIMIT 4""",
+                    (lid,),
+                ).fetchall()
+            ]
     return lists
 
 
 def get_list(user_id: int, list_id: int) -> Optional[dict]:
     """Uma lista do usuário com os itens em ordem de assistir, ou None."""
     with _connect() as conn:
-        row = conn.execute("SELECT * FROM lists WHERE list_id = ? AND user_id = ?",
-                           (int(list_id), _uid(user_id))).fetchone()
+        row = conn.execute(
+            "SELECT * FROM lists WHERE list_id = ? AND user_id = ?", (int(list_id), _uid(user_id))
+        ).fetchone()
         if row is None:
             return None
         lst = dict(row)
-        lst["items"] = [dict(r) for r in conn.execute(
-            "SELECT * FROM list_items WHERE list_id = ? ORDER BY position",
-            (int(list_id),)).fetchall()]
+        lst["items"] = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM list_items WHERE list_id = ? ORDER BY position", (int(list_id),)
+            ).fetchall()
+        ]
     return lst
 
 
@@ -278,19 +316,27 @@ def delete_list(user_id: int, list_id: int) -> bool:
     return cur.rowcount > 0
 
 
-def add_list_item(user_id: int, list_id: int, tmdb_id: int, *, title: str = "",
-                  release_year: Optional[int] = None,
-                  poster: Optional[str] = None) -> Optional[bool]:
+def add_list_item(
+    user_id: int,
+    list_id: int,
+    tmdb_id: int,
+    *,
+    title: str = "",
+    release_year: Optional[int] = None,
+    poster: Optional[str] = None,
+) -> Optional[bool]:
     """None = lista não é do usuário / não existe; True = adicionado; False = já estava."""
     uid, now = _uid(user_id), _now()
     with _connect() as conn:
         if not _owns_list(conn, uid, list_id):
             return None
-        if conn.execute("SELECT 1 FROM list_items WHERE list_id = ? AND tmdb_id = ?",
-                        (int(list_id), int(tmdb_id))).fetchone():
+        if conn.execute(
+            "SELECT 1 FROM list_items WHERE list_id = ? AND tmdb_id = ?", (int(list_id), int(tmdb_id))
+        ).fetchone():
             return False
-        pos = conn.execute("SELECT COALESCE(MAX(position), 0) + 1 FROM list_items WHERE list_id = ?",
-                           (int(list_id),)).fetchone()[0]
+        pos = conn.execute(
+            "SELECT COALESCE(MAX(position), 0) + 1 FROM list_items WHERE list_id = ?", (int(list_id),)
+        ).fetchone()[0]
         conn.execute(
             """INSERT INTO list_items
                (list_id, tmdb_id, position, title, release_year, poster, added_at)
@@ -305,16 +351,17 @@ def remove_list_item(user_id: int, list_id: int, tmdb_id: int) -> bool:
     with _connect() as conn:
         if not _owns_list(conn, _uid(user_id), list_id):
             return False
-        cur = conn.execute("DELETE FROM list_items WHERE list_id = ? AND tmdb_id = ?",
-                           (int(list_id), int(tmdb_id)))
+        cur = conn.execute("DELETE FROM list_items WHERE list_id = ? AND tmdb_id = ?", (int(list_id), int(tmdb_id)))
         if cur.rowcount == 0:
             return False
-        remaining = [r[0] for r in conn.execute(
-            "SELECT tmdb_id FROM list_items WHERE list_id = ? ORDER BY position",
-            (int(list_id),)).fetchall()]
+        remaining = [
+            r[0]
+            for r in conn.execute(
+                "SELECT tmdb_id FROM list_items WHERE list_id = ? ORDER BY position", (int(list_id),)
+            ).fetchall()
+        ]
         for i, tid in enumerate(remaining, start=1):
-            conn.execute("UPDATE list_items SET position = ? WHERE list_id = ? AND tmdb_id = ?",
-                         (i, int(list_id), tid))
+            conn.execute("UPDATE list_items SET position = ? WHERE list_id = ? AND tmdb_id = ?", (i, int(list_id), tid))
         conn.execute("UPDATE lists SET updated_at = ? WHERE list_id = ?", (_now(), int(list_id)))
     return True
 
@@ -323,9 +370,12 @@ def reorder_list(user_id: int, list_id: int, tmdb_ids: list) -> bool:
     with _connect() as conn:
         if not _owns_list(conn, _uid(user_id), list_id):
             return False
-        current = [r[0] for r in conn.execute(
-            "SELECT tmdb_id FROM list_items WHERE list_id = ? ORDER BY position",
-            (int(list_id),)).fetchall()]
+        current = [
+            r[0]
+            for r in conn.execute(
+                "SELECT tmdb_id FROM list_items WHERE list_id = ? ORDER BY position", (int(list_id),)
+            ).fetchall()
+        ]
         cset = set(current)
         given, seen = [], set()
         for t in tmdb_ids:
@@ -338,8 +388,7 @@ def reorder_list(user_id: int, list_id: int, tmdb_ids: list) -> bool:
                 given.append(tid)
         ordered = given + [t for t in current if t not in seen]
         for i, tid in enumerate(ordered, start=1):
-            conn.execute("UPDATE list_items SET position = ? WHERE list_id = ? AND tmdb_id = ?",
-                         (i, int(list_id), tid))
+            conn.execute("UPDATE list_items SET position = ? WHERE list_id = ? AND tmdb_id = ?", (i, int(list_id), tid))
         conn.execute("UPDATE lists SET updated_at = ? WHERE list_id = ?", (_now(), int(list_id)))
     return True
 
@@ -377,8 +426,7 @@ def ensure_versions_seed() -> None:
 def list_versions(tmdb_id: int) -> list[dict]:
     ensure_versions_seed()
     with _connect() as conn:
-        rows = conn.execute("SELECT * FROM versions WHERE tmdb_id = ? ORDER BY version_id",
-                            (int(tmdb_id),)).fetchall()
+        rows = conn.execute("SELECT * FROM versions WHERE tmdb_id = ? ORDER BY version_id", (int(tmdb_id),)).fetchall()
     out = []
     for r in rows:
         d = dict(r)
@@ -387,9 +435,15 @@ def list_versions(tmdb_id: int) -> list[dict]:
     return out
 
 
-def save_version(tmdb_id: int, name: str, *, runtime: Optional[int] = None,
-                 notes: str = "", is_best: bool = False,
-                 version_id: Optional[int] = None) -> Optional[dict]:
+def save_version(
+    tmdb_id: int,
+    name: str,
+    *,
+    runtime: Optional[int] = None,
+    notes: str = "",
+    is_best: bool = False,
+    version_id: Optional[int] = None,
+) -> Optional[dict]:
     ensure_versions_seed()
     now = _now()
     with _connect() as conn:
@@ -407,13 +461,11 @@ def save_version(tmdb_id: int, name: str, *, runtime: Optional[int] = None,
             cur = conn.execute(
                 """UPDATE versions SET name = ?, runtime = ?, notes = ?, is_best = ?,
                    updated_at = ? WHERE version_id = ? AND tmdb_id = ?""",
-                (name, runtime, notes, 1 if is_best else 0, now,
-                 int(version_id), int(tmdb_id)),
+                (name, runtime, notes, 1 if is_best else 0, now, int(version_id), int(tmdb_id)),
             )
             if cur.rowcount == 0:
                 return None
-        row = conn.execute("SELECT * FROM versions WHERE version_id = ?",
-                           (int(version_id),)).fetchone()
+        row = conn.execute("SELECT * FROM versions WHERE version_id = ?", (int(version_id),)).fetchone()
     d = dict(row)
     d["is_best"] = bool(d["is_best"])
     return d
@@ -423,3 +475,48 @@ def delete_version(version_id: int) -> bool:
     with _connect() as conn:
         cur = conn.execute("DELETE FROM versions WHERE version_id = ?", (int(version_id),))
     return cur.rowcount > 0
+
+
+# --------------------------------------------------------------------------
+# Exportação (LGPD — portabilidade) e agregados (painel admin)
+# --------------------------------------------------------------------------
+
+
+def export_user_data(user_id: int) -> dict:
+    """Todo o dado pessoal de (1) avaliações e (2) listas de um usuário — para
+    `GET /auth/export` e para o drill-down do painel admin. Não inclui a conta
+    em si (e-mail/hash), que vem de `core/users.py`."""
+    uid = _uid(user_id)
+    with _connect() as conn:
+        ratings = [
+            _shape(r)
+            for r in conn.execute("SELECT * FROM ratings WHERE user_id = ? ORDER BY updated_at DESC", (uid,)).fetchall()
+        ]
+        lists = []
+        for lrow in conn.execute("SELECT * FROM lists WHERE user_id = ? ORDER BY created_at", (uid,)).fetchall():
+            lst = dict(lrow)
+            lst["items"] = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT * FROM list_items WHERE list_id = ? ORDER BY position", (lst["list_id"],)
+                ).fetchall()
+            ]
+            lists.append(lst)
+    return {"ratings": ratings, "lists": lists}
+
+
+def counts_by_user() -> "dict[int, dict]":
+    """{user_id: {"ratings": n, "lists": n, "reviews": n}} — uma passada, sem N+1."""
+    out: dict[int, dict] = {}
+    with _connect() as conn:
+        for uid, n in conn.execute("SELECT user_id, COUNT(*) FROM ratings GROUP BY user_id"):
+            out.setdefault(int(uid), {})["ratings"] = n
+        for uid, n in conn.execute("SELECT user_id, COUNT(*) FROM ratings WHERE review <> '' GROUP BY user_id"):
+            out.setdefault(int(uid), {})["reviews"] = n
+        for uid, n in conn.execute("SELECT user_id, COUNT(*) FROM lists GROUP BY user_id"):
+            out.setdefault(int(uid), {})["lists"] = n
+    for c in out.values():
+        c.setdefault("ratings", 0)
+        c.setdefault("reviews", 0)
+        c.setdefault("lists", 0)
+    return out

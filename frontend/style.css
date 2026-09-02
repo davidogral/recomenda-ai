@@ -1601,6 +1601,9 @@ body {
 .auth-form button[type="submit"] { background: var(--primary); border: none; color: #fff;
     padding: 11px; border-radius: 8px; cursor: pointer; font-weight: 600; }
 .auth-form button[type="submit"]:hover { filter: brightness(1.08); }
+.auth-consent { display: flex; gap: 8px; align-items: flex-start; font-size: 0.82rem; color: var(--gray); line-height: 1.4; }
+.auth-consent input { width: auto; margin-top: 2px; padding: 0; flex: none; accent-color: var(--primary); }
+.auth-consent a { color: var(--primary-hover); }
 .auth-msg { margin-top: 12px; font-size: 0.85rem; min-height: 1.2em; }
 .auth-msg.err { color: #f5b5b8; }
 .auth-msg.ok { color: #9fe0b0; }

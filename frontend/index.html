@@ -11,8 +11,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="preconnect" href="https://image.tmdb.org">
     <link rel="dns-prefetch" href="https://image.tmdb.org">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3">
-    <script src="{{ url_for('static', filename='app.js') }}?v=3" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4">
+    <script src="{{ url_for('static', filename='app.js') }}?v=4" defer></script>
 </head>
 <body>
     <div class="container">
@@ -326,6 +326,7 @@
                 Notas e votos de filmes: <a href="https://developer.imdb.com/non-commercial-datasets/" target="_blank" rel="noopener">IMDb Non-Commercial Datasets</a>.
                 Dados de avaliações para a recomendação: ver <a href="https://github.com/davidogral/recomenda-ai#-proveniência-dos-dados" target="_blank" rel="noopener">proveniência dos dados</a>.
             </p>
+            <p class="data-credits"><a href="/privacidade">Política de Privacidade</a> · seus dados são seus: exporte ou exclua a conta pelo menu de usuário.</p>
         </footer>
     </div>
 
@@ -347,6 +348,10 @@
             <form id="authFormRegister" class="auth-form" data-authview="register" hidden>
                 <input type="email" name="email" placeholder="e-mail" autocomplete="email" required>
                 <input type="password" name="password" placeholder="senha (mín. 8)" autocomplete="new-password" minlength="8" required>
+                <label class="auth-consent">
+                    <input type="checkbox" name="privacy" required>
+                    Li e aceito a <a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.
+                </label>
                 <button type="submit">Criar conta</button>
             </form>
             <form id="authFormForgot" class="auth-form" data-authview="forgot" hidden>
