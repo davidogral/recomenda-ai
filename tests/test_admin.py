@@ -54,6 +54,22 @@ def test_admin_access_with_allowlist(client, csrf, monkeypatch):
     assert all("password_hash" not in u for u in users)  # nunca vaza o hash
 
 
+def test_admin_analytics(client, csrf, monkeypatch):
+    from core import events
+
+    assert client.get("/admin/api/analytics").status_code == 404  # não-admin
+
+    admin = _email("admin")
+    monkeypatch.setenv("RECOMENDAI_ADMIN_EMAILS", admin)
+    _register(client, csrf, admin)
+
+    events.log("search", query="nada aqui zzz", n_results=0)
+    d = client.get("/admin/api/analytics?days=7").get_json()
+    assert d["days"] == 7
+    assert set(d) >= {"by_kind", "by_day", "top_queries", "zero_result", "filters", "latency", "engagement_by_day"}
+    assert "engaged" in d["users"]
+
+
 def test_admin_actions(client, csrf, monkeypatch):
     from core import users as users_mod
 

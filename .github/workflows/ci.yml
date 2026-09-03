@@ -24,6 +24,7 @@ jobs:
           ruff format --check
           core/metrics.py core/schemas.py core/validate.py core/inference_client.py
           core/users.py core/mailer.py core/auth_routes.py core/security.py
+          core/user_data.py core/events.py
           recommender/ingest_movielens.py inference eval tests
 
   types:

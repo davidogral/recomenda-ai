@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import re
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -519,4 +519,37 @@ def counts_by_user() -> "dict[int, dict]":
         c.setdefault("ratings", 0)
         c.setdefault("reviews", 0)
         c.setdefault("lists", 0)
+    return out
+
+
+def engagement_by_day(days: int = 30) -> list[dict]:
+    """Série densa por dia dos últimos `days`: avaliações, resenhas e listas
+    criadas (pelo `created_at` real, não por evento). Para o painel admin."""
+    days = max(1, min(int(days), 365))
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+    with _connect() as conn:
+        ratings = dict(
+            conn.execute(
+                "SELECT substr(created_at, 1, 10) d, COUNT(*) FROM ratings WHERE created_at >= ? GROUP BY d",
+                (since,),
+            )
+        )
+        reviews = dict(
+            conn.execute(
+                "SELECT substr(created_at, 1, 10) d, COUNT(*) FROM ratings"
+                " WHERE review <> '' AND created_at >= ? GROUP BY d",
+                (since,),
+            )
+        )
+        lst = dict(
+            conn.execute(
+                "SELECT substr(created_at, 1, 10) d, COUNT(*) FROM lists WHERE created_at >= ? GROUP BY d",
+                (since,),
+            )
+        )
+    today = datetime.now(timezone.utc).date()
+    out = []
+    for i in range(days - 1, -1, -1):
+        d = (today - timedelta(days=i)).isoformat()
+        out.append({"day": d, "ratings": ratings.get(d, 0), "reviews": reviews.get(d, 0), "lists": lst.get(d, 0)})
     return out

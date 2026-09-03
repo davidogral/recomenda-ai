@@ -8,14 +8,19 @@
     <meta name="robots" content="noindex,nofollow">
     <title>Admin — Cinerd</title>
     <link rel="icon" type="image/png" sizes="96x96" href="{{ url_for('static', filename='icon-96.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
     <style>
         .adm { max-width: 1080px; margin: 0 auto; padding: 32px 20px 80px; }
         .adm h1 { font-size: 1.5rem; }
-        .adm .sub { color: var(--gray); font-size: var(--fs-sm); margin: 4px 0 24px; }
+        .adm .sub { color: var(--gray); font-size: var(--fs-sm); margin: 4px 0 20px; }
         .adm .sub a { color: var(--primary-hover); }
+        .adm-nav { display: flex; gap: 8px; margin-bottom: 22px; align-items: center; flex-wrap: wrap; }
+        .adm-nav button { font: inherit; font-size: var(--fs-sm); padding: 6px 14px; border-radius: 999px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--gray); cursor: pointer; }
+        .adm-nav button.on { color: var(--light); border-color: var(--accent-border); background: var(--accent-soft); }
+        .adm-nav .days { margin-left: auto; }
+        .adm-nav select { font: inherit; font-size: var(--fs-sm); background: var(--input-bg); color: var(--light); border: 1px solid var(--input-border); border-radius: var(--radius-sm); padding: 5px 8px; }
         .adm-tiles { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
-        .adm-tile { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 12px 18px; min-width: 130px; }
+        .adm-tile { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 12px 18px; min-width: 120px; }
         .adm-tile .n { font-size: 1.6rem; font-weight: 700; color: var(--light); }
         .adm-tile .l { font-size: var(--fs-xs); color: var(--gray); text-transform: uppercase; letter-spacing: .04em; }
         .adm-spark { display: flex; align-items: flex-end; gap: 3px; height: 46px; margin: 10px 0 24px; }
@@ -41,11 +46,36 @@
         .adm-actions button:hover { border-color: var(--border-strong); }
         .adm-actions button.danger { color: var(--primary-hover); border-color: var(--accent-border); }
         .adm-detail h3 { font-size: var(--fs-md); margin: 14px 0 6px; color: var(--gray); }
-        .adm-detail ul { list-style: none; }
+        .adm-detail ul, .adm-card ul { list-style: none; }
         .adm-detail li { padding: 5px 0; border-bottom: 1px solid var(--card-border); font-size: var(--fs-sm); }
         .adm-detail .rv { color: var(--gray); font-style: italic; }
         .adm-msg { min-height: 1.3em; font-size: var(--fs-sm); color: var(--gray); }
         .adm-empty { color: var(--gray); font-size: var(--fs-sm); }
+
+        /* --- Analytics --- */
+        .adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+        .adm-card { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 16px 18px; }
+        .adm-card h3 { font-size: var(--fs-md); margin: 0 0 4px; color: var(--light); }
+        .adm-card .cap { font-size: var(--fs-xs); color: var(--gray); margin-bottom: 10px; }
+        .adm-card.wide { grid-column: 1 / -1; }
+        .adm-bars { display: flex; align-items: flex-end; gap: 2px; height: 90px; }
+        .adm-bars .col { flex: 1; display: flex; flex-direction: column-reverse; min-width: 0; }
+        .adm-bars .col > i { display: block; width: 100%; }
+        .adm-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: var(--fs-xs); color: var(--gray); margin-top: 8px; }
+        .adm-legend span { display: inline-flex; align-items: center; gap: 4px; }
+        .adm-legend b { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+        .k-search { background: #e50914; } .k-similar { background: #f0a020; }
+        .k-essentials { background: #4a9ed8; } .k-recommend { background: #7fdca4; }
+        .k-recommend_history { background: #b07fdc; } .k-recommend_letterboxd { background: #dc7f9e; }
+        .adm-rank { font-size: var(--fs-sm); }
+        .adm-rank li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--card-border); }
+        .adm-rank li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .adm-rank li b { color: var(--gray); font-weight: 600; flex: none; }
+        .adm-card.zero .adm-rank li span { color: #f0b8bb; }
+        .adm-mini { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+        .adm-mini td, .adm-mini th { padding: 5px 8px; border-bottom: 1px solid var(--card-border); text-align: right; }
+        .adm-mini th:first-child, .adm-mini td:first-child { text-align: left; color: var(--gray); }
+        [hidden] { display: none !important; }
     </style>
 </head>
 <body>
@@ -53,20 +83,33 @@
         <h1>Painel Admin</h1>
         <p class="sub"><a href="/">← Cinerd</a> · dados de contas e uso · acesso restrito à allowlist</p>
 
-        <div class="adm-tiles" id="tiles"></div>
-        <div class="adm-spark" id="spark" title="cadastros por dia (30d)"></div>
-
-        <div class="adm-scroll">
-            <table class="adm-t">
-                <thead><tr>
-                    <th>#</th><th>e-mail</th><th>verif.</th><th>ativa</th>
-                    <th>diário</th><th>resenhas</th><th>listas</th><th>criada</th>
-                </tr></thead>
-                <tbody id="rows"></tbody>
-            </table>
+        <div class="adm-nav">
+            <button id="tabAccounts" class="on" type="button">Contas</button>
+            <button id="tabUsage" type="button">Uso</button>
+            <label class="days" hidden id="daysWrap">janela
+                <select id="daysSel"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select>
+            </label>
         </div>
 
-        <div id="detail"></div>
+        <section id="viewAccounts">
+            <div class="adm-tiles" id="tiles"></div>
+            <div class="adm-spark" id="spark" title="cadastros por dia (30d)"></div>
+            <div class="adm-scroll">
+                <table class="adm-t">
+                    <thead><tr>
+                        <th>#</th><th>e-mail</th><th>verif.</th><th>ativa</th>
+                        <th>diário</th><th>resenhas</th><th>listas</th><th>criada</th>
+                    </tr></thead>
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+            <div id="detail"></div>
+        </section>
+
+        <section id="viewUsage" hidden>
+            <div id="usageStatus" class="adm-empty">carregando…</div>
+            <div id="usageBody" class="adm-grid" hidden></div>
+        </section>
     </div>
 
     <script>
@@ -80,6 +123,7 @@
         const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const $ = id => document.getElementById(id);
 
+        // ================= CONTAS =================
         async function loadOverview() {
             const d = await (await fetch('/admin/api/overview')).json();
             $('tiles').innerHTML = [
@@ -122,6 +166,9 @@
             const lists = (d.lists || []).map(l =>
                 `<li><strong>${esc(l.name)}</strong> — ${(l.items || []).length} filme(s)
                  ${l.items && l.items.length ? '<br><span class="rv">' + l.items.map(i => esc(i.title || i.tmdb_id)).join(' · ') + '</span>' : ''}</li>`).join('') || '<li class="adm-empty">nada</li>';
+            const evs = (d.usage_events || []).slice(0, 40).map(e =>
+                `<li>${esc((e.ts || '').slice(0, 16).replace('T', ' '))} · <strong>${esc(e.kind)}</strong>${e.query ? ' — “' + esc(e.query) + '”' : ''}
+                 ${e.n_results != null ? ` (${e.n_results} result.)` : ''}</li>`).join('') || '<li class="adm-empty">nada</li>';
 
             $('detail').innerHTML = `<div class="adm-detail">
                 <h2>${esc(a.email)}</h2>
@@ -137,6 +184,7 @@
                 <div class="adm-msg" id="admMsg"></div>
                 <h3>Diário (${(d.ratings || []).length})</h3><ul>${ratings}</ul>
                 <h3>Listas (${(d.lists || []).length})</h3><ul>${lists}</ul>
+                <h3>Uso recente (${(d.usage_events || []).length})</h3><ul>${evs}</ul>
             </div>`;
             $('detail').querySelectorAll('button[data-act]').forEach(b =>
                 b.onclick = () => act(uid, b.dataset.act, a.email));
@@ -150,11 +198,105 @@
             const j = await r.json().catch(() => ({}));
             if (!r.ok) { $('admMsg').textContent = j.error || ('erro ' + r.status); return; }
             $('admMsg').textContent = 'feito ✓';
-            await loadUsers();
-            await loadOverview();
-            if (action === 'delete') { $('detail').innerHTML = ''; }
-            else { showUser(uid); }
+            await loadUsers(); await loadOverview();
+            if (action === 'delete') { $('detail').innerHTML = ''; } else { showUser(uid); }
         }
+
+        // ================= USO =================
+        const KINDS = ['search', 'similar', 'essentials', 'recommend', 'recommend_history', 'recommend_letterboxd'];
+        const KLABEL = { search: 'busca', similar: 'parecidos', essentials: 'essenciais', recommend: 'recs (favoritos)', recommend_history: 'recs (diário)', recommend_letterboxd: 'recs (Letterboxd)' };
+
+        // series: [{key, cls, label}]
+        function stackedBars(rows, series) {
+            const totals = rows.map(r => series.reduce((s, x) => s + (r[x.key] || 0), 0));
+            const max = Math.max(1, ...totals);
+            const cols = rows.map((r, i) => {
+                const segs = series.filter(x => r[x.key]).map(x =>
+                    `<i class="${x.cls}" style="height:${(r[x.key] / max * 88).toFixed(1)}px" title="${r.day} · ${x.label}: ${r[x.key]}"></i>`).join('');
+                return `<span class="col" title="${r.day}: ${totals[i]}">${segs}</span>`;
+            }).join('');
+            const legend = `<div class="adm-legend">${series.map(x =>
+                `<span><b class="${x.cls}"></b>${x.label}</span>`).join('')}</div>`;
+            return `<div class="adm-bars">${cols}</div>${legend}`;
+        }
+
+        function rankList(items) {
+            if (!items || !items.length) return '<div class="adm-empty">nada no período</div>';
+            return `<ul class="adm-rank">${items.map(x =>
+                `<li><span>${esc(x.query)}</span><b>${x.count}</b></li>`).join('')}</ul>`;
+        }
+
+        async function loadUsage() {
+            const days = $('daysSel').value;
+            $('usageStatus').hidden = false; $('usageBody').hidden = true;
+            const d = await (await fetch('/admin/api/analytics?days=' + days)).json();
+            const byDay = d.by_day || [];
+            const eng = d.engagement_by_day || [];
+            const lat = d.latency || {};
+            const f = d.filters || {};
+
+            const volSeries = KINDS.map(k => ({ key: k, cls: 'k-' + k, label: KLABEL[k] + (d.by_kind && d.by_kind[k] ? ` (${d.by_kind[k]})` : '') }));
+            const engSeries = [
+                { key: 'ratings', cls: 'k-recommend', label: 'avaliações' },
+                { key: 'reviews', cls: 'k-similar', label: 'resenhas' },
+                { key: 'lists', cls: 'k-essentials', label: 'listas' },
+            ];
+
+            const latRows = Object.keys(lat).map(k =>
+                `<tr><td>${esc(k)}</td><td>${lat[k].p50} ms</td><td>${lat[k].p95} ms</td><td>${lat[k].p99} ms</td><td>${lat[k].n}</td></tr>`).join('');
+
+            const genRows = (f.genres || []).map(g =>
+                `<li><span>${esc(g.genre)}</span><b>${g.count}</b></li>`).join('') || '<li class="adm-empty">nenhum</li>';
+
+            $('usageBody').innerHTML = `
+              <div class="adm-card wide">
+                <h3>Volume por dia</h3>
+                <div class="cap">buscas e recomendações — últimos ${d.days} dias</div>
+                ${byDay.length ? stackedBars(byDay, volSeries) : '<div class="adm-empty">sem eventos no período</div>'}
+              </div>
+
+              <div class="adm-card">
+                <h3>Top buscas</h3><div class="cap">consultas de sinopse mais frequentes</div>
+                ${rankList(d.top_queries)}
+              </div>
+              <div class="adm-card zero">
+                <h3>Buscas sem resultado</h3><div class="cap">buracos do catálogo — o motor não achou nada</div>
+                ${rankList(d.zero_result)}
+              </div>
+
+              <div class="adm-card">
+                <h3>Uso de filtros</h3>
+                <div class="cap">${f.with_any_filter || 0} de ${f.of_searches || 0} buscas usaram algum filtro
+                 · ano: ${f.year_range || 0} · idioma: ${f.language || 0}</div>
+                <ul class="adm-rank">${genRows}</ul>
+              </div>
+              <div class="adm-card">
+                <h3>Latência por etapa</h3><div class="cap">amostra da janela (ms)</div>
+                ${latRows ? `<table class="adm-mini"><thead><tr><th>etapa</th><th>p50</th><th>p95</th><th>p99</th><th>n</th></tr></thead><tbody>${latRows}</tbody></table>` : '<div class="adm-empty">sem amostras</div>'}
+              </div>
+
+              <div class="adm-card wide">
+                <h3>Engajamento por dia</h3><div class="cap">avaliações, resenhas e listas criadas</div>
+                ${eng.some(x => x.ratings || x.reviews || x.lists)
+                    ? stackedBars(eng, engSeries)
+                    : '<div class="adm-empty">sem atividade no período</div>'}
+              </div>`;
+            $('usageStatus').hidden = true; $('usageBody').hidden = false;
+        }
+
+        // ================= nav =================
+        function show(which) {
+            const usage = which === 'usage';
+            $('viewAccounts').hidden = usage;
+            $('viewUsage').hidden = !usage;
+            $('tabAccounts').classList.toggle('on', !usage);
+            $('tabUsage').classList.toggle('on', usage);
+            $('daysWrap').hidden = !usage;
+            if (usage) loadUsage();
+        }
+        $('tabAccounts').onclick = () => show('accounts');
+        $('tabUsage').onclick = () => show('usage');
+        $('daysSel').onchange = () => loadUsage();
 
         loadOverview();
         loadUsers();

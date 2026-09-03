@@ -22,6 +22,7 @@ scrape do Prometheus. Reinicia a cada boot.
 
 from __future__ import annotations
 
+import threading
 import time
 from collections import deque
 from contextlib import contextmanager
@@ -30,12 +31,32 @@ from contextlib import contextmanager
 _STAGE_CAP = 1024
 _STAGE_SAMPLES: "dict[str, deque[float]]" = {}
 
+# ---- captura por requisição (thread-local; isolada por worker gthread) ----
+_tl = threading.local()
+
 
 def _record_stage_sample(stage: str, seconds: float) -> None:
     dq = _STAGE_SAMPLES.get(stage)
     if dq is None:
         dq = _STAGE_SAMPLES[stage] = deque(maxlen=_STAGE_CAP)
     dq.append(seconds * 1000.0)  # guarda em ms
+    bucket = getattr(_tl, "stages", None)
+    if bucket is not None:
+        bucket[stage] = round(bucket.get(stage, 0.0) + seconds * 1000.0, 2)
+
+
+@contextmanager
+def capture_stages():
+    """`with capture_stages() as st: ...` → `st` (dict) acumula os ms de cada
+    etapa (`retrieval`/`rerank`/`total`…) medida por `stage_timer` dentro do
+    escopo. Para logar a latência por etapa de UMA requisição."""
+    prev = getattr(_tl, "stages", None)
+    bucket: dict[str, float] = {}
+    _tl.stages = bucket
+    try:
+        yield bucket
+    finally:
+        _tl.stages = prev
 
 
 def stage_percentiles() -> "dict[str, dict[str, float]]":

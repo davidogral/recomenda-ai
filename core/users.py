@@ -263,6 +263,12 @@ def delete_user(user_id: int) -> bool:
         conn.execute("DELETE FROM ratings WHERE user_id = ?", (uid,))
         conn.execute("DELETE FROM list_items WHERE list_id IN (SELECT list_id FROM lists WHERE user_id = ?)", (uid,))
         conn.execute("DELETE FROM lists WHERE user_id = ?", (uid,))
+        try:  # registros de uso (tabela pode não existir em bancos antigos)
+            from core.events import delete_for_user
+
+            delete_for_user(conn, uid)
+        except Exception:
+            pass
         cur = conn.execute("DELETE FROM users WHERE user_id = ?", (uid,))
     return cur.rowcount > 0
 

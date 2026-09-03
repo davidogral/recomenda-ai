@@ -14,11 +14,20 @@ from __future__ import annotations
 
 import gzip
 import os
+import time
 
 from flask import Flask, jsonify, render_template, request
 from flask_login import current_user, login_required
 
-from core import catalog, metrics, posters, security
+from core import catalog, events, metrics, posters, security
+
+
+def _uid_or_none():
+    """user_id se logado, senão None — para os registros de uso (`core.events`)."""
+    try:
+        return current_user.id if current_user.is_authenticated else None
+    except Exception:
+        return None
 
 app = Flask(__name__, static_folder="frontend", template_folder="frontend")
 
@@ -127,15 +136,26 @@ def search():
     if data.get("language"):
         filters["language"] = data["language"]
 
+    _t0 = time.perf_counter()
     try:
         from core import inference_client
 
-        results = inference_client.search_combined(
-            query=query, director=director, actor=actor, n=n, filters=filters or None)
+        with metrics.capture_stages() as _stages:
+            results = inference_client.search_combined(
+                query=query, director=director, actor=actor, n=n, filters=filters or None)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+
+    _f = dict(filters)
+    if director:
+        _f["director"] = 1
+    if actor:
+        _f["actor"] = 1
+    events.log("search", query=query, filters=_f or None, n_results=len(results),
+               latency_ms=(time.perf_counter() - _t0) * 1000, stage_ms=_stages or None,
+               user_id=_uid_or_none())
 
     return jsonify({
         "query": query,
@@ -497,6 +517,11 @@ def explore_essentials():
     for i, r in enumerate(results, start=1):
         r["rank"] = i
 
+    events.log("essentials", query=(genre or director or style or ""),
+               filters={"by": "genre" if genre else "director" if director else "style",
+                        "providers": bool(provider_ids)},
+               n_results=len(results), user_id=_uid_or_none())
+
     return jsonify({
         "label": genre or director or style,
         "count": len(results),
@@ -688,6 +713,9 @@ def recommend_history():
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
 
+    events.log("recommend_history", filters={"providers": bool(provider_ids)},
+               n_results=len(result["recommendations"]), user_id=_uid_or_none())
+
     return jsonify({
         "rated_count": len(detail),
         "profile": result["profile"],
@@ -722,6 +750,9 @@ def similar(movie_id: int):
 
     if result["seed"] is None:
         return jsonify({"error": "Filme não encontrado no catálogo."}), 404
+
+    events.log("similar", query=str(movie_id), filters={"providers": bool(provider_ids)},
+               n_results=len(result["recommendations"]), user_id=_uid_or_none())
 
     return jsonify({
         "seed": result["seed"],
@@ -767,6 +798,8 @@ def submit_ratings():
         detail = [{"tmdb_id": mid, "rating": 5.0, "name": None, "year": None, "review": ""}
                   for mid in ids]
         result = inference_client.recommend_from_profile(detail, n=15, region=region, provider_ids=provider_ids)
+        events.log("recommend", filters={"seeds": len(ids), "providers": bool(provider_ids)},
+                   n_results=len(result["recommendations"]), user_id=_uid_or_none())
         return jsonify({
             "message": "Recomendações personalizadas geradas!",
             "profile": result["profile"],
@@ -817,6 +850,10 @@ def recommend():
                                                         region=region, provider_ids=provider_ids)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
+
+    events.log("recommend_letterboxd",
+               filters={"matched": len(imported.matched), "match_rate": round(imported.match_rate, 3)},
+               n_results=len(result["recommendations"]), user_id=_uid_or_none())
 
     return jsonify({
         "total_rows": imported.total_rows,
@@ -1007,6 +1044,24 @@ def admin_users():
     from core import users
 
     return jsonify({"users": users.list_users()})
+
+
+@app.route("/admin/api/analytics")
+@auth_routes.admin_required
+def admin_analytics():
+    from core import events, user_data, users
+
+    try:
+        days = max(1, min(int(request.args.get("days", 30)), 365))
+    except (TypeError, ValueError):
+        days = 30
+    counts = user_data.counts_by_user()
+    engaged = sum(1 for c in counts.values() if c.get("ratings") or c.get("lists"))
+    return jsonify({
+        "users": {**users.count_users(), "engaged": engaged},
+        "engagement_by_day": user_data.engagement_by_day(days),
+        **events.analytics(days),
+    })
 
 
 @app.route("/admin/api/users/<int:uid>")

@@ -190,13 +190,14 @@ def export_data():
     if not current_user.is_authenticated:
         return jsonify({"error": "Faça login primeiro."}), 401
 
-    from core import user_data
+    from core import events, user_data
 
     account = users.get_user(current_user.id) or {}
     payload = {
         "exported_at": users._now(),
         "account": account,
         **user_data.export_user_data(current_user.id),
+        "usage_events": events.export_for_user(current_user.id),
     }
     body = json.dumps(payload, ensure_ascii=False, indent=2)
     return Response(
