@@ -70,7 +70,7 @@ RecomendaAI/
 │   └── results/            # JSON por rodada + history.jsonl
 ├── monitoring/             # prometheus.yml + dashboard Grafana (provisionado)
 ├── tests/ + .github/workflows/   # smoke tests + CI (ruff/mypy/pytest + eval-gate)
-├── docs/                   # METODOLOGIA.md + adr/
+├── docs/                   # metodologia, ADRs + contrato de UX (Nielsen/mobile)
 ├── Dockerfile · docker-compose.yml
 ├── research/               # notebooks (exploração, não é a avaliação oficial)
 └── frontend/               # UI/UX (index.html + style.css)
