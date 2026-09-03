@@ -112,9 +112,11 @@ Acesse: `http://localhost:5001` — o motor de busca é **pré-carregado no boot
 ### 6. (Opcional) Reconstruir os modelos
 Alternativa ao `dvc pull` — regenerar do zero:
 ```bash
-python -m retrieval.index_builder   # reconstrói retrieval/index/
+python -m core.enrich --wikipedia   # (opcional) baixa o enredo da Wikipédia p/ o catálogo — crawl longo, retomável
+python -m retrieval.index_builder   # reconstrói retrieval/index/ (BM25 + 4 espaços de embedding: sinopse, tema, enredo)
 python -m recommender.train         # retreina o SVD em recommender/weights/
 ```
+> O canal **enredo (Wikipédia)** e as **contribuições de personagem** no doc temático só valem depois de reconstruir o índice. `core.enrich --wikipedia` resolve o artigo pelo `imdb_id` (via Wikidata `P345`), extrai a seção "Plot/Enredo" e grava em `movies.wikipedia_plot`; `--wiki-min-votes` limita aos filmes com relevância. Pesos: `RECOMENDAI_ENTITY_WEIGHT` (personagem, 0.45), `RECOMENDAI_PLOT_WEIGHT` (enredo, 0.4).
 
 ### 7. Avaliação do SRI
 A avaliação é **executável** e a saída é **JSON versionado** em `eval/results/` — não vive mais num notebook.

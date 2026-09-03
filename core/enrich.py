@@ -106,6 +106,8 @@ def ensure_columns(conn: sqlite3.Connection) -> None:
         "canon_rank": "INTEGER",
         "metascore": "INTEGER",   # Metacritic 0..100 (crítica), via OMDb
         "rt_score": "INTEGER",    # Rotten Tomatoes tomatometer 0..100, via OMDb
+        "wikipedia_plot": "TEXT",   # texto de "Plot/Enredo" da Wikipédia (canal de busca)
+        "wikipedia_title": "TEXT",  # proveniência: "en:Inception"
     }
     for name, typ in cols.items():
         if name not in have:
@@ -324,6 +326,145 @@ def fill_canon(conn: sqlite3.Connection) -> None:
             print("      -", m)
 
 
+# ---------------------------------------------------------------------------
+# Enredo da Wikipédia — o texto de "Plot/Enredo" é 5–10× a sinopse da TMDB e
+# nomeia objetos icônicos, personagens e cenas que a sinopse não cita
+# ("Nissan Skyline", "spinning top", "green light"). Vira um canal de embedding
+# à parte no índice (ver retrieval/index_builder). Resolvido pelo imdb_id via
+# Wikidata (P345). Job offline, retomável (cache em disco).
+# ---------------------------------------------------------------------------
+_WIKI_UA = "Cinerd/1.0 (https://cinerd.davispecia.com.br; davi.specia@gmail.com) python-requests"
+_wiki_cache = tmdb._JsonCache(os.path.join(db._PROJECT_ROOT, "data", "tmdb_cache", "wikipedia.json"))
+_PLOT_HEADINGS = {"plot", "plot summary", "synopsis", "plot synopsis", "premise", "enredo", "sinopse"}
+
+
+def _wiki_get(url: str, params: dict) -> Optional[dict]:
+    try:
+        r = requests.get(url, params={**params, "format": "json"}, headers={"User-Agent": _WIKI_UA}, timeout=20)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return None
+
+
+def _clean_wikitext(wt: str) -> str:
+    """Wikitext -> texto simples o suficiente para embutir (não precisa ser bonito)."""
+    import re
+
+    s = wt
+    s = re.sub(r"<ref[^>]*/>|<ref[^>]*>.*?</ref>", "", s, flags=re.S | re.I)
+    s = re.sub(r"<!--.*?-->", "", s, flags=re.S)
+    for _ in range(6):  # templates aninhados
+        s2 = re.sub(r"\{\{[^{}]*\}\}", "", s)
+        if s2 == s:
+            break
+        s = s2
+    s = re.sub(r"\[\[(?:File|Image|Arquivo|Ficheiro):[^\]]*\]\]", "", s, flags=re.I)
+    s = re.sub(r"\[\[([^\]|]+)\|([^\]]+)\]\]", r"\2", s)  # [[alvo|texto]] -> texto
+    s = re.sub(r"\[\[([^\]]+)\]\]", r"\1", s)              # [[alvo]] -> alvo
+    s = re.sub(r"\[https?://[^\s\]]+\s+([^\]]+)\]", r"\1", s)
+    s = re.sub(r"'{2,}", "", s)                            # ''negrito''/'''itálico'''
+    s = re.sub(r"<[^>]+>", "", s)                          # html solto
+    s = re.sub(r"^=+\s*.*?\s*=+$", "", s, flags=re.M)      # sub-cabeçalhos
+    s = s.replace("&nbsp;", " ").replace("&ndash;", "–").replace("&mdash;", "—").replace("&amp;", "&")
+    s = re.sub(r"[ \t]+", " ", s)
+    s = re.sub(r"\n{3,}", "\n\n", s).strip()
+    return s[:4000]
+
+
+def _wikipedia_plot(imdb_id: str) -> Optional[dict]:
+    """{'title': 'en:Inception', 'plot': '...'} ou None. Usa/alimenta o cache."""
+    if imdb_id in _wiki_cache:
+        return _wiki_cache.get(imdb_id)
+
+    result = None
+    # 1) imdb_id -> entidade Wikidata (P345)
+    hit = _wiki_get("https://www.wikidata.org/w/api.php", {
+        "action": "query", "list": "search", "srsearch": f"haswbstatement:P345={imdb_id}", "srlimit": 1,
+    })
+    qid = None
+    try:
+        qid = hit["query"]["search"][0]["title"]  # "Q..."
+    except (TypeError, KeyError, IndexError):
+        pass
+    if qid:
+        ent = _wiki_get("https://www.wikidata.org/w/api.php", {
+            "action": "wbgetentities", "ids": qid, "props": "sitelinks",
+        })
+        links = {}
+        try:
+            links = ent["entities"][qid]["sitelinks"]
+        except (TypeError, KeyError):
+            links = {}
+        for lang, site in (("en", "enwiki"), ("pt", "ptwiki")):
+            page = (links.get(site) or {}).get("title")
+            if not page:
+                continue
+            base = f"https://{lang}.wikipedia.org/w/api.php"
+            secs = _wiki_get(base, {"action": "parse", "page": page, "prop": "sections", "redirects": 1})
+            idx = None
+            try:
+                for sec in secs["parse"]["sections"]:
+                    if sec.get("line", "").strip().lower() in _PLOT_HEADINGS:
+                        idx = sec["index"]
+                        break
+            except (TypeError, KeyError):
+                pass
+            if idx is None:
+                continue
+            body = _wiki_get(base, {
+                "action": "parse", "page": page, "section": idx,
+                "prop": "wikitext", "redirects": 1, "formatversion": 2,
+            })
+            try:
+                plot = _clean_wikitext(body["parse"]["wikitext"])
+            except (TypeError, KeyError):
+                plot = ""
+            if len(plot) >= 120:
+                result = {"title": f"{lang}:{page}", "plot": plot}
+                break
+
+    _wiki_cache.set(imdb_id, result)
+    return result
+
+
+def fill_wikipedia_plot(conn: sqlite3.Connection, min_votes: int = 80, limit: Optional[int] = None) -> None:
+    """Preenche movies.wikipedia_plot / wikipedia_title para filmes com imdb_id e
+    ao menos `min_votes` votos na TMDB, ainda sem enredo. Retomável (cache)."""
+    rows = conn.execute(
+        "SELECT tmdb_id, imdb_id FROM movies "
+        "WHERE imdb_id IS NOT NULL AND imdb_id <> '' AND vote_count >= ? "
+        "AND (wikipedia_plot IS NULL OR wikipedia_plot = '') "
+        "ORDER BY vote_count DESC",
+        (min_votes,),
+    ).fetchall()
+    if limit:
+        rows = rows[:limit]
+    if not rows:
+        print("  wikipédia: nada a fazer.")
+        return
+    print(f"  wikipédia: {len(rows)} filmes (imdb_id + ≥{min_votes} votos). ~{len(rows) * 0.6 / 60:.0f} min...")
+    got = 0
+    for i, r in enumerate(rows, 1):
+        res = _wikipedia_plot(r["imdb_id"])
+        if res:
+            conn.execute(
+                "UPDATE movies SET wikipedia_plot = ?, wikipedia_title = ? WHERE tmdb_id = ?",
+                (res["plot"], res["title"], r["tmdb_id"]),
+            )
+            got += 1
+        else:  # marca "tentado, sem enredo" p/ não rebuscar
+            conn.execute("UPDATE movies SET wikipedia_plot = '' WHERE tmdb_id = ?", (r["tmdb_id"],))
+        if i % 200 == 0:
+            conn.commit()
+            _wiki_cache.flush()
+            print(f"    {i}/{len(rows)} ({got} com enredo)")
+        time.sleep(0.12)  # ~8 req/s por chamada; 3-4 chamadas/filme -> polido
+    conn.commit()
+    _wiki_cache.flush()
+    print(f"  wikipédia: {got}/{len(rows)} com enredo.")
+
+
 def main(argv: Optional[list] = None) -> int:
     ap = argparse.ArgumentParser(description="Enriquece movies.db com sinais externos.")
     ap.add_argument("--min-votes", type=int, default=100,
@@ -337,6 +478,12 @@ def main(argv: Optional[list] = None) -> int:
                     help="votos no IMDb para buscar crítica no OMDb (padrão 25000)")
     ap.add_argument("--refresh-imdb", action="store_true",
                     help="rebaixa o dataset do IMDb mesmo se já estiver em cache")
+    ap.add_argument("--wikipedia", action="store_true",
+                    help="baixa o enredo da Wikipédia (crawl longo, retomável — não roda por padrão)")
+    ap.add_argument("--wiki-min-votes", type=int, default=80,
+                    help="votos na TMDB para buscar enredo na Wikipédia (padrão 80)")
+    ap.add_argument("--wiki-limit", type=int, default=None,
+                    help="limita a N filmes (teste)")
     args = ap.parse_args(argv)
 
     if not db.has_sqlite():
@@ -359,6 +506,9 @@ def main(argv: Optional[list] = None) -> int:
         if not args.skip_critic:
             print("→ crítica (Metacritic + Rotten Tomatoes via OMDb)...")
             fill_critic(conn, args.critic_min_votes)
+        if args.wikipedia:
+            print("→ enredo da Wikipédia (via Wikidata P345)...")
+            fill_wikipedia_plot(conn, args.wiki_min_votes, args.wiki_limit)
         print("✓ enriquecimento concluído.")
     finally:
         conn.close()

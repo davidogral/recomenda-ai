@@ -56,6 +56,7 @@ def index_paths(index_dir: str = INDEX_DIR) -> dict[str, str]:
         "kw_embeddings": j("kw_embeddings.npy"),
         "keyword_term_emb": j("keyword_term_embeddings.npy"),
         "keyword_terms": j("keyword_terms.json"),
+        "plot_embeddings": j("plot_embeddings.npy"),
         "meta": j("meta.json"),
     }
 
@@ -195,6 +196,15 @@ def _build_keyword_documents(ids: np.ndarray) -> list[str]:
     return docs
 
 
+def _plot_rows() -> list:
+    """(tmdb_id, wikipedia_plot) — vazio se a coluna ainda não existe (catálogo
+    anterior ao crawl de `core.enrich --wikipedia`)."""
+    cols = {r["name"] for r in db.query("PRAGMA table_info(movies)")}
+    if "wikipedia_plot" not in cols:
+        return []
+    return db.query("SELECT tmdb_id, wikipedia_plot FROM movies WHERE wikipedia_plot IS NOT NULL AND wikipedia_plot <> ''")
+
+
 def _people_documents(ids: np.ndarray, n_cast: int = 6, n_char: int = 8) -> dict[int, str]:
     """Por filme: diretor(es) + elenco principal + **nomes de personagem** do
     elenco de topo. Permite que uma busca citando pessoas ('filme do scorsese
@@ -328,6 +338,15 @@ def build_index(
         kw_emb = _encode_passages(kw_docs)
         np.save(P["kw_embeddings"], kw_emb)
 
+        # Canal do ENREDO da Wikipédia (quando houver). Texto 5–10× a sinopse,
+        # nomeia objetos/personagens/cenas. Fallback para a própria sinopse nos
+        # filmes sem enredo — assim o canal nunca prejudica.
+        plot_map = {int(r["tmdb_id"]): (r["wikipedia_plot"] or "") for r in _plot_rows()}
+        plot_docs = [plot_map.get(int(t), "") or docs[i] for i, t in enumerate(ids.tolist())]
+        n_plot = sum(1 for t in ids.tolist() if plot_map.get(int(t)))
+        plot_emb = _encode_passages(plot_docs)
+        np.save(P["plot_embeddings"], plot_emb)
+
         # Embedding por keyword distinta (nÃ£o por filme): permite, na explicaÃ§Ã£o,
         # dizer QUAIS keywords temÃ¡ticas casaram com a consulta â€” de forma
         # multilÃ­ngue (a consulta em PT casa "time loop"/"viagem no tempo").
@@ -344,6 +363,8 @@ def build_index(
             has_embeddings=True,
             has_keyword_embeddings=True,
             has_keyword_terms=True,
+            has_plot_embeddings=True,
+            n_plot_docs=int(n_plot),
             n_keyword_terms=len(kw_names),
             embed_model=embed_model_name,
             embed_dim=int(emb.shape[1]),
@@ -352,7 +373,7 @@ def build_index(
     else:
         # Remove embeddings antigos para nÃ£o dessincronizar com movie_ids.
         for path in (P["embeddings"], P["kw_embeddings"],
-                     P["keyword_term_emb"], P["keyword_terms"]):
+                     P["keyword_term_emb"], P["keyword_terms"], P["plot_embeddings"]):
             if os.path.exists(path):
                 os.remove(path)
 
