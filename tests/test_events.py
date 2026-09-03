@@ -14,10 +14,18 @@ def _q():
 
 def test_log_and_analytics():
     q = _q()
+    sid = "sess-" + uuid.uuid4().hex[:8]
     events.log(
-        "search", query=q, filters={"genre": "Terror"}, n_results=3, latency_ms=12.0, stage_ms={"retrieval": 5.0}
+        "search",
+        query=q,
+        filters={"genre": "Terror"},
+        n_results=3,
+        latency_ms=12.0,
+        stage_ms={"retrieval": 5.0},
+        sid=sid,
     )
-    events.log("search", query=q, n_results=0, latency_ms=9.0)  # sem resultado
+    events.log("search", query=q, n_results=0, latency_ms=9.0, sid=sid)  # sem resultado
+    events.log("open", query=q, ref="search", pos=2, item_id=603, sid=sid)  # clicou no #2
     a = events.analytics(30)
 
     assert q in {r["query"] for r in a["top_queries"]}
@@ -25,6 +33,14 @@ def test_log_and_analytics():
     assert a["by_kind"].get("search", 0) >= 2
     assert "retrieval" in a["latency"]
     assert any(g["genre"] == "Terror" for g in a["filters"]["genres"])
+
+    # blocos ricos
+    assert set(a) >= {"kpis", "click_positions", "funnel", "sessions_by_day", "reformulations", "top_items", "heatmap"}
+    assert a["kpis"]["searches"]["v"] >= 2
+    assert dict((x["bucket"], x["count"]) for x in a["click_positions"])["2"] >= 1
+    assert a["funnel"][0]["step"] == "buscou"
+    assert any(it["tmdb_id"] == 603 for it in a["top_items"])
+    assert len(a["heatmap"]) == 7 and len(a["heatmap"][0]) == 24
 
 
 def test_log_never_raises_on_bad_input():
@@ -65,3 +81,9 @@ def test_engagement_by_day_shape():
     rows = user_data.engagement_by_day(7)
     assert len(rows) == 7
     assert set(rows[0]) == {"day", "ratings", "reviews", "lists"}
+
+
+def test_open_event_sets_sid_cookie(client):
+    r = client.get("/movie/603?ref=search&q=matrix&pos=1")
+    # a rota pode dar 404 sem catálogo, mas o cookie de sessão deve ser setado
+    assert "sid=" in r.headers.get("Set-Cookie", "")
