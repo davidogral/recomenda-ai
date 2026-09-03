@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import gzip
 import os
+import secrets
 import time
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, g, jsonify, render_template, request
 from flask_login import current_user, login_required
 
 from core import catalog, events, metrics, posters, security
@@ -28,6 +29,21 @@ def _uid_or_none():
         return current_user.id if current_user.is_authenticated else None
     except Exception:
         return None
+
+
+def _sid():
+    """Identificador de sessão (cookie `sid`, sem dado pessoal) — encadeia as
+    ações de uma visita para o funil/analytics. Gerado sob demanda."""
+    s = getattr(g, "_sid", None)
+    if s:
+        return s
+    s = request.cookies.get("sid")
+    if not s or not (8 <= len(s) <= 64) or not s.replace("-", "").replace("_", "").isalnum():
+        s = secrets.token_urlsafe(16)
+        g._sid_new = True
+    g._sid = s
+    return s
+
 
 app = Flask(__name__, static_folder="frontend", template_folder="frontend")
 
@@ -51,14 +67,18 @@ try:
     from flask_limiter.util import get_remote_address
 
     limiter = Limiter(
-        key_func=get_remote_address, app=app, default_limits=[],
+        key_func=get_remote_address,
+        app=app,
+        default_limits=[],
         storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
         headers_enabled=True,
     )
 except Exception:  # flask-limiter ausente → decorador vira no-op
+
     class _NoLimiter:
         def limit(self, *_a, **_k):
             return lambda f: f
+
     limiter = _NoLimiter()
 
 # --- Autenticação: sessão, CSRF, rotas /auth/* (cadastro, login, reset…) ---
@@ -85,6 +105,7 @@ def _parse_providers(raw) -> "list[int] | None":
 # ROTA PRINCIPAL
 # =========================================================================
 
+
 @app.route("/")
 def home_page():
     return render_template("index.html")
@@ -98,6 +119,7 @@ def privacy_page():
 # =========================================================================
 # ROTAS DE BUSCA (motor superior — davidogral)
 # =========================================================================
+
 
 @app.route("/genres")
 def genres():
@@ -142,7 +164,8 @@ def search():
 
         with metrics.capture_stages() as _stages:
             results = inference_client.search_combined(
-                query=query, director=director, actor=actor, n=n, filters=filters or None)
+                query=query, director=director, actor=actor, n=n, filters=filters or None
+            )
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
     except ValueError as e:
@@ -153,17 +176,26 @@ def search():
         _f["director"] = 1
     if actor:
         _f["actor"] = 1
-    events.log("search", query=query, filters=_f or None, n_results=len(results),
-               latency_ms=(time.perf_counter() - _t0) * 1000, stage_ms=_stages or None,
-               user_id=_uid_or_none())
+    events.log(
+        "search",
+        query=query,
+        filters=_f or None,
+        n_results=len(results),
+        latency_ms=(time.perf_counter() - _t0) * 1000,
+        stage_ms=_stages or None,
+        user_id=_uid_or_none(),
+        sid=_sid(),
+    )
 
-    return jsonify({
-        "query": query,
-        "director": director,
-        "actor": actor,
-        "count": len(results),
-        "results": posters.attach(results),
-    })
+    return jsonify(
+        {
+            "query": query,
+            "director": director,
+            "actor": actor,
+            "count": len(results),
+            "results": posters.attach(results),
+        }
+    )
 
 
 @app.route("/people")
@@ -180,12 +212,14 @@ def people():
 # ROTA: CATÁLOGO (para autocomplete de filmes — compatibilidade)
 # =========================================================================
 
+
 @app.route("/get_movies")
 def get_movies():
     """Retorna todos os filmes do catálogo para autocomplete no frontend."""
     try:
         cat = catalog.get_catalog()
         from core.catalog import get_movie_genres
+
         movie_list = [
             {
                 "movie_id": tid,
@@ -215,16 +249,17 @@ def popular():
     cat = catalog.get_catalog()
     ranked = sorted(
         (m for m in cat.values() if (m.get("vote_average") or 0) >= 6.5),
-        key=lambda m: (m.get("vote_count") or 0), reverse=True,
-    )[offset:offset + n]
-    items = [{"tmdb_id": m["tmdb_id"], "title": m.get("title"),
-              "release_year": m.get("release_year")} for m in ranked]
+        key=lambda m: m.get("vote_count") or 0,
+        reverse=True,
+    )[offset : offset + n]
+    items = [{"tmdb_id": m["tmdb_id"], "title": m.get("title"), "release_year": m.get("release_year")} for m in ranked]
     return jsonify(posters.attach(items))
 
 
 # =========================================================================
 # ROTAS: STREAMING (onde assistir — watch providers da TMDB/JustWatch)
 # =========================================================================
+
 
 @app.route("/providers")
 def providers():
@@ -233,10 +268,12 @@ def providers():
     from core import tmdb
 
     region = (request.args.get("region") or "").strip() or None
-    return jsonify({
-        "region": (region or tmdb.WATCH_REGION).upper(),
-        "providers": tmdb.list_watch_providers(region),
-    })
+    return jsonify(
+        {
+            "region": (region or tmdb.WATCH_REGION).upper(),
+            "providers": tmdb.list_watch_providers(region),
+        }
+    )
 
 
 @app.route("/watch_providers", methods=["POST"])
@@ -257,15 +294,18 @@ def watch_providers():
     from core import tmdb
 
     tmdb.prefetch_watch_providers(ids, region)
-    return jsonify({
-        "region": (region or tmdb.WATCH_REGION).upper(),
-        "providers": {str(tid): tmdb.movie_watch_providers(tid, region) for tid in ids},
-    })
+    return jsonify(
+        {
+            "region": (region or tmdb.WATCH_REGION).upper(),
+            "providers": {str(tid): tmdb.movie_watch_providers(tid, region) for tid in ids},
+        }
+    )
 
 
 # =========================================================================
 # ROTA: FICHA DO FILME (sinopse, elenco e TODAS as formas de assistir)
 # =========================================================================
+
 
 @app.route("/movie/<int:tmdb_id>")
 def movie_sheet(tmdb_id: int):
@@ -274,6 +314,22 @@ def movie_sheet(tmdb_id: int):
     e compra). Dados ao vivo da TMDB (cache 3 dias); sem credencial/rede,
     degrada para o catálogo local. Query param: region."""
     from core import tmdb
+
+    # registro de uso: abriu a ficha (ref = de onde veio; q/pos = a busca que levou até aqui)
+    _ref = (request.args.get("ref") or "direct").strip()[:20]
+    try:
+        _pos = int(request.args.get("pos")) if request.args.get("pos") else None
+    except (TypeError, ValueError):
+        _pos = None
+    events.log(
+        "open",
+        query=(request.args.get("q") or "")[:300],
+        ref=_ref,
+        pos=_pos,
+        item_id=tmdb_id,
+        user_id=_uid_or_none(),
+        sid=_sid(),
+    )
 
     region = (request.args.get("region") or "").strip() or None
     details = tmdb.movie_details(tmdb_id)
@@ -287,8 +343,11 @@ def movie_sheet(tmdb_id: int):
         try:
             people = catalog.get_movie_people(tmdb_id)
             directors = [p["name"] for p in people if p["role"] == "director"]
-            cast = [{"name": p["name"], "character": p.get("character") or "", "photo": None}
-                    for p in people if p["role"] == "actor"][:12]
+            cast = [
+                {"name": p["name"], "character": p.get("character") or "", "photo": None}
+                for p in people
+                if p["role"] == "actor"
+            ][:12]
         except RuntimeError:
             pass  # modo JSON (sem SQLite) → ficha sem pessoas
         details = {
@@ -316,20 +375,22 @@ def movie_sheet(tmdb_id: int):
 
     from core import user_data
 
-    my_rating = (user_data.get_rating(current_user.id, tmdb_id)
-                 if current_user.is_authenticated else None)
-    return jsonify({
-        "region": (region or tmdb.WATCH_REGION).upper(),
-        "details": details,
-        "providers": tmdb.movie_watch_providers_full(tmdb_id, region),
-        "my_rating": my_rating,
-        "versions": user_data.list_versions(tmdb_id),
-    })
+    my_rating = user_data.get_rating(current_user.id, tmdb_id) if current_user.is_authenticated else None
+    return jsonify(
+        {
+            "region": (region or tmdb.WATCH_REGION).upper(),
+            "details": details,
+            "providers": tmdb.movie_watch_providers_full(tmdb_id, region),
+            "my_rating": my_rating,
+            "versions": user_data.list_versions(tmdb_id),
+        }
+    )
 
 
 # =========================================================================
 # ROTAS: VERSÕES DOS FILMES (cortes existentes + qual é a melhor — curadoria)
 # =========================================================================
+
 
 @app.route("/versions/<int:tmdb_id>")
 def versions_list(tmdb_id: int):
@@ -372,9 +433,12 @@ def versions_save():
         return jsonify({"error": "version_id inválido."}), 400
 
     saved = user_data.save_version(
-        tid, name, runtime=runtime,
+        tid,
+        name,
+        runtime=runtime,
         notes=str(data.get("notes") or "").strip()[:5000],
-        is_best=bool(data.get("is_best")), version_id=version_id,
+        is_best=bool(data.get("is_best")),
+        version_id=version_id,
     )
     if saved is None:
         return jsonify({"error": "Versão não encontrada para editar."}), 404
@@ -395,6 +459,7 @@ def versions_delete(version_id: int):
 # =========================================================================
 # ROTAS: MINHAS AVALIAÇÕES (diário estilo Letterboxd — por usuário)
 # =========================================================================
+
 
 @app.route("/ratings")
 @login_required
@@ -442,9 +507,15 @@ def ratings_save():
         poster = None  # placeholder não é pôster — o diário regenera na exibição
 
     saved = user_data.upsert_rating(
-        current_user.id, tid, rating=rating, liked=bool(data.get("liked")),
+        current_user.id,
+        tid,
+        rating=rating,
+        liked=bool(data.get("liked")),
         review=str(data.get("review") or "").strip()[:10000],
-        watched_date=watched, title=title, release_year=year, poster=poster,
+        watched_date=watched,
+        title=title,
+        release_year=year,
+        poster=poster,
     )
     return jsonify({"message": "Avaliação salva!", "rating": saved})
 
@@ -464,6 +535,7 @@ def ratings_delete(tmdb_id: int):
 # ROTAS: ESSENCIAIS (por gênero, estilo e diretor)
 # =========================================================================
 
+
 @app.route("/explore/options")
 def explore_options():
     """Opções de navegação dos essenciais: gêneros, estilos curados e
@@ -471,11 +543,13 @@ def explore_options():
     from core import explore
 
     try:
-        return jsonify({
-            "genres": explore.genre_options(),
-            "styles": explore.style_options(),
-            "directors": explore.director_options(),
-        })
+        return jsonify(
+            {
+                "genres": explore.genre_options(),
+                "styles": explore.style_options(),
+                "directors": explore.director_options(),
+            }
+        )
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
 
@@ -510,28 +584,34 @@ def explore_essentials():
     region = (request.args.get("region") or "").strip() or None
     provider_ids = _parse_providers(request.args.get("providers"))
     if provider_ids:
-        keep = set(tmdb.filter_available([r["tmdb_id"] for r in ranked],
-                                         provider_ids, region, limit=n))
+        keep = set(tmdb.filter_available([r["tmdb_id"] for r in ranked], provider_ids, region, limit=n))
         ranked = [r for r in ranked if r["tmdb_id"] in keep]
     results = ranked[:n]
     for i, r in enumerate(results, start=1):
         r["rank"] = i
 
-    events.log("essentials", query=(genre or director or style or ""),
-               filters={"by": "genre" if genre else "director" if director else "style",
-                        "providers": bool(provider_ids)},
-               n_results=len(results), user_id=_uid_or_none())
+    events.log(
+        "essentials",
+        query=(genre or director or style or ""),
+        filters={"by": "genre" if genre else "director" if director else "style", "providers": bool(provider_ids)},
+        n_results=len(results),
+        user_id=_uid_or_none(),
+        sid=_sid(),
+    )
 
-    return jsonify({
-        "label": genre or director or style,
-        "count": len(results),
-        "results": posters.attach(results),
-    })
+    return jsonify(
+        {
+            "label": genre or director or style,
+            "count": len(results),
+            "results": posters.attach(results),
+        }
+    )
 
 
 # =========================================================================
 # ROTAS: MINHAS LISTAS (ordem de assistir)
 # =========================================================================
+
 
 @app.route("/lists")
 @login_required
@@ -607,12 +687,10 @@ def lists_add_item(list_id: int):
     if not poster or poster.startswith("https://placehold.co"):
         poster = None
 
-    added = user_data.add_list_item(current_user.id, list_id, tid, title=title,
-                                    release_year=year, poster=poster)
+    added = user_data.add_list_item(current_user.id, list_id, tid, title=title, release_year=year, poster=poster)
     if added is None:
         return jsonify({"error": "Lista não encontrada."}), 404
-    return jsonify({"message": "Adicionado!" if added else "Já estava na lista.",
-                    "added": added})
+    return jsonify({"message": "Adicionado!" if added else "Já estava na lista.", "added": added})
 
 
 @app.route("/lists/<int:list_id>/items/<int:tmdb_id>", methods=["DELETE"])
@@ -665,13 +743,19 @@ def lists_from_collection():
         return jsonify({"error": "Essa franquia não tem filmes listados."}), 404
 
     name = str(data.get("name") or "").strip()[:200] or coll["name"] or "Franquia"
-    lst = user_data.create_list(
-        current_user.id, name, "Franquia importada da TMDB — ordem de lançamento.")
+    lst = user_data.create_list(current_user.id, name, "Franquia importada da TMDB — ordem de lançamento.")
     for p in coll["parts"]:
-        user_data.add_list_item(current_user.id, lst["list_id"], p["tmdb_id"], title=p["title"],
-                                release_year=p["release_year"], poster=p["poster"])
-    return jsonify({"message": "Lista da franquia criada!",
-                    "list": user_data.get_list(current_user.id, lst["list_id"])})
+        user_data.add_list_item(
+            current_user.id,
+            lst["list_id"],
+            p["tmdb_id"],
+            title=p["title"],
+            release_year=p["release_year"],
+            poster=p["poster"],
+        )
+    return jsonify(
+        {"message": "Lista da franquia criada!", "list": user_data.get_list(current_user.id, lst["list_id"])}
+    )
 
 
 @app.route("/recommend_history", methods=["POST"])
@@ -697,9 +781,15 @@ def recommend_history():
             rating = 4.5  # curtiu sem dar estrelas → conta como amado
         if rating is None:
             continue  # só assistido/resenhado, sem sinal de gosto
-        detail.append({"tmdb_id": r["tmdb_id"], "rating": float(rating),
-                       "name": r.get("title"), "year": r.get("release_year"),
-                       "review": r.get("review") or ""})
+        detail.append(
+            {
+                "tmdb_id": r["tmdb_id"],
+                "rating": float(rating),
+                "name": r.get("title"),
+                "year": r.get("release_year"),
+                "review": r.get("review") or "",
+            }
+        )
     if not detail:
         return jsonify({"error": "Avalie alguns filmes primeiro (estrelas ou ❤)."}), 400
 
@@ -708,24 +798,31 @@ def recommend_history():
 
         region = (data.get("region") or "").strip() or None
         provider_ids = _parse_providers(data.get("providers"))
-        result = inference_client.recommend_from_profile(detail, n=n, region=region,
-                                                        provider_ids=provider_ids)
+        result = inference_client.recommend_from_profile(detail, n=n, region=region, provider_ids=provider_ids)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
 
-    events.log("recommend_history", filters={"providers": bool(provider_ids)},
-               n_results=len(result["recommendations"]), user_id=_uid_or_none())
+    events.log(
+        "recommend_history",
+        filters={"providers": bool(provider_ids)},
+        n_results=len(result["recommendations"]),
+        user_id=_uid_or_none(),
+        sid=_sid(),
+    )
 
-    return jsonify({
-        "rated_count": len(detail),
-        "profile": result["profile"],
-        "recommendations": posters.attach(result["recommendations"]),
-    })
+    return jsonify(
+        {
+            "rated_count": len(detail),
+            "profile": result["profile"],
+            "recommendations": posters.attach(result["recommendations"]),
+        }
+    )
 
 
 # =========================================================================
 # ROTA: SIMILAR (filmes parecidos com um filme — item-to-item)
 # =========================================================================
+
 
 @app.route("/similar/<int:movie_id>")
 @limiter.limit(RATE_HEAVY)
@@ -751,19 +848,29 @@ def similar(movie_id: int):
     if result["seed"] is None:
         return jsonify({"error": "Filme não encontrado no catálogo."}), 404
 
-    events.log("similar", query=str(movie_id), filters={"providers": bool(provider_ids)},
-               n_results=len(result["recommendations"]), user_id=_uid_or_none())
+    events.log(
+        "similar",
+        query=str(movie_id),
+        filters={"providers": bool(provider_ids)},
+        n_results=len(result["recommendations"]),
+        user_id=_uid_or_none(),
+        sid=_sid(),
+        item_id=movie_id,
+    )
 
-    return jsonify({
-        "seed": result["seed"],
-        "count": len(result["recommendations"]),
-        "recommendations": posters.attach(result["recommendations"]),
-    })
+    return jsonify(
+        {
+            "seed": result["seed"],
+            "count": len(result["recommendations"]),
+            "recommendations": posters.attach(result["recommendations"]),
+        }
+    )
 
 
 # =========================================================================
 # ROTA: SUBMIT RATINGS (filmes favoritos — qualquer quantidade)
 # =========================================================================
+
 
 @app.route("/submit_ratings", methods=["POST"])
 @limiter.limit(RATE_HEAVY)
@@ -778,9 +885,7 @@ def submit_ratings():
         data = request.get_json(silent=True) or {}
         raw = data.get("movie_ids") if isinstance(data.get("movie_ids"), list) else None
         if raw is None:
-            raw = request.form.getlist("movie_ids") or [
-                request.form.get(f"movie_id_{i}") for i in range(1, 11)
-            ]
+            raw = request.form.getlist("movie_ids") or [request.form.get(f"movie_id_{i}") for i in range(1, 11)]
         for x in raw:
             try:
                 if x is not None and int(x) > 0:
@@ -795,23 +900,31 @@ def submit_ratings():
 
         region = (data.get("region") or "").strip() or None
         provider_ids = _parse_providers(data.get("providers"))
-        detail = [{"tmdb_id": mid, "rating": 5.0, "name": None, "year": None, "review": ""}
-                  for mid in ids]
+        detail = [{"tmdb_id": mid, "rating": 5.0, "name": None, "year": None, "review": ""} for mid in ids]
         result = inference_client.recommend_from_profile(detail, n=15, region=region, provider_ids=provider_ids)
-        events.log("recommend", filters={"seeds": len(ids), "providers": bool(provider_ids)},
-                   n_results=len(result["recommendations"]), user_id=_uid_or_none())
-        return jsonify({
-            "message": "Recomendações personalizadas geradas!",
-            "profile": result["profile"],
-            "recommendations": posters.attach(result["recommendations"]),
-        })
+        events.log(
+            "recommend",
+            filters={"seeds": len(ids), "providers": bool(provider_ids)},
+            n_results=len(result["recommendations"]),
+            user_id=_uid_or_none(),
+            sid=_sid(),
+        )
+        return jsonify(
+            {
+                "message": "Recomendações personalizadas geradas!",
+                "profile": result["profile"],
+                "recommendations": posters.attach(result["recommendations"]),
+            }
+        )
 
     except RuntimeError as e:
-        return jsonify({
-            "error": str(e),
-            "message": "Modelo de recomendação não encontrado. Use a busca para encontrar filmes!",
-            "recommendations": [],
-        }), 503
+        return jsonify(
+            {
+                "error": str(e),
+                "message": "Modelo de recomendação não encontrado. Use a busca para encontrar filmes!",
+                "recommendations": [],
+            }
+        ), 503
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -819,6 +932,7 @@ def submit_ratings():
 # =========================================================================
 # ROTA: RECOMMEND (via Letterboxd ratings.csv — davidogral)
 # =========================================================================
+
 
 @app.route("/recommend", methods=["POST"])
 @limiter.limit(RATE_HEAVY)
@@ -838,32 +952,41 @@ def recommend():
 
         imported = import_ratings(file, resolver="auto")
         if not imported.matched:
-            return jsonify({
-                "error": "Nenhum filme do seu ratings.csv foi encontrado no catálogo.",
-                "total_rows": imported.total_rows,
-                "matched": 0,
-            }), 422
+            return jsonify(
+                {
+                    "error": "Nenhum filme do seu ratings.csv foi encontrado no catálogo.",
+                    "total_rows": imported.total_rows,
+                    "matched": 0,
+                }
+            ), 422
         # Perfil de gosto: vetor de conteúdo (embeddings) + resumo + colaborativo.
         region = (request.form.get("region") or "").strip() or None
         provider_ids = _parse_providers(request.form.get("providers"))
-        result = inference_client.recommend_from_profile(imported.matched_detail, n=n,
-                                                        region=region, provider_ids=provider_ids)
+        result = inference_client.recommend_from_profile(
+            imported.matched_detail, n=n, region=region, provider_ids=provider_ids
+        )
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
 
-    events.log("recommend_letterboxd",
-               filters={"matched": len(imported.matched), "match_rate": round(imported.match_rate, 3)},
-               n_results=len(result["recommendations"]), user_id=_uid_or_none())
+    events.log(
+        "recommend_letterboxd",
+        filters={"matched": len(imported.matched), "match_rate": round(imported.match_rate, 3)},
+        n_results=len(result["recommendations"]),
+        user_id=_uid_or_none(),
+        sid=_sid(),
+    )
 
-    return jsonify({
-        "total_rows": imported.total_rows,
-        "matched": len(imported.matched),
-        "match_rate": round(imported.match_rate, 3),
-        "unmatched_count": len(imported.unmatched),
-        "method": "perfil (conteúdo + colaborativo)",
-        "profile": result["profile"],
-        "recommendations": posters.attach(result["recommendations"]),
-    })
+    return jsonify(
+        {
+            "total_rows": imported.total_rows,
+            "matched": len(imported.matched),
+            "match_rate": round(imported.match_rate, 3),
+            "unmatched_count": len(imported.unmatched),
+            "method": "perfil (conteúdo + colaborativo)",
+            "profile": result["profile"],
+            "recommendations": posters.attach(result["recommendations"]),
+        }
+    )
 
 
 # =========================================================================
@@ -886,20 +1009,82 @@ _ENGINEERING_FALLBACK = {
         "stale": True,
         "source": {"git_commit": "7d96851", "split": "test", "n_queries": 47},
         "rows": [
-            {"pipeline": "bm25", "ndcg@10": 0.360, "mrr": 0.316, "recall@10": 0.532, "recall@50": 0.660, "median_rank": 7},
-            {"pipeline": "embedding", "ndcg@10": 0.299, "mrr": 0.260, "recall@10": 0.447, "recall@50": 0.532, "median_rank": 25},
-            {"pipeline": "thematic", "ndcg@10": 0.310, "mrr": 0.256, "recall@10": 0.511, "recall@50": 0.638, "median_rank": 10},
-            {"pipeline": "fusion", "ndcg@10": 0.733, "mrr": 0.686, "recall@10": 0.894, "recall@50": 0.936, "median_rank": 1},
-            {"pipeline": "fusion_rerank", "ndcg@10": 0.754, "mrr": 0.705, "recall@10": 0.915, "recall@50": 0.936, "median_rank": 1},
+            {
+                "pipeline": "bm25",
+                "ndcg@10": 0.360,
+                "mrr": 0.316,
+                "recall@10": 0.532,
+                "recall@50": 0.660,
+                "median_rank": 7,
+            },
+            {
+                "pipeline": "embedding",
+                "ndcg@10": 0.299,
+                "mrr": 0.260,
+                "recall@10": 0.447,
+                "recall@50": 0.532,
+                "median_rank": 25,
+            },
+            {
+                "pipeline": "thematic",
+                "ndcg@10": 0.310,
+                "mrr": 0.256,
+                "recall@10": 0.511,
+                "recall@50": 0.638,
+                "median_rank": 10,
+            },
+            {
+                "pipeline": "fusion",
+                "ndcg@10": 0.733,
+                "mrr": 0.686,
+                "recall@10": 0.894,
+                "recall@50": 0.936,
+                "median_rank": 1,
+            },
+            {
+                "pipeline": "fusion_rerank",
+                "ndcg@10": 0.754,
+                "mrr": 0.705,
+                "recall@10": 0.915,
+                "recall@50": 0.936,
+                "median_rank": 1,
+            },
         ],
     },
     "encoder": {
         "stale": True,
         "source": {"git_commit": "e2ed3ce", "device": "cpu"},
         "rows": [
-            {"name": "e5-large fp32", "default": True, "ndcg@10": 0.733, "recall@10": 0.894, "recall@50": 0.936, "encode_p50": 169.2, "encode_p99": 352.1, "rss_mb": 2318},
-            {"name": "e5-large INT8 (ONNX)", "default": False, "ndcg@10": 0.729, "recall@10": 0.894, "recall@50": 0.936, "encode_p50": 212.0, "encode_p99": 368.9, "rss_mb": 1676},
-            {"name": "e5-small fp32", "default": False, "ndcg@10": 0.693, "recall@10": 0.830, "recall@50": 0.936, "encode_p50": 22.0, "encode_p99": 105.0, "rss_mb": 1026},
+            {
+                "name": "e5-large fp32",
+                "default": True,
+                "ndcg@10": 0.733,
+                "recall@10": 0.894,
+                "recall@50": 0.936,
+                "encode_p50": 169.2,
+                "encode_p99": 352.1,
+                "rss_mb": 2318,
+            },
+            {
+                "name": "e5-large INT8 (ONNX)",
+                "default": False,
+                "ndcg@10": 0.729,
+                "recall@10": 0.894,
+                "recall@50": 0.936,
+                "encode_p50": 212.0,
+                "encode_p99": 368.9,
+                "rss_mb": 1676,
+            },
+            {
+                "name": "e5-small fp32",
+                "default": False,
+                "ndcg@10": 0.693,
+                "recall@10": 0.830,
+                "recall@50": 0.936,
+                "encode_p50": 22.0,
+                "encode_p99": 105.0,
+                "rss_mb": 1026,
+            },
         ],
     },
 }
@@ -950,7 +1135,11 @@ def _engineering_payload() -> dict:
         brun = bench.get("run", {})
         encoder = {
             "stale": False,
-            "source": {"git_commit": brun.get("git_commit"), "device": brun.get("device"), "timestamp_utc": brun.get("timestamp_utc")},
+            "source": {
+                "git_commit": brun.get("git_commit"),
+                "device": brun.get("device"),
+                "timestamp_utc": brun.get("timestamp_utc"),
+            },
             "rows": [
                 {
                     "name": row.get("name"),
@@ -970,7 +1159,10 @@ def _engineering_payload() -> dict:
     lat = _load_eval("latency-test")
     protocol = {
         "task": "known-item — 1 filme relevante por consulta sobre ~22 mil títulos",
-        "n_queries": 142, "dev": 95, "test": 47, "split_seed": 20260831,
+        "n_queries": 142,
+        "dev": 95,
+        "test": 47,
+        "split_seed": 20260831,
         "reported": "só o split de teste (held-out)",
     }
     if test and test.get("run", {}).get("split_counts"):
@@ -990,17 +1182,17 @@ def _engineering_payload() -> dict:
             {
                 "title": "Cross-encoder desligado em produção",
                 "body": "O re-ranker de 2º estágio era o default. A varredura (eval.run --sweep-rerank) mostra ganho "
-                        "dentro do ruído (teste +0,02 nDCG@10, dev −0,01) a ~250× de latência. Fica atrás de RECOMENDAI_RERANK=1.",
+                "dentro do ruído (teste +0,02 nDCG@10, dev −0,01) a ~250× de latência. Fica atrás de RECOMENDAI_RERANK=1.",
             },
             {
                 "title": "e5-large fp32 continua o encoder padrão",
                 "body": "INT8 dinâmico corta 28% de RAM mas não acelera o encode em CPU ARM (sem VNNI). e5-small é "
-                        "7,7× mais rápido no encode e usa metade da RAM, ao custo de −0,04 nDCG@10 — a um env var de distância.",
+                "7,7× mais rápido no encode e usa metade da RAM, ao custo de −0,04 nDCG@10 — a um env var de distância.",
             },
             {
                 "title": "Fusão z-score + prior de popularidade",
                 "body": "Os 3 sinais são padronizados (z-score) e somados com um prior de popularidade. Nenhum sinal "
-                        "isolado passa de nDCG@10 ≈ 0,36; a fusão salta para ≈ 0,73 e leva a mediana da posição para #1.",
+                "isolado passa de nDCG@10 ≈ 0,36; a fusão salta para ≈ 0,73 e leva a mediana da posição para #1.",
             },
         ],
         "links": {
@@ -1023,6 +1215,7 @@ def engineering():
 # (ver core/auth_routes.admin_required). Só o operador (LGPD: controlador dos
 # dados) acessa; nunca expõe hash de senha.
 # =========================================================================
+
 
 @app.route("/admin")
 @auth_routes.admin_required
@@ -1057,11 +1250,17 @@ def admin_analytics():
         days = 30
     counts = user_data.counts_by_user()
     engaged = sum(1 for c in counts.values() if c.get("ratings") or c.get("lists"))
-    return jsonify({
+    payload = {
         "users": {**users.count_users(), "engaged": engaged},
         "engagement_by_day": user_data.engagement_by_day(days),
         **events.analytics(days),
-    })
+    }
+    # anexa título aos filmes mais abertos
+    for it in payload.get("top_items", []):
+        mv = catalog.get_movie(it["tmdb_id"]) or {}
+        it["title"] = mv.get("title") or f"#{it['tmdb_id']}"
+        it["year"] = mv.get("release_year")
+    return jsonify(payload)
 
 
 @app.route("/admin/api/users/<int:uid>")
@@ -1107,6 +1306,7 @@ def admin_user_action(uid: int, action: str):
 # HEALTH CHECK
 # =========================================================================
 
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"})
@@ -1115,8 +1315,9 @@ def health():
 @app.errorhandler(429)
 def _rate_limited(e):
     """Resposta JSON para o rate limit (o frontend lê `error`)."""
-    return jsonify({"error": "Muitas requisições — tente de novo em instantes.",
-                    "detail": str(getattr(e, "description", e))}), 429
+    return jsonify(
+        {"error": "Muitas requisições — tente de novo em instantes.", "detail": str(getattr(e, "description", e))}
+    ), 429
 
 
 # =========================================================================
@@ -1124,11 +1325,26 @@ def _rate_limited(e):
 # Em produção o proxy (Caddy/Cloudflare) normalmente já comprime; isto cobre
 # `gunicorn app:app` cru e garante os cabeçalhos de cache.
 # =========================================================================
-_GZIP_TYPES = ("text/", "application/json", "application/javascript",
-               "application/xml", "image/svg+xml")
+_GZIP_TYPES = ("text/", "application/json", "application/javascript", "application/xml", "image/svg+xml")
 
 
 _STATIC_PREFIX = (app.static_url_path or "/static").rstrip("/") + "/"
+
+
+@app.after_request
+def _persist_sid(resp):
+    """Grava o cookie `sid` quando um handler gerou um novo (só nas ações
+    registradas em analytics). HttpOnly / SameSite=Lax / Secure em produção."""
+    if getattr(g, "_sid_new", False) and getattr(g, "_sid", None):
+        resp.set_cookie(
+            "sid",
+            g._sid,
+            max_age=90 * 24 * 3600,
+            httponly=True,
+            samesite="Lax",
+            secure=security.cookie_secure(),
+        )
+    return resp
 
 
 @app.after_request

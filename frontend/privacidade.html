@@ -8,7 +8,7 @@
     <meta name="robots" content="index,follow">
     <title>Política de Privacidade — Cinerd</title>
     <link rel="icon" type="image/png" sizes="96x96" href="{{ url_for('static', filename='icon-96.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
     <style>
         .legal { max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; line-height: 1.65; }
         .legal h1 { font-size: 1.7rem; margin-bottom: 6px; }
@@ -39,7 +39,7 @@
         <ul>
             <li><strong>Cadastro:</strong> seu e-mail e uma versão embaralhada e irreversível da sua senha (hash Argon2id — a senha em texto nunca é guardada).</li>
             <li><strong>Seu uso do produto:</strong> filmes que você avalia (nota, curtida, resenha, data assistida) e as listas que você monta. É o conteúdo que você mesmo cria na plataforma.</li>
-            <li><strong>Registros de uso:</strong> os termos que você busca, os filtros aplicados (gênero, ano, streaming), quantos resultados a busca retornou e o tempo de resposta. Ficam associados à sua conta quando você está logado; anônimos (sem identificação) quando não está. <strong>Não</strong> guardamos endereço IP nesses registros.</li>
+            <li><strong>Registros de uso:</strong> os termos que você busca, os filtros aplicados (gênero, ano, streaming), quantos resultados a busca retornou, <strong>quais filmes você abre a partir dos resultados</strong> (e a posição deles na lista) e o tempo de resposta. Cada registro carrega um <strong>identificador de sessão</strong> (cookie <code>sid</code>) — um código aleatório, sem nenhum dado pessoal, que serve para agrupar as ações de uma mesma visita (ex.: entender se a busca ajudou você a encontrar o filme). Ficam associados à sua conta quando você está logado; caso contrário, ficam apenas ligados a esse identificador de sessão. <strong>Não</strong> guardamos endereço IP nesses registros.</li>
             <li><strong>Operacional:</strong> a data de criação da conta e da última atualização; endereço IP transitório usado apenas para limitar abuso nos endpoints de login/cadastro (não é associado ao seu perfil nem armazenado de forma duradoura).</li>
         </ul>
         <p>O Cinerd <strong>não</strong> coleta localização, não usa rastreadores de terceiros, não faz perfilamento publicitário e não vende dados.</p>
@@ -54,7 +54,11 @@
         </ul>
 
         <h2>3. Cookies</h2>
-        <p>Apenas cookies <strong>estritamente necessários</strong>: um cookie de sessão e um cookie "manter conectado", ambos assinados, com as flags <code>HttpOnly</code>, <code>Secure</code> e <code>SameSite=Lax</code>. Não há cookies de análise ou de publicidade.</p>
+        <ul>
+            <li><strong>Necessários:</strong> um cookie de sessão e um cookie "manter conectado", ambos assinados, com <code>HttpOnly</code>, <code>Secure</code> e <code>SameSite=Lax</code>.</li>
+            <li><strong>Análise própria:</strong> o cookie <code>sid</code> — um código aleatório sem dado pessoal, <code>HttpOnly</code> / <code>Secure</code> / <code>SameSite=Lax</code>, com validade de 90 dias — usado só para agrupar os registros de uso descritos na seção 1. Não é compartilhado com terceiros e não rastreia você em outros sites.</li>
+        </ul>
+        <p>Não há cookies de publicidade nem de rastreamento de terceiros.</p>
 
         <h2>4. Compartilhamento com terceiros</h2>
         <ul>

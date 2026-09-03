@@ -255,10 +255,11 @@
                 </div>`;
         }
 
-        function renderGrid(gridId, movies) {
+        function renderGrid(gridId, movies, ctx) {
+            ctx = ctx || {};
             const grid = document.getElementById(gridId);
             grid.innerHTML = '';
-            movies.forEach(m => {
+            movies.forEach((m, _i) => {
                 const card = document.createElement('div');
                 card.className = 'movie-card';
                 const year = m.release_year ? ` (${m.release_year})` : '';
@@ -284,7 +285,7 @@
                 if (simBtn) simBtn.addEventListener('click', () => openSimilar(m.tmdb_id, m.title));
                 // Pôster e título abrem a ficha completa do filme.
                 if (m.tmdb_id) {
-                    const open = () => openMovie(m.tmdb_id);
+                    const open = () => openMovie(m.tmdb_id, { ref: ctx.ref, q: ctx.q, pos: m.rank || (_i + 1) });
                     card.querySelector('.poster-wrap').addEventListener('click', open);
                     card.querySelector('.movie-title').addEventListener('click', open);
                 }
@@ -360,7 +361,7 @@
                 status.textContent = data.count
                     ? `${data.count} resultado(s)` + (bits.length ? ` · ${bits.join(' · ')}` : '')
                     : 'Nada encontrado.';
-                renderGrid('searchGrid', data.results);
+                renderGrid('searchGrid', data.results, { ref: 'search', q: data.query });
             } catch (e) { status.textContent = 'Erro: ' + e.message; }
         }
         document.getElementById('searchBtn').addEventListener('click', doSearch);
@@ -418,7 +419,7 @@
             });
             card.querySelector('.pick-info').addEventListener('click', e => {
                 e.stopPropagation();
-                openMovie(film.tmdb_id);
+                openMovie(film.tmdb_id, { ref: 'pick3' });
             });
             card.addEventListener('click', () => togglePick(film));
             return card;
@@ -497,7 +498,7 @@
                 if (res.ok) {
                     status.textContent = data.message || 'Recomendações geradas!';
                     renderProfile(data.profile, 'pick3Profile');
-                    renderGrid('pick3Grid', data.recommendations);
+                    renderGrid('pick3Grid', data.recommendations, { ref: 'pick3' });
                     document.getElementById('pick3Status').scrollIntoView({ behavior: 'smooth' });
                 } else {
                     status.textContent = data.error || data.message || 'Erro ao processar.';
@@ -554,7 +555,7 @@
                 status.textContent = `${data.matched}/${data.total_rows} filmes casados `
                     + `(${Math.round(data.match_rate*100)}%) · estratégia: ${data.method}`;
                 renderProfile(data.profile);
-                renderGrid('recommendGrid', data.recommendations);
+                renderGrid('recommendGrid', data.recommendations, { ref: 'letterboxd' });
             } catch (e) { status.textContent = 'Erro: ' + e.message; }
         }
         document.getElementById('recommendBtn').addEventListener('click', runLetterboxd);
@@ -716,7 +717,7 @@
                     status.textContent = data.count
                         ? `${data.count} parecido(s)${filtered ? ' nos seus streamings' : ''}`
                         : (filtered ? 'Nenhum parecido nos seus streamings.' : 'Nada encontrado.');
-                    renderGrid('similarGrid', data.recommendations || []);
+                    renderGrid('similarGrid', data.recommendations || [], { ref: 'similar' });
                 })
                 .catch(e => { document.getElementById('similarStatus').textContent = 'Erro: ' + e.message; });
         }
@@ -755,7 +756,7 @@
                 status.textContent = data.count
                     ? `${data.count} parecido(s) com "${title}"${sufixo}`
                     : (filtered ? 'Nenhum parecido nos seus streamings.' : 'Nada encontrado.');
-                renderGrid('similarTabGrid', data.recommendations || []);
+                renderGrid('similarTabGrid', data.recommendations || [], { ref: 'similar' });
             } catch (e) { status.textContent = 'Erro: ' + e.message; }
         }
 
@@ -1165,7 +1166,8 @@
             });
         }
 
-        async function openMovie(tmdbId) {
+        async function openMovie(tmdbId, ctx) {
+            ctx = ctx || {};
             movieModal.style.display = 'flex';
             bringToFront(movieModal);
             document.body.classList.add('modal-open');
@@ -1173,7 +1175,11 @@
             const box = document.getElementById('movieSheetBody');
             box.innerHTML = '<p class="status sheet-loading">Carregando ficha...</p>';
             try {
-                const res = await fetch(`/movie/${tmdbId}?region=${encodeURIComponent(streamingRegion)}`);
+                let url = `/movie/${tmdbId}?region=${encodeURIComponent(streamingRegion)}`;
+                if (ctx.ref) url += `&ref=${encodeURIComponent(ctx.ref)}`;
+                if (ctx.q) url += `&q=${encodeURIComponent(String(ctx.q).slice(0, 200))}`;
+                if (ctx.pos) url += `&pos=${encodeURIComponent(ctx.pos)}`;
+                const res = await fetch(url);
                 const data = await res.json();
                 if (!res.ok) {
                     box.innerHTML = `<p class="status sheet-loading">${esc(data.error || 'Erro ao carregar a ficha.')}</p>`;
@@ -1217,7 +1223,7 @@
                     ${dateBr ? `<div class="diary-date">📅 assisti em ${dateBr}</div>` : ''}
                     ${r.review ? `<div class="diary-review">“${esc(r.review)}”</div>` : ''}
                 </div>`;
-            card.addEventListener('click', () => openMovie(r.tmdb_id));
+            card.addEventListener('click', () => openMovie(r.tmdb_id, { ref: 'diary' }));
             return card;
         }
 
@@ -1265,7 +1271,7 @@
                 if (!res.ok) { status.textContent = data.error || 'Erro ao recomendar.'; document.getElementById('watchedRecGrid').innerHTML = ''; return; }
                 status.textContent = `Recomendações a partir de ${data.rated_count} filme(s) avaliado(s)`;
                 renderProfile(data.profile, 'watchedProfile');
-                renderGrid('watchedRecGrid', data.recommendations);
+                renderGrid('watchedRecGrid', data.recommendations, { ref: 'diary_rec' });
             } catch (e) { status.textContent = 'Erro: ' + e.message; }
         }
         document.getElementById('watchedRecBtn').addEventListener('click', runHistoryRecommend);
@@ -1383,7 +1389,7 @@
                     <button class="list-move" type="button" data-dir="1" title="Descer">▼</button>
                     <button class="list-item-del" type="button" title="Remover da lista">&times;</button>
                 </span>`;
-            const open = () => openMovie(it.tmdb_id);
+            const open = () => openMovie(it.tmdb_id, { ref: 'list' });
             row.querySelector('.list-item-poster').addEventListener('click', open);
             row.querySelector('.list-item-title').addEventListener('click', open);
             row.querySelectorAll('.list-move').forEach(b => b.addEventListener('click', () => {
@@ -1515,7 +1521,7 @@
                 lastEssentials = { label, results: data.results };
                 status.textContent = `Essenciais: ${label} — ${data.count} filme(s)`
                     + (sp ? ' nos seus streamings' : '');
-                renderGrid('exploreGrid', data.results);
+                renderGrid('exploreGrid', data.results, { ref: 'essentials' });
                 document.getElementById('exploreActions').style.display = '';
             } catch (e) { status.textContent = 'Erro: ' + e.message; }
         }
