@@ -22,10 +22,20 @@ from __future__ import annotations
 import json
 import os
 import random
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from core.user_data import _connect
+
+# Nuvem de palavras: tokeniza a consulta e joga fora conectivos PT + muletas.
+_WORD_RE = re.compile(r"[a-zà-ú0-9]+", re.I)
+_STOP = set(
+    "que com sem por para pra dos das num numa uma uns umas não nao mas seu sua seus suas ele ela"
+    " eles elas isso esse essa este esta aquele aquela onde quando como qual quais quem filme filmes"
+    " cena personagem sobre entre muito mais menos tem ter vai foi era são sao dele dela aos nas nos"
+    " ao de do da em no na os as um se ou eu".split()
+)
 
 RETENTION_DAYS = int(os.environ.get("RECOMENDAI_EVENT_RETENTION_DAYS", "90"))
 _MAX_QUERY = 300
@@ -336,15 +346,29 @@ def analytics(days: int = 30) -> dict:
                 {"from": a, "to": b, "count": c} for (a, b), c in sorted(reform.items(), key=lambda kv: -kv[1])[:15]
             ]
 
-            # filmes mais abertos (a rota anexa o título via catálogo)
-            out["top_items"] = [
-                {"tmdb_id": i, "count": c}
-                for i, c in conn.execute(
-                    "SELECT item_id, COUNT(*) c FROM events WHERE kind='open' AND item_id IS NOT NULL AND day>=?"
-                    " GROUP BY item_id ORDER BY c DESC LIMIT 20",
-                    (d0,),
-                )
-            ]
+            # filmes: mais abertos (qualquer origem), mais clicados a partir da
+            # busca, e mais frequentes em #1 do resultado. Títulos anexados na rota.
+            def _top_items(where: str, args: tuple, lim: int = 20) -> list:
+                return [
+                    {"tmdb_id": i, "count": c}
+                    for i, c in conn.execute(
+                        f"SELECT item_id, COUNT(*) c FROM events WHERE item_id IS NOT NULL AND day>=? AND {where}"
+                        f" GROUP BY item_id ORDER BY c DESC LIMIT {lim}",
+                        (d0, *args),
+                    )
+                ]
+
+            out["top_items"] = _top_items("kind='open'", ())
+            out["top_clicked"] = _top_items("kind='open' AND ref='search'", ())
+            out["top_ranked"] = _top_items("kind='search'", ())  # o filme que ficou em #1
+
+            # nuvem de palavras — termos mais buscados (fora das stopwords)
+            wf: dict = {}
+            for (q,) in conn.execute("SELECT query FROM events WHERE kind='search' AND query<>'' AND day>=?", (d0,)):
+                for w in _WORD_RE.findall(q.lower()):
+                    if len(w) >= 3 and w not in _STOP:
+                        wf[w] = wf.get(w, 0) + 1
+            out["word_freq"] = [{"word": w, "count": c} for w, c in sorted(wf.items(), key=lambda kv: -kv[1])[:45]]
 
             # heatmap hora × dia-da-semana (0=segunda)
             heat = [[0] * 24 for _ in range(7)]
