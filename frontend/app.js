@@ -4,6 +4,57 @@
    e o tour de coach-marks. */
 'use strict';
 
+        // ---------- Camada compartilhada de modais ----------
+        // Mantém foco, scroll e estado ARIA coerentes inclusive quando uma ficha
+        // abre "Parecidos" por cima dela.
+        let modalZ = 1000;
+        const modalOrigins = new WeakMap();
+
+        function bringToFront(overlay) { overlay.style.zIndex = ++modalZ; }
+
+        function topOpenOverlay() {
+            return [...document.querySelectorAll('.modal-overlay')]
+                .filter(el => el.style.display !== 'none')
+                .sort((a, b) => (+b.style.zIndex || 0) - (+a.style.zIndex || 0))[0] || null;
+        }
+
+        function openOverlay(overlay, preferredFocus) {
+            if (overlay.style.display === 'none') modalOrigins.set(overlay, document.activeElement);
+            overlay.style.display = 'flex';
+            overlay.setAttribute('aria-hidden', 'false');
+            bringToFront(overlay);
+            document.body.classList.add('modal-open');
+            requestAnimationFrame(() => {
+                const target = typeof preferredFocus === 'string'
+                    ? overlay.querySelector(preferredFocus) : preferredFocus;
+                (target || overlay.querySelector('.modal-close') || overlay.querySelector('[role="dialog"]'))?.focus();
+            });
+        }
+
+        function closeOverlay(overlay) {
+            if (overlay.style.display === 'none') return;
+            overlay.style.display = 'none';
+            overlay.setAttribute('aria-hidden', 'true');
+            if (!topOpenOverlay()) document.body.classList.remove('modal-open');
+            const origin = modalOrigins.get(overlay);
+            modalOrigins.delete(overlay);
+            if (origin && origin.isConnected) requestAnimationFrame(() => origin.focus());
+        }
+
+        // O foco não escapa por Tab para o conteúdo encoberto.
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Tab') return;
+            const overlay = topOpenOverlay();
+            if (!overlay) return;
+            const focusable = [...overlay.querySelectorAll(
+                'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )].filter(el => !el.hidden && el.offsetParent !== null);
+            if (!focusable.length) { e.preventDefault(); overlay.querySelector('[role="dialog"]')?.focus(); return; }
+            const first = focusable[0], last = focusable[focusable.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        });
+
         // ================= AUTENTICAÇÃO (sessão + CSRF) =================
         // Envolve window.fetch: manda o cookie de sessão e o header X-CSRFToken
         // em toda requisição que altera estado (POST/PUT/PATCH/DELETE).
@@ -52,10 +103,10 @@
                 document.querySelectorAll('[data-needs-auth]').forEach(el => el.classList.toggle('locked', !this.user));
             },
             open(view) {
-                document.getElementById('authModal').style.display = 'flex';
                 this.show(view || 'login');
+                openOverlay(document.getElementById('authModal'), '.auth-form:not([hidden]) input');
             },
-            close() { document.getElementById('authModal').style.display = 'none'; this.msg(''); },
+            close() { closeOverlay(document.getElementById('authModal')); this.msg(''); },
             show(view) {
                 document.querySelectorAll('#authTabs button').forEach(b => b.classList.toggle('active', b.dataset.authtab === view));
                 document.getElementById('authTabs').style.display = view === 'reset' ? 'none' : '';
@@ -123,13 +174,29 @@
         // ---------- Navegação (Buscar + grupos Descobrir / Importar / Meu) ----------
         // Uma única função de troca de painel; a barra agrupa 7 destinos em 4 itens.
         const NAV = document.getElementById('nav');
+        const navMenuHomes = new WeakMap();
+
+        function portalNavMenu(menu) {
+            if (!matchMedia('(max-width: 768px)').matches || navMenuHomes.has(menu)) return;
+            navMenuHomes.set(menu, { parent: menu.parentNode, next: menu.nextSibling });
+            menu.classList.add('nav-menu-mobile');
+            document.body.appendChild(menu);
+        }
+
+        function restoreNavMenu(menu) {
+            const home = navMenuHomes.get(menu);
+            if (!home) return;
+            home.parent.insertBefore(menu, home.next && home.next.isConnected ? home.next : null);
+            menu.classList.remove('nav-menu-mobile');
+            navMenuHomes.delete(menu);
+        }
 
         function closeNavMenus(except) {
             NAV.querySelectorAll('.nav-trigger').forEach(t => {
                 if (t === except) return;
                 t.setAttribute('aria-expanded', 'false');
                 const m = document.getElementById(t.getAttribute('aria-controls'));
-                if (m) m.hidden = true;
+                if (m) { m.hidden = true; restoreNavMenu(m); }
             });
         }
 
@@ -138,17 +205,22 @@
             const target = document.getElementById('tab-' + tab);
             if (!target) return;
             // Gate de login: destinos com data-needs-auth pedem conta.
-            const needsAuth = NAV.querySelector(`[data-tab="${tab}"]`)?.hasAttribute('data-needs-auth');
+            const needsAuth = document.querySelector(`[data-tab="${tab}"]`)?.hasAttribute('data-needs-auth');
             if (needsAuth && !AUTH.user) { closeNavMenus(); if (!opts.silent) AUTH.open('login'); return; }
 
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
             target.classList.add('active');
 
             // Estado visual da barra: item ativo + grupo pai destacado.
-            NAV.querySelectorAll('.nav-item, .nav-sub').forEach(el => el.classList.remove('is-active'));
+            closeNavMenus();
+            NAV.querySelectorAll('.nav-item, .nav-sub').forEach(el => {
+                el.classList.remove('is-active');
+                el.removeAttribute('aria-current');
+            });
             const hit = NAV.querySelector(`[data-tab="${tab}"]`);
             if (hit) {
                 hit.classList.add('is-active');
+                hit.setAttribute('aria-current', 'page');
                 const grp = hit.closest('.nav-group');
                 if (grp) grp.querySelector('.nav-trigger').classList.add('is-active');
             }
@@ -183,6 +255,7 @@
                 closeNavMenus(open ? null : trigger);
                 trigger.setAttribute('aria-expanded', String(!open));
                 if (menu) {
+                    if (!open) portalNavMenu(menu);
                     menu.hidden = open;
                     // Vira o menu para a esquerda se estourar a borda direita da tela.
                     menu.classList.remove('flip');
@@ -192,6 +265,7 @@
         });
         document.addEventListener('click', e => { if (!e.target.closest('.nav-group')) closeNavMenus(); });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNavMenus(); });
+        addEventListener('resize', () => closeNavMenus());
 
         // ---------- Carregar gêneros (não crítico → ocioso) ----------
         function loadGenres() {
@@ -208,9 +282,10 @@
         function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
         const SIGNAL_CLASS = { keyword: 'sig-tema', synopsis: 'sig-sinopse', lexical: 'sig-termos', name: 'sig-nome' };
 
-        // Modais empilháveis (ficha ↔ parecidos): o último aberto fica na frente.
-        let modalZ = 1000;
-        function bringToFront(overlay) { overlay.style.zIndex = ++modalZ; }
+        function setAutocompleteOpen(input, dropdown, open) {
+            dropdown.style.display = open ? 'block' : 'none';
+            input.setAttribute('aria-expanded', String(open));
+        }
 
         function ratingBadge(movie) {
             if (movie.predicted_rating != null)
@@ -268,14 +343,14 @@
                 // Chips "por quê": perfil usa `why`; parecidos usam `shared_genres`.
                 const whyChips = (m.why && m.why.length) ? m.why : (m.shared_genres || []);
                 card.innerHTML = `
-                    <div class="poster-wrap">
+                    <button class="poster-wrap movie-open" type="button" aria-label="Abrir ficha de ${esc(m.title)}${year}">
                         ${m.rank ? `<span class="rank-badge">#${m.rank}</span>` : ''}
                         ${m.canon_rank ? `<span class="canon-badge" title="No cânone (Sight & Sound + clássicos)">🏛️</span>` : ''}
                         <img src="${poster}" alt="${esc(m.title)}" loading="lazy" decoding="async"
                              onerror="this.parentNode.classList.add('no-poster'); this.remove();">
                         <span class="poster-fallback">${esc(m.title)}</span>
-                    </div>
-                    <div class="movie-title">${esc(m.title)}${year}</div>
+                    </button>
+                    <button class="movie-title movie-open" type="button" aria-label="Abrir ficha de ${esc(m.title)}${year}">${esc(m.title)}${year}</button>
                     ${ratingBadge(m)}
                     ${whyChips.length ? `<div class="movie-why">${whyChips.map(w => `<span class="chip">${esc(w)}</span>`).join('')}</div>` : ''}
                     ${explanationBlock(m.explanation)}
@@ -286,8 +361,7 @@
                 // Pôster e título abrem a ficha completa do filme.
                 if (m.tmdb_id) {
                     const open = () => openMovie(m.tmdb_id, { ref: ctx.ref, q: ctx.q, pos: m.rank || (_i + 1) });
-                    card.querySelector('.poster-wrap').addEventListener('click', open);
-                    card.querySelector('.movie-title').addEventListener('click', open);
+                    card.querySelectorAll('.movie-open').forEach(button => button.addEventListener('click', open));
                 }
                 grid.appendChild(card);
             });
@@ -303,29 +377,31 @@
             input.addEventListener('input', () => {
                 clearTimeout(timer);
                 const q = input.value.trim();
-                if (q.length < 2) { dropdown.style.display = 'none'; return; }
+                if (q.length < 2) { setAutocompleteOpen(input, dropdown, false); return; }
                 timer = setTimeout(async () => {
                     try {
                         const people = await (await fetch(`/people?q=${encodeURIComponent(q)}&role=${role}`)).json();
                         dropdown.innerHTML = '';
-                        if (!people.length) { dropdown.style.display = 'none'; return; }
+                        if (!people.length) { setAutocompleteOpen(input, dropdown, false); return; }
                         people.forEach(p => {
-                            const div = document.createElement('div');
+                            const div = document.createElement('button');
+                            div.type = 'button';
                             div.className = 'autocomplete-item';
+                            div.setAttribute('role', 'option');
                             div.innerHTML = `<span>${esc(p.name)}</span><small>${p.credits} filmes</small>`;
                             div.addEventListener('click', () => {
                                 input.value = p.name;
-                                dropdown.style.display = 'none';
+                                setAutocompleteOpen(input, dropdown, false);
                             });
                             dropdown.appendChild(div);
                         });
-                        dropdown.style.display = 'block';
-                    } catch (e) { dropdown.style.display = 'none'; }
+                        setAutocompleteOpen(input, dropdown, true);
+                    } catch (e) { setAutocompleteOpen(input, dropdown, false); }
                 }, 250);
             });
             document.addEventListener('click', e => {
                 if (!input.contains(e.target) && !dropdown.contains(e.target))
-                    dropdown.style.display = 'none';
+                    setAutocompleteOpen(input, dropdown, false);
             });
         }
         setupPersonAutocomplete('directorInput', 'directorDropdown', 'director');
@@ -381,10 +457,11 @@
             const row = document.getElementById('pickedRow');
             row.innerHTML = '';
             picked.forEach(f => {
-                const chip = document.createElement('span');
+                const chip = document.createElement('button');
+                chip.type = 'button';
                 chip.className = 'picked-chip';
                 chip.innerHTML = `${esc(f.title)} <b>&times;</b>`;
-                chip.title = 'Remover';
+                chip.setAttribute('aria-label', `Remover ${f.title} da seleção`);
                 chip.addEventListener('click', () => togglePick(f));
                 row.appendChild(chip);
             });
@@ -394,7 +471,10 @@
             const id = film.tmdb_id;
             if (picked.has(id)) picked.delete(id); else picked.set(id, film);
             const card = document.querySelector(`.pick-card[data-id="${id}"]`);
-            if (card) card.classList.toggle('selected', picked.has(id));
+            if (card) {
+                card.classList.toggle('selected', picked.has(id));
+                card.setAttribute('aria-pressed', String(picked.has(id)));
+            }
             renderPicked();
         }
 
@@ -402,6 +482,10 @@
             const card = document.createElement('div');
             card.className = 'pick-card' + (picked.has(film.tmdb_id) ? ' selected' : '');
             card.dataset.id = film.tmdb_id;
+            card.tabIndex = 0;
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-label', `Selecionar ${film.title}`);
+            card.setAttribute('aria-pressed', String(picked.has(film.tmdb_id)));
             const poster = film.poster || 'https://placehold.co/342x513/141414/e50914?text=%3F';
             const year = film.release_year ? ` (${film.release_year})` : '';
             card.innerHTML = `
@@ -422,6 +506,12 @@
                 openMovie(film.tmdb_id, { ref: 'pick3' });
             });
             card.addEventListener('click', () => togglePick(film));
+            card.addEventListener('keydown', e => {
+                if (e.target !== card) return;
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                togglePick(film);
+            });
             return card;
         }
 
@@ -447,7 +537,7 @@
             input.addEventListener('input', () => {
                 clearTimeout(pickSearchTimeout);
                 const q = input.value.trim();
-                if (q.length < 2) { dropdown.style.display = 'none'; return; }
+                if (q.length < 2) { setAutocompleteOpen(input, dropdown, false); return; }
                 pickSearchTimeout = setTimeout(async () => {
                     let results = [];
                     try {
@@ -456,26 +546,28 @@
                             body: JSON.stringify({ query: q, n: 8 })
                         });
                         results = (await res.json()).results || [];
-                    } catch (e) { dropdown.style.display = 'none'; return; }
+                    } catch (e) { setAutocompleteOpen(input, dropdown, false); return; }
                     dropdown.innerHTML = '';
-                    if (!results.length) { dropdown.style.display = 'none'; return; }
+                    if (!results.length) { setAutocompleteOpen(input, dropdown, false); return; }
                     results.forEach(m => {
-                        const div = document.createElement('div');
+                        const div = document.createElement('button');
+                        div.type = 'button';
                         div.className = 'autocomplete-item';
+                        div.setAttribute('role', 'option');
                         const year = m.release_year ? ` (${m.release_year})` : '';
                         div.innerHTML = `<span>${esc(m.title)}${year}</span>`;
                         div.addEventListener('click', () => {
                             togglePick({ tmdb_id: m.tmdb_id, title: m.title,
                                          release_year: m.release_year, poster: m.poster });
-                            input.value = ''; dropdown.style.display = 'none';
+                            input.value = ''; setAutocompleteOpen(input, dropdown, false);
                         });
                         dropdown.appendChild(div);
                     });
-                    dropdown.style.display = 'block';
+                    setAutocompleteOpen(input, dropdown, true);
                 }, 280);
             });
             document.addEventListener('click', e => {
-                if (!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.style.display = 'none';
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) setAutocompleteOpen(input, dropdown, false);
             });
         })();
 
@@ -567,7 +659,9 @@
             catch (e) { return new Set(); }
         }
         const myProviders = loadMyProviders();
-        let streamingOnly = localStorage.getItem('streamingOnly') === '1';
+        let streamingOnly = false;
+        try { streamingOnly = localStorage.getItem('streamingOnly') === '1'; }
+        catch (e) { /* armazenamento bloqueado: mantém a preferência só nesta página */ }
         let providerCatalog = [];    // [{id, name, logo}] disponíveis na região
         let streamingRegion = 'BR';
         let activeRerun = null;      // re-executa a última consulta de descoberta (tab)
@@ -588,8 +682,10 @@
         }
 
         function saveStreaming() {
-            localStorage.setItem('myProviders', JSON.stringify([...myProviders]));
-            localStorage.setItem('streamingOnly', streamingOnly ? '1' : '0');
+            try {
+                localStorage.setItem('myProviders', JSON.stringify([...myProviders]));
+                localStorage.setItem('streamingOnly', streamingOnly ? '1' : '0');
+            } catch (e) { /* armazenamento bloqueado: a interface continua funcional */ }
             document.getElementById('streamingCount').textContent = myProviders.size;
         }
 
@@ -701,9 +797,7 @@
 
         function openSimilar(tmdbId, title) {
             modalRerun = () => openSimilar(tmdbId, title);
-            similarModal.style.display = 'flex';
-            bringToFront(similarModal);
-            document.body.classList.add('modal-open');
+            openOverlay(similarModal);
             const filtered = !!streamingParams();
             document.getElementById('similarTitle').textContent = 'Parecidos com ' + (title || 'este filme');
             document.getElementById('similarStatus').textContent = 'Buscando parecidos...';
@@ -723,22 +817,17 @@
         }
 
         function closeSimilar() {
-            similarModal.style.display = 'none';
-            // A ficha pode estar aberta por baixo — só libera o scroll se não estiver.
-            if (movieModal.style.display === 'none') document.body.classList.remove('modal-open');
+            closeOverlay(similarModal);
             modalRerun = null;
         }
         document.getElementById('similarClose').addEventListener('click', closeSimilar);
         similarModal.addEventListener('click', e => { if (e.target === similarModal) closeSimilar(); });
         document.addEventListener('keydown', e => {
             if (e.key !== 'Escape') return;
-            const simOpen = similarModal.style.display !== 'none';
-            const movOpen = movieModal.style.display !== 'none';
-            if (simOpen && movOpen) {
-                // Fecha o que está na frente (maior z-index).
-                (+similarModal.style.zIndex >= +movieModal.style.zIndex ? closeSimilar : closeMovie)();
-            } else if (simOpen) closeSimilar();
-            else if (movOpen) closeMovie();
+            const top = topOpenOverlay();
+            if (top === similarModal) closeSimilar();
+            else if (top === movieModal) closeMovie();
+            else if (top === document.getElementById('authModal')) AUTH.close();
         });
 
         // --- Aba "Parecidos": escolhe um filme e mostra os parecidos inline ---
@@ -767,7 +856,7 @@
             input.addEventListener('input', () => {
                 clearTimeout(timer);
                 const q = input.value.trim();
-                if (q.length < 2) { dropdown.style.display = 'none'; return; }
+                if (q.length < 2) { setAutocompleteOpen(input, dropdown, false); return; }
                 timer = setTimeout(async () => {
                     let results = [];
                     try {
@@ -776,26 +865,28 @@
                             body: JSON.stringify({ query: q, n: 8 })
                         });
                         results = (await res.json()).results || [];
-                    } catch (e) { dropdown.style.display = 'none'; return; }
+                    } catch (e) { setAutocompleteOpen(input, dropdown, false); return; }
                     dropdown.innerHTML = '';
-                    if (!results.length) { dropdown.style.display = 'none'; return; }
+                    if (!results.length) { setAutocompleteOpen(input, dropdown, false); return; }
                     results.forEach(m => {
-                        const div = document.createElement('div');
+                        const div = document.createElement('button');
+                        div.type = 'button';
                         div.className = 'autocomplete-item';
+                        div.setAttribute('role', 'option');
                         const year = m.release_year ? ` (${m.release_year})` : '';
                         div.innerHTML = `<span>${esc(m.title)}${year}</span>`;
                         div.addEventListener('click', () => {
                             input.value = m.title;
-                            dropdown.style.display = 'none';
+                            setAutocompleteOpen(input, dropdown, false);
                             loadSimilarInto(m.tmdb_id, m.title);
                         });
                         dropdown.appendChild(div);
                     });
-                    dropdown.style.display = 'block';
+                    setAutocompleteOpen(input, dropdown, true);
                 }, 280);
             });
             document.addEventListener('click', e => {
-                if (!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.style.display = 'none';
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) setAutocompleteOpen(input, dropdown, false);
             });
         })();
 
@@ -872,28 +963,31 @@
                             </span>
                             ${d.collection ? `<button class="btn-similar" type="button" id="sheetCollBtn"
                                 title="Criar lista com toda a franquia ${esc(d.collection.name)}">📀 Lista da franquia</button>` : ''}
-                            <span class="rate-status" id="sheetActionStatus"></span>
+                            <span class="rate-status" id="sheetActionStatus" role="status" aria-live="polite"></span>
                         </div>
                     </div>
                 </div>
                 <div class="sheet-section sheet-rating">
                     <h3>Minha avaliação</h3>
                     <div class="rate-row">
-                        <div class="stars" id="rateStars" title="Clique para dar a nota (meia estrela vale)">
+                        <div class="stars" id="rateStars" role="slider" tabindex="0"
+                             aria-label="Minha nota" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" aria-valuetext="Sem nota"
+                             title="Clique ou use as setas para dar a nota (meia estrela vale)">
                             <span class="stars-bg">★★★★★<span class="stars-fill" id="rateStarsFill">★★★★★</span></span>
                         </div>
                         <span class="rate-value" id="rateValue"></span>
-                        <button class="rate-heart" id="rateHeart" type="button" title="Curti este filme">♥</button>
+                        <button class="rate-heart" id="rateHeart" type="button" aria-label="Marcar como gostei" aria-pressed="false" title="Curti este filme">♥</button>
                         <label class="rate-date-label">assisti em
                             <input type="date" id="rateDate" class="mini-input rate-date">
                         </label>
                     </div>
                     <textarea id="rateReview" class="rate-review" rows="3"
+                              aria-label="Minha resenha"
                               placeholder="Escreva uma resenha (opcional)..."></textarea>
                     <div class="rate-actions">
                         <button class="btn-primary" id="rateSave" type="button">Salvar no diário</button>
                         <button class="btn-secondary rate-remove" id="rateRemove" type="button">Remover do diário</button>
-                        <span class="rate-status" id="rateStatus"></span>
+                        <span class="rate-status" id="rateStatus" role="status" aria-live="polite" aria-atomic="true"></span>
                     </div>
                 </div>
                 ${d.overview ? `<div class="sheet-section"><h3>Sinopse</h3>
@@ -909,10 +1003,12 @@
                     <div id="versionForm" class="version-form" style="display:none">
                         <div class="version-form-row">
                             <input type="text" id="vName" class="text-input"
+                                   aria-label="Nome da versão do filme"
                                    placeholder="Nome da versão (ex: Final Cut, Versão de Cinema, Director's Cut...)">
-                            <input type="number" id="vRuntime" class="mini-input" placeholder="min" min="1" max="1000">
+                            <input type="number" id="vRuntime" class="mini-input" aria-label="Duração da versão em minutos" placeholder="min" min="1" max="1000">
                         </div>
                         <textarea id="vNotes" class="rate-review" rows="2"
+                                  aria-label="Detalhes da versão do filme"
                                   placeholder="O que muda nessa versão? Onde encontrar? (opcional)"></textarea>
                         <div class="rate-actions">
                             <label class="v-best-label"><input type="checkbox" id="vBest"> 🏆 é a melhor versão</label>
@@ -953,8 +1049,8 @@
                             ${v.runtime ? `<span class="version-runtime">${runtimeFmt(v.runtime)}</span>` : ''}
                             ${v.is_best ? '<span class="version-best">🏆 melhor versão</span>' : ''}
                             <span class="version-actions">
-                                <button type="button" class="v-edit" title="Editar">✎</button>
-                                <button type="button" class="v-del" title="Remover">&times;</button>
+                                <button type="button" class="v-edit" aria-label="Editar ${esc(v.name)}" title="Editar">✎</button>
+                                <button type="button" class="v-del" aria-label="Remover ${esc(v.name)}" title="Remover">&times;</button>
                             </span>
                         </div>
                         ${v.notes ? `<p class="version-notes">${esc(v.notes)}</p>` : ''}`;
@@ -1116,8 +1212,13 @@
             const paint = r => {
                 fill.style.width = (r / 5 * 100) + '%';
                 value.textContent = r ? r.toFixed(1).replace('.', ',') : '';
+                stars.setAttribute('aria-valuenow', String(r));
+                stars.setAttribute('aria-valuetext', r ? `${r.toFixed(1).replace('.', ',')} de 5` : 'Sem nota');
             };
-            const paintHeart = () => heart.classList.toggle('on', liked);
+            const paintHeart = () => {
+                heart.classList.toggle('on', liked);
+                heart.setAttribute('aria-pressed', String(liked));
+            };
             paint(rating); paintHeart();
 
             // Posição do mouse/toque → nota em meias-estrelas.
@@ -1131,6 +1232,14 @@
             stars.addEventListener('click', e => {
                 const r = ratingFromEvent(e);
                 rating = (r === rating) ? 0 : r;   // clicar na mesma nota limpa
+                paint(rating);
+            });
+            stars.addEventListener('keydown', e => {
+                if (!['ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+                e.preventDefault();
+                if (e.key === 'Home') rating = 0;
+                else if (e.key === 'End') rating = 5;
+                else rating = Math.min(5, Math.max(0, rating + (['ArrowRight', 'ArrowUp'].includes(e.key) ? 0.5 : -0.5)));
                 paint(rating);
             });
             heart.addEventListener('click', () => { liked = !liked; paintHeart(); });
@@ -1168,9 +1277,7 @@
 
         async function openMovie(tmdbId, ctx) {
             ctx = ctx || {};
-            movieModal.style.display = 'flex';
-            bringToFront(movieModal);
-            document.body.classList.add('modal-open');
+            openOverlay(movieModal);
             movieModal.querySelector('.modal').scrollTop = 0;
             const box = document.getElementById('movieSheetBody');
             box.innerHTML = '<p class="status sheet-loading">Carregando ficha...</p>';
@@ -1192,8 +1299,7 @@
         }
 
         function closeMovie() {
-            movieModal.style.display = 'none';
-            if (similarModal.style.display === 'none') document.body.classList.remove('modal-open');
+            closeOverlay(movieModal);
         }
         document.getElementById('movieClose').addEventListener('click', closeMovie);
         movieModal.addEventListener('click', e => { if (e.target === movieModal) closeMovie(); });
@@ -1304,6 +1410,9 @@
         function listCard(l) {
             const card = document.createElement('div');
             card.className = 'list-card';
+            card.tabIndex = 0;
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-label', `Abrir lista ${l.name}, ${l.n_items} filmes`);
             const posters = (l.posters || [])
                 .map(p => `<img src="${p}" alt="" loading="lazy">`).join('');
             card.innerHTML = `
@@ -1312,7 +1421,7 @@
                     <div class="list-card-name">${esc(l.name)}</div>
                     <div class="list-card-meta">${l.n_items} filme(s)</div>
                 </div>
-                <button class="list-del" type="button" title="Apagar lista">&times;</button>`;
+                <button class="list-del" type="button" aria-label="Apagar lista ${esc(l.name)}" title="Apagar lista">&times;</button>`;
             card.querySelector('.list-del').addEventListener('click', async e => {
                 e.stopPropagation();
                 if (!confirm(`Apagar a lista “${l.name}”?`)) return;
@@ -1320,6 +1429,11 @@
                 loadLists();
             });
             card.addEventListener('click', () => openList(l.list_id));
+            card.addEventListener('keydown', e => {
+                if (e.target !== card || (e.key !== 'Enter' && e.key !== ' ')) return;
+                e.preventDefault();
+                openList(l.list_id);
+            });
             return card;
         }
 
@@ -1385,9 +1499,9 @@
                 <img class="list-item-poster" src="${poster}" alt="" loading="lazy">
                 <div class="list-item-title">${esc(it.title)}${year}</div>
                 <span class="list-item-actions">
-                    <button class="list-move" type="button" data-dir="-1" title="Subir">▲</button>
-                    <button class="list-move" type="button" data-dir="1" title="Descer">▼</button>
-                    <button class="list-item-del" type="button" title="Remover da lista">&times;</button>
+                    <button class="list-move" type="button" data-dir="-1" aria-label="Mover ${esc(it.title)} para cima" title="Subir">▲</button>
+                    <button class="list-move" type="button" data-dir="1" aria-label="Mover ${esc(it.title)} para baixo" title="Descer">▼</button>
+                    <button class="list-item-del" type="button" aria-label="Remover ${esc(it.title)} da lista" title="Remover da lista">&times;</button>
                 </span>`;
             const open = () => openMovie(it.tmdb_id, { ref: 'list' });
             row.querySelector('.list-item-poster').addEventListener('click', open);
@@ -1534,31 +1648,33 @@
             input.addEventListener('input', () => {
                 clearTimeout(timer);
                 const qs = input.value.trim();
-                if (qs.length < 2) { dropdown.style.display = 'none'; return; }
+                if (qs.length < 2) { setAutocompleteOpen(input, dropdown, false); return; }
                 timer = setTimeout(async () => {
                     try {
                         const people = await (await fetch(
                             `/people?q=${encodeURIComponent(qs)}&role=director`)).json();
                         dropdown.innerHTML = '';
-                        if (!people.length) { dropdown.style.display = 'none'; return; }
+                        if (!people.length) { setAutocompleteOpen(input, dropdown, false); return; }
                         people.forEach(p => {
-                            const div = document.createElement('div');
+                            const div = document.createElement('button');
+                            div.type = 'button';
                             div.className = 'autocomplete-item';
+                            div.setAttribute('role', 'option');
                             div.innerHTML = `<span>${esc(p.name)}</span><small>${p.credits} filmes</small>`;
                             div.addEventListener('click', () => {
                                 input.value = p.name;
-                                dropdown.style.display = 'none';
+                                setAutocompleteOpen(input, dropdown, false);
                                 loadEssentials({ director: p.name }, p.name);
                             });
                             dropdown.appendChild(div);
                         });
-                        dropdown.style.display = 'block';
-                    } catch (e) { dropdown.style.display = 'none'; }
+                        setAutocompleteOpen(input, dropdown, true);
+                    } catch (e) { setAutocompleteOpen(input, dropdown, false); }
                 }, 250);
             });
             document.addEventListener('click', e => {
                 if (!input.contains(e.target) && !dropdown.contains(e.target))
-                    dropdown.style.display = 'none';
+                    setAutocompleteOpen(input, dropdown, false);
             });
         })();
 
