@@ -16,12 +16,29 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from typing import Optional
 
 import numpy as np
 
 from core import catalog, db
+
+# Personagens do TMDB vêm com muito ruído em papéis menores ("Guard #2",
+# "Himself", "Waiter (uncredited)"). Ficamos com o elenco de topo e um filtro leve.
+_CHAR_STOP = {"himself", "herself", "themselves", "self", "him", "her"}
+
+
+def _clean_character(raw: Optional[str]) -> Optional[str]:
+    if not raw:
+        return None
+    c = re.sub(r"\s*\([^)]*\)\s*$", "", raw).strip(" -/·")  # tira "(voice)", "(uncredited)"
+    lo = c.lower()
+    if not c or len(c) > 60 or lo in _CHAR_STOP or "uncredited" in lo:
+        return None
+    if re.search(r"#\s*\d+\s*$", c):  # "Cop #2", "Soldier # 3"
+        return None
+    return c
 
 INDEX_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index")
 
@@ -178,17 +195,19 @@ def _build_keyword_documents(ids: np.ndarray) -> list[str]:
     return docs
 
 
-def _people_documents(ids: np.ndarray, n_cast: int = 6) -> dict[int, str]:
-    """Por filme: diretor(es) + elenco principal (por ordem de crédito). Permite
-    que uma busca em texto livre citando pessoas ('filme do scorsese sobre máfia')
-    case o filme certo, sem depender só dos campos de diretor/ator."""
+def _people_documents(ids: np.ndarray, n_cast: int = 6, n_char: int = 8) -> dict[int, str]:
+    """Por filme: diretor(es) + elenco principal + **nomes de personagem** do
+    elenco de topo. Permite que uma busca citando pessoas ('filme do scorsese
+    sobre máfia') ou personagens ('filme do Toretto', 'Roman Pearce') case o
+    filme certo, sem depender só dos campos de diretor/ator."""
     from collections import defaultdict
 
     directors: dict[int, list[str]] = defaultdict(list)
     cast: dict[int, list[tuple[int, str]]] = defaultdict(list)
+    chars: dict[int, list[tuple[int, str]]] = defaultdict(list)
     rows = db.query(
         "SELECT mp.tmdb_id AS tmdb_id, p.name AS name, mp.role AS role, "
-        "mp.credit_order AS credit_order "
+        "mp.credit_order AS credit_order, mp.character AS character "
         "FROM movie_people mp JOIN people p ON p.person_id = mp.person_id "
         "WHERE mp.role IN ('actor', 'director')"
     )
@@ -198,15 +217,26 @@ def _people_documents(ids: np.ndarray, n_cast: int = 6) -> dict[int, str]:
         else:
             order = r["credit_order"] if r["credit_order"] is not None else 999
             cast[r["tmdb_id"]].append((order, r["name"]))
+            ch = _clean_character(r["character"])
+            if ch:
+                chars[r["tmdb_id"]].append((order, ch))
     out: dict[int, str] = {}
     for t in ids.tolist():
         tid = int(t)
         names = [nm for _o, nm in sorted(cast.get(tid, []))[:n_cast]]
+        cnames: list[str] = []
+        for _o, ch in sorted(chars.get(tid, []))[:n_char]:
+            for part in re.split(r"\s*/\s*", ch):  # "Bruce Wayne / Batman"
+                part = part.strip()
+                if part and part not in cnames:
+                    cnames.append(part)
         parts = []
         if directors.get(tid):
             parts.append("dirigido por " + ", ".join(directors[tid][:2]))
         if names:
             parts.append("com " + ", ".join(names))
+        if cnames:
+            parts.append("personagens: " + ", ".join(cnames))
         out[tid] = " ".join(parts)
     return out
 

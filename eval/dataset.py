@@ -58,7 +58,7 @@ def load_queries(split: str | None = None, path: str = QUERIES_PATH) -> list[Eva
                 )
             )
     if split and split != "all":
-        if split not in ("dev", "test", "hard"):
+        if split not in ("dev", "test", "hard", "entity"):
             raise ValueError(f"split inválido: {split!r} (use dev|test|all)")
         out = [q for q in out if q.split == split]
     if not out:
