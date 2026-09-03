@@ -11,73 +11,87 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
-        .adm { max-width: 1120px; margin: 0 auto; padding: 32px 20px 80px; }
-        .adm h1 { font-size: 1.5rem; }
-        .adm .sub { color: var(--gray); font-size: var(--fs-sm); margin: 4px 0 20px; }
+        .adm { max-width: 1120px; margin: 0 auto; padding: 28px 16px 80px; }
+        .adm h1 { font-size: 1.4rem; }
+        .adm .sub { color: var(--gray); font-size: var(--fs-sm); margin: 4px 0 18px; }
         .adm .sub a { color: var(--primary-hover); }
-        .adm-nav { display: flex; gap: 8px; margin-bottom: 22px; align-items: center; flex-wrap: wrap; }
-        .adm-nav button { font: inherit; font-size: var(--fs-sm); padding: 6px 14px; border-radius: 999px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--gray); cursor: pointer; }
+        .adm-nav { display: flex; gap: 8px; margin-bottom: 18px; align-items: center; flex-wrap: wrap; }
+        .adm-nav button { font: inherit; font-size: var(--fs-sm); padding: 6px 13px; border-radius: 999px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--gray); cursor: pointer; }
         .adm-nav button.on { color: var(--light); border-color: var(--accent-border); background: var(--accent-soft); }
         .adm-nav .days { margin-left: auto; color: var(--gray); font-size: var(--fs-sm); }
         .adm-nav select { font: inherit; font-size: var(--fs-sm); background: var(--input-bg); color: var(--light); border: 1px solid var(--input-border); border-radius: var(--radius-sm); padding: 5px 8px; }
-        .adm-tiles { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
-        .adm-tile { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 12px 18px; min-width: 120px; }
-        .adm-tile .n { font-size: 1.6rem; font-weight: 700; color: var(--light); }
-        .adm-tile .l { font-size: var(--fs-xs); color: var(--gray); text-transform: uppercase; letter-spacing: .04em; }
-        .adm-spark { display: flex; align-items: flex-end; gap: 3px; height: 46px; margin: 10px 0 24px; }
+        .adm-sub { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 16px; overflow-x: auto; }
+        .adm-sub button { font: inherit; font-size: var(--fs-xs); padding: 5px 11px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--gray); cursor: pointer; white-space: nowrap; }
+        .adm-sub button.on { color: var(--light); background: var(--input-bg); border-color: var(--card-border); }
+
+        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr)); gap: 10px; margin-bottom: 18px; }
+        .kpi { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 11px 13px; min-width: 0; }
+        .kpi .v { font-size: 1.4rem; font-weight: 700; color: var(--light); line-height: 1.1; }
+        .kpi .l { font-size: 10px; color: var(--gray); text-transform: uppercase; letter-spacing: .03em; }
+        .kpi .d { font-size: 10px; margin-top: 3px; white-space: nowrap; }
+        .kpi .d.up { color: #7fdca4; } .kpi .d.down { color: #f0a0a4; } .kpi .d.flat { color: var(--gray); }
+
+        .adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 14px; }
+        .adm-card { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 15px 16px; min-width: 0; overflow: hidden; }
+        .adm-card h3 { font-size: var(--fs-md); margin: 0 0 3px; color: var(--light); }
+        .adm-card .cap { font-size: var(--fs-xs); color: var(--gray); margin-bottom: 10px; }
+        .adm-card.wide { grid-column: 1 / -1; }
+        .chart-box { position: relative; height: 220px; }
+        .chart-box canvas { max-width: 100%; }
+
+        .adm-rank { font-size: var(--fs-sm); list-style: none; }
+        .adm-rank li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--card-border); }
+        .adm-rank li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+        .adm-rank li b { color: var(--gray); font-weight: 600; flex: none; }
+        .adm-card.zero .adm-rank li span { color: #f0b8bb; }
+
+        .cloud { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; line-height: 1.15; }
+        .cloud span { color: var(--gray); }
+        .cloud span:hover { color: var(--primary-hover); }
+
+        .adm-scroll { overflow-x: auto; }
+        .adm-mini { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); min-width: 340px; }
+        .adm-mini td, .adm-mini th { padding: 5px 8px; border-bottom: 1px solid var(--card-border); text-align: right; white-space: nowrap; }
+        .adm-mini th:first-child, .adm-mini td:first-child { text-align: left; color: var(--gray); }
+
+        .heat-wrap { overflow-x: auto; }
+        .heat { display: grid; grid-template-columns: 32px repeat(24, 1fr); gap: 2px; font-size: 10px; min-width: 520px; }
+        .heat .hh { color: var(--gray); text-align: center; }
+        .heat .dd { color: var(--gray); align-self: center; }
+        .heat i { aspect-ratio: 1; border-radius: 2px; background: var(--card-border); display: block; }
+
+        /* --- Contas --- */
+        .adm-tiles { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .adm-tile { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 11px 16px; min-width: 108px; }
+        .adm-tile .n { font-size: 1.5rem; font-weight: 700; color: var(--light); }
+        .adm-tile .l { font-size: 10px; color: var(--gray); text-transform: uppercase; letter-spacing: .03em; }
+        .adm-spark { display: flex; align-items: flex-end; gap: 3px; height: 42px; margin: 8px 0 20px; }
         .adm-spark i { flex: 1; background: var(--accent-border); border-radius: 2px 2px 0 0; min-height: 2px; }
         .adm-spark i.z { background: var(--card-border); }
-        .adm-scroll { overflow-x: auto; border-radius: var(--radius-sm); }
-        table.adm-t { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); min-width: 640px; }
-        .adm-t th, .adm-t td { padding: 8px 12px; border-bottom: 1px solid var(--card-border); text-align: right; white-space: nowrap; }
+        table.adm-t { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); min-width: 620px; }
+        .adm-t th, .adm-t td { padding: 8px 10px; border-bottom: 1px solid var(--card-border); text-align: right; white-space: nowrap; }
         .adm-t th:first-child, .adm-t td:first-child, .adm-t th:nth-child(2), .adm-t td:nth-child(2) { text-align: left; }
-        .adm-t thead th { color: var(--gray); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; }
+        .adm-t thead th { color: var(--gray); font-size: 10px; text-transform: uppercase; letter-spacing: .03em; }
         .adm-t tbody tr { cursor: pointer; }
         .adm-t tbody tr:hover { background: var(--card-hover); }
         .adm-t tr.sel { background: var(--accent-soft); }
         .adm-t .off { color: var(--gray); }
-        .pill { font-size: var(--fs-xs); border-radius: 999px; padding: 1px 7px; border: 1px solid var(--card-border); }
+        .pill { font-size: 10px; border-radius: 999px; padding: 1px 7px; border: 1px solid var(--card-border); }
         .pill.ok { color: #7fdca4; border-color: rgba(127,220,164,.35); }
         .pill.no { color: var(--gray); }
-        .adm-detail { margin-top: 22px; background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 20px; }
-        .adm-detail h2 { font-size: 1.1rem; }
-        .adm-detail .meta { color: var(--gray); font-size: var(--fs-sm); margin: 4px 0 14px; }
-        .adm-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 18px; }
+        .adm-detail { margin-top: 20px; background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 16px 18px; }
+        .adm-detail h2 { font-size: 1.05rem; word-break: break-all; }
+        .adm-detail .meta { color: var(--gray); font-size: var(--fs-sm); margin: 4px 0 12px; }
+        .adm-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 16px; }
         .adm-actions button { font: inherit; font-size: var(--fs-sm); padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--light); cursor: pointer; }
         .adm-actions button:hover { border-color: var(--border-strong); }
         .adm-actions button.danger { color: var(--primary-hover); border-color: var(--accent-border); }
-        .adm-detail h3 { font-size: var(--fs-md); margin: 14px 0 6px; color: var(--gray); }
+        .adm-detail h3 { font-size: var(--fs-md); margin: 12px 0 5px; color: var(--gray); }
         .adm-detail ul { list-style: none; }
-        .adm-detail li { padding: 5px 0; border-bottom: 1px solid var(--card-border); font-size: var(--fs-sm); }
+        .adm-detail li { padding: 5px 0; border-bottom: 1px solid var(--card-border); font-size: var(--fs-sm); word-break: break-word; }
         .adm-detail .rv { color: var(--gray); font-style: italic; }
         .adm-msg { min-height: 1.3em; font-size: var(--fs-sm); color: var(--gray); }
         .adm-empty { color: var(--gray); font-size: var(--fs-sm); }
-
-        /* --- Analytics --- */
-        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-        .kpi { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 12px 14px; }
-        .kpi .v { font-size: 1.5rem; font-weight: 700; color: var(--light); }
-        .kpi .l { font-size: var(--fs-xs); color: var(--gray); text-transform: uppercase; letter-spacing: .04em; }
-        .kpi .d { font-size: var(--fs-xs); margin-top: 2px; }
-        .kpi .d.up { color: #7fdca4; } .kpi .d.down { color: #f0a0a4; } .kpi .d.flat { color: var(--gray); }
-        .adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-        .adm-card { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 16px 18px; min-width: 0; }
-        .adm-card h3 { font-size: var(--fs-md); margin: 0 0 4px; color: var(--light); }
-        .adm-card .cap { font-size: var(--fs-xs); color: var(--gray); margin-bottom: 10px; }
-        .adm-card.wide { grid-column: 1 / -1; }
-        .chart-box { position: relative; height: 240px; }
-        .adm-rank { font-size: var(--fs-sm); list-style: none; }
-        .adm-rank li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--card-border); }
-        .adm-rank li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .adm-rank li b { color: var(--gray); font-weight: 600; flex: none; }
-        .adm-card.zero .adm-rank li span { color: #f0b8bb; }
-        .adm-mini { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
-        .adm-mini td, .adm-mini th { padding: 5px 8px; border-bottom: 1px solid var(--card-border); text-align: right; }
-        .adm-mini th:first-child, .adm-mini td:first-child { text-align: left; color: var(--gray); }
-        .heat { display: grid; grid-template-columns: 34px repeat(24, 1fr); gap: 2px; font-size: 10px; }
-        .heat .hh { color: var(--gray); text-align: center; }
-        .heat .dd { color: var(--gray); align-self: center; }
-        .heat i { aspect-ratio: 1; border-radius: 2px; background: var(--card-border); display: block; }
         [hidden] { display: none !important; }
     </style>
 </head>
@@ -113,7 +127,16 @@
             <div id="usageStatus" class="adm-empty">carregando…</div>
             <div id="usageBody" hidden>
                 <div class="kpis" id="kpis"></div>
-                <div class="adm-grid" id="usageGrid"></div>
+                <div class="adm-sub" id="usageSub">
+                    <button data-sub="overview" class="on" type="button">Visão geral</button>
+                    <button data-sub="search" type="button">Busca</button>
+                    <button data-sub="content" type="button">Conteúdo</button>
+                    <button data-sub="sessions" type="button">Sessões</button>
+                </div>
+                <div class="adm-grid" id="paneOverview"></div>
+                <div class="adm-grid" id="paneSearch" hidden></div>
+                <div class="adm-grid" id="paneContent" hidden></div>
+                <div class="adm-grid" id="paneSessions" hidden></div>
             </div>
         </section>
     </div>
@@ -210,42 +233,53 @@
 
         // ================= USO =================
         const C = { search: '#e50914', open: '#4a9ed8', rec: '#7fdca4', zero: '#f0a020', a: '#7fdca4', b: '#4a9ed8', grid: 'rgba(255,255,255,0.06)', txt: '#9a9aa2' };
-        const KLABEL = { search: 'busca', similar: 'parecidos', essentials: 'essenciais', recommend: 'recs (favoritos)', recommend_history: 'recs (diário)', recommend_letterboxd: 'recs (Letterboxd)', open: 'ficha aberta' };
         let charts = [];
-        function chartsReady() { return typeof Chart !== 'undefined'; }
+        let DATA = null, SUB = 'overview';
 
         function baseOpts(extra) {
             return Object.assign({
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { labels: { color: C.txt, boxWidth: 12, font: { size: 11 } } } },
                 scales: {
-                    x: { grid: { color: C.grid }, ticks: { color: C.txt, maxRotation: 0, autoSkipPadding: 12, font: { size: 10 } } },
+                    x: { grid: { color: C.grid }, ticks: { color: C.txt, maxRotation: 0, autoSkipPadding: 14, font: { size: 10 } } },
                     y: { grid: { color: C.grid }, ticks: { color: C.txt, font: { size: 10 } }, beginAtZero: true },
                 },
             }, extra || {});
         }
         function mkChart(id, cfg) {
-            const el = $(id); if (!el || !chartsReady()) return;
+            const el = $(id);
+            if (!el || typeof Chart === 'undefined') return;
             charts.push(new Chart(el.getContext('2d'), cfg));
         }
+        const stackScale = () => ({ scales: {
+            x: { stacked: true, grid: { color: C.grid }, ticks: { color: C.txt, font: { size: 10 } } },
+            y: { stacked: true, grid: { color: C.grid }, ticks: { color: C.txt, font: { size: 10 } }, beginAtZero: true },
+        } });
 
-        function kpi(label, o, fmt) {
+        function kpiCard(label, o, fmt, invert) {
             const v = fmt ? fmt(o.v) : o.v;
             let d = '', cls = 'flat';
-            if (o.delta != null) {
-                const arrow = o.delta > 0 ? '▲' : o.delta < 0 ? '▼' : '–';
-                cls = o.delta > 0 ? 'up' : o.delta < 0 ? 'down' : 'flat';
-                // pra zero_rate, subir é ruim → inverte a cor
-                if (label === 'sem resultado' && o.delta !== 0) cls = o.delta > 0 ? 'down' : 'up';
-                d = `<div class="d ${cls}">${arrow} ${Math.abs(o.delta)}% vs período anterior</div>`;
+            if (o.delta != null && o.delta !== 0) {
+                const up = o.delta > 0;
+                cls = (invert ? !up : up) ? 'up' : 'down';
+                d = `<div class="d ${cls}" title="vs período anterior">${up ? '▲' : '▼'} ${Math.abs(o.delta)}%</div>`;
             }
             return `<div class="kpi"><div class="v">${v}</div><div class="l">${label}</div>${d}</div>`;
         }
 
-        function rankList(items, keyFrom, keyTo) {
+        function rankList(items, fmt) {
             if (!items || !items.length) return '<div class="adm-empty">nada no período</div>';
             return `<ul class="adm-rank">${items.map(x =>
-                `<li><span>${esc(keyFrom ? (x[keyFrom] + ' → ' + x[keyTo]) : x.query)}</span><b>${x.count}</b></li>`).join('')}</ul>`;
+                `<li><span>${esc(fmt ? fmt(x) : x.query)}</span><b>${x.count}</b></li>`).join('')}</ul>`;
+        }
+        const movieLabel = x => `${x.title || '#' + x.tmdb_id}${x.year ? ' (' + x.year + ')' : ''}`;
+
+        function wordCloud(words) {
+            if (!words || !words.length) return '<div class="adm-empty">sem buscas no período</div>';
+            const max = Math.max(...words.map(w => w.count)), min = Math.min(...words.map(w => w.count));
+            const size = c => (0.8 + 1.9 * (c - min) / Math.max(1, max - min)).toFixed(2);
+            return `<div class="cloud">${words.map(w =>
+                `<span style="font-size:${size(w.count)}rem" title="${w.count} busca(s)">${esc(w.word)}</span>`).join('')}</div>`;
         }
 
         function heatmap(m) {
@@ -255,100 +289,96 @@
             for (let hr = 0; hr < 24; hr++) h += `<div class="hh">${hr % 3 === 0 ? hr : ''}</div>`;
             m.forEach((row, di) => {
                 h += `<div class="dd">${DOW[di]}</div>`;
-                row.forEach(v => {
-                    const a = v ? (0.12 + 0.88 * v / max) : 0;
-                    h += `<i style="${v ? `background:rgba(229,9,20,${a.toFixed(2)})` : ''}" title="${DOW[di]} ${''}h: ${v}"></i>`;
+                row.forEach((v, hr) => {
+                    const a = v ? (0.14 + 0.86 * v / max) : 0;
+                    h += `<i style="${v ? `background:rgba(229,9,20,${a.toFixed(2)})` : ''}" title="${DOW[di]} ${hr}h: ${v}"></i>`;
                 });
             });
-            return `<div class="heat">${h}</div>`;
+            return `<div class="heat-wrap"><div class="heat">${h}</div></div>`;
+        }
+
+        function renderSub() {
+            charts.forEach(c => { try { c.destroy(); } catch (e) {} }); charts = [];
+            const d = DATA; if (!d) return;
+            const by = d.by_day || [], labels = by.map(x => x.day.slice(5));
+            ['Overview', 'Search', 'Content', 'Sessions'].forEach(p =>
+                $('pane' + p).hidden = (p.toLowerCase() !== SUB));
+
+            if (SUB === 'overview') {
+                $('paneOverview').innerHTML = `
+                  <div class="adm-card wide"><h3>Volume por dia</h3><div class="cap">buscas · fichas abertas · recomendações · buscas sem resultado</div><div class="chart-box"><canvas id="cVol"></canvas></div></div>
+                  <div class="adm-card"><h3>Funil da sessão</h3><div class="cap">sessões distintas que chegaram a cada etapa</div><div class="chart-box"><canvas id="cFun"></canvas></div></div>
+                  <div class="adm-card"><h3>Latência por etapa</h3><div class="cap">amostra da janela (ms)</div>${latTable(d)}</div>`;
+                mkChart('cVol', { type: 'line', data: { labels, datasets: [
+                    { label: 'buscas', data: by.map(x => x.search), borderColor: C.search, backgroundColor: C.search + '22', fill: true, tension: .3, pointRadius: 0, borderWidth: 2 },
+                    { label: 'fichas', data: by.map(x => x.open), borderColor: C.open, tension: .3, pointRadius: 0, borderWidth: 2 },
+                    { label: 'recs', data: by.map(x => x.rec), borderColor: C.rec, tension: .3, pointRadius: 0, borderWidth: 2 },
+                    { label: 'sem resultado', data: by.map(x => x.zero), borderColor: C.zero, borderDash: [4, 3], tension: .3, pointRadius: 0, borderWidth: 2 },
+                ] }, options: baseOpts() });
+                mkChart('cFun', { type: 'bar', data: { labels: (d.funnel || []).map(x => x.step), datasets: [{ data: (d.funnel || []).map(x => x.sessions), backgroundColor: [C.search, C.rec, C.open] }] }, options: baseOpts({ indexAxis: 'y', plugins: { legend: { display: false } } }) });
+            }
+
+            if (SUB === 'search') {
+                const f = d.filters || {};
+                $('paneSearch').innerHTML = `
+                  <div class="adm-card wide"><h3>Nuvem de palavras</h3><div class="cap">termos mais buscados (fora dos conectivos)</div>${wordCloud(d.word_freq)}</div>
+                  <div class="adm-card"><h3>Top buscas</h3><div class="cap">consultas mais frequentes</div>${rankList(d.top_queries)}</div>
+                  <div class="adm-card zero"><h3>Buscas sem resultado</h3><div class="cap">buracos do catálogo</div>${rankList(d.zero_result)}</div>
+                  <div class="adm-card"><h3>Reformulações</h3><div class="cap">o que buscou → o que refez na mesma sessão</div>${rankList(d.reformulations, x => x.from + ' → ' + x.to)}</div>
+                  <div class="adm-card"><h3>Posição do clique</h3><div class="cap">em que posição do resultado a pessoa clica</div><div class="chart-box"><canvas id="cPos"></canvas></div></div>
+                  <div class="adm-card"><h3>Filmes que mais ficaram em #1</h3><div class="cap">o topo do resultado das buscas</div>${rankList(d.top_ranked, movieLabel)}</div>
+                  <div class="adm-card"><h3>Mais clicados a partir da busca</h3><div class="cap">o que a pessoa realmente abriu</div>${rankList(d.top_clicked, movieLabel)}</div>
+                  <div class="adm-card"><h3>Uso de filtros</h3><div class="cap">${f.with_any_filter || 0} de ${f.of_searches || 0} buscas com filtro · ano ${f.year_range || 0} · idioma ${f.language || 0} · consulta média ${(d.query_len || {}).avg || '–'} car.</div>${rankList((f.genres || []).map(g => ({ query: g.genre, count: g.count })))}</div>`;
+                mkChart('cPos', { type: 'bar', data: { labels: (d.click_positions || []).map(x => x.bucket), datasets: [{ data: (d.click_positions || []).map(x => x.count), backgroundColor: C.open }] }, options: baseOpts({ plugins: { legend: { display: false } } }) });
+            }
+
+            if (SUB === 'content') {
+                const eg = d.engagement_by_day || [];
+                $('paneContent').innerHTML = `
+                  <div class="adm-card"><h3>Filmes com mais engajamento</h3><div class="cap">avaliados + adicionados a listas</div>
+                    ${(d.top_engaged || []).length ? `<ul class="adm-rank">${d.top_engaged.map(x => `<li><span>${esc(movieLabel(x))}</span><b>${x.ratings}★ · ${x.lists}📋</b></li>`).join('')}</ul>` : '<div class="adm-empty">nada no período</div>'}</div>
+                  <div class="adm-card"><h3>Fichas mais abertas</h3><div class="cap">qualquer origem</div>${rankList(d.top_items, movieLabel)}</div>
+                  <div class="adm-card wide"><h3>Engajamento por dia</h3><div class="cap">avaliações · resenhas · listas criadas</div><div class="chart-box"><canvas id="cEng"></canvas></div></div>`;
+                mkChart('cEng', { type: 'bar', data: { labels: eg.map(x => x.day.slice(5)), datasets: [
+                    { label: 'avaliações', data: eg.map(x => x.ratings), backgroundColor: C.rec },
+                    { label: 'resenhas', data: eg.map(x => x.reviews), backgroundColor: C.open },
+                    { label: 'listas', data: eg.map(x => x.lists), backgroundColor: C.zero },
+                ] }, options: baseOpts(stackScale()) });
+            }
+
+            if (SUB === 'sessions') {
+                const sb = d.sessions_by_day || [], sps = d.searches_per_session || {};
+                $('paneSessions').innerHTML = `
+                  <div class="adm-card wide"><h3>Sessões novas × recorrentes</h3><div class="cap">por dia · média de ${sps.avg || 0} buscas/sessão (máx ${sps.max || 0})</div><div class="chart-box"><canvas id="cSess"></canvas></div></div>
+                  <div class="adm-card wide"><h3>Atividade — hora × dia da semana</h3><div class="cap">todos os eventos da janela</div>${d.heatmap ? heatmap(d.heatmap) : ''}</div>`;
+                mkChart('cSess', { type: 'bar', data: { labels: sb.map(x => x.day.slice(5)), datasets: [
+                    { label: 'novas', data: sb.map(x => x.new), backgroundColor: C.a },
+                    { label: 'recorrentes', data: sb.map(x => x.returning), backgroundColor: C.b },
+                ] }, options: baseOpts(stackScale()) });
+            }
+        }
+
+        function latTable(d) {
+            const lat = d.latency || {};
+            const ks = Object.keys(lat);
+            if (!ks.length) return '<div class="adm-empty">sem amostras</div>';
+            return `<div class="adm-scroll"><table class="adm-mini"><thead><tr><th>etapa</th><th>p50</th><th>p95</th><th>p99</th><th>n</th></tr></thead><tbody>${ks.map(k => `<tr><td>${esc(k)}</td><td>${lat[k].p50}</td><td>${lat[k].p95}</td><td>${lat[k].p99}</td><td>${lat[k].n}</td></tr>`).join('')}</tbody></table></div>`;
         }
 
         async function loadUsage() {
-            charts.forEach(c => { try { c.destroy(); } catch (e) {} }); charts = [];
             $('usageStatus').hidden = false; $('usageBody').hidden = true;
-            const d = await (await fetch('/admin/api/analytics?days=' + $('daysSel').value)).json();
-            const k = d.kpis || {};
-
+            DATA = await (await fetch('/admin/api/analytics?days=' + $('daysSel').value)).json();
+            const k = DATA.kpis || {};
             $('kpis').innerHTML = [
-                kpi('buscas', k.searches || { v: 0 }),
-                kpi('CTR da busca', k.ctr || { v: 0 }, v => (v * 100).toFixed(0) + '%'),
-                kpi('sem resultado', k.zero_rate || { v: 0 }, v => (v * 100).toFixed(0) + '%'),
-                kpi('sessões', k.sessions || { v: 0 }),
-                kpi('usuários ativos', k.users || { v: 0 }),
-                kpi('recomendações', k.recs || { v: 0 }),
+                kpiCard('buscas', k.searches || { v: 0 }),
+                kpiCard('CTR busca', k.ctr || { v: 0 }, v => (v * 100).toFixed(0) + '%'),
+                kpiCard('sem resultado', k.zero_rate || { v: 0 }, v => (v * 100).toFixed(0) + '%', true),
+                kpiCard('sessões', k.sessions || { v: 0 }),
+                kpiCard('usuários ativos', k.users || { v: 0 }),
+                kpiCard('recomendações', k.recs || { v: 0 }),
             ].join('');
-
-            const by = d.by_day || [];
-            const labels = by.map(x => x.day.slice(5));
-            $('usageGrid').innerHTML = `
-              <div class="adm-card wide"><h3>Volume por dia</h3><div class="cap">buscas · fichas abertas · recomendações · buscas sem resultado</div><div class="chart-box"><canvas id="cVolume"></canvas></div></div>
-
-              <div class="adm-card"><h3>Posição do clique</h3><div class="cap">em que posição do resultado a pessoa clica (busca → ficha)</div><div class="chart-box"><canvas id="cPos"></canvas></div></div>
-              <div class="adm-card"><h3>Funil da sessão</h3><div class="cap">sessões distintas que chegaram a cada etapa</div><div class="chart-box"><canvas id="cFunnel"></canvas></div></div>
-
-              <div class="adm-card"><h3>Top buscas</h3><div class="cap">consultas de sinopse mais frequentes</div>${rankList(d.top_queries)}</div>
-              <div class="adm-card zero"><h3>Buscas sem resultado</h3><div class="cap">buracos do catálogo — o motor não achou nada</div>${rankList(d.zero_result)}</div>
-
-              <div class="adm-card"><h3>Reformulações</h3><div class="cap">o que a pessoa buscou → o que refez na mesma sessão</div>${rankList(d.reformulations, 'from', 'to')}</div>
-              <div class="adm-card"><h3>Filmes mais abertos</h3><div class="cap">popularidade por uso real, não voto do TMDB</div>
-                ${(d.top_items || []).length ? `<ul class="adm-rank">${d.top_items.map(x => `<li><span>${esc(x.title)}${x.year ? ' (' + x.year + ')' : ''}</span><b>${x.count}</b></li>`).join('')}</ul>` : '<div class="adm-empty">nada no período</div>'}</div>
-
-              <div class="adm-card wide"><h3>Sessões novas × recorrentes</h3><div class="cap">por dia</div><div class="chart-box"><canvas id="cSess"></canvas></div></div>
-
-              <div class="adm-card"><h3>Uso de filtros</h3>
-                <div class="cap">${(d.filters || {}).with_any_filter || 0} de ${(d.filters || {}).of_searches || 0} buscas com filtro · ano ${(d.filters || {}).year_range || 0} · idioma ${(d.filters || {}).language || 0}</div>
-                ${((d.filters || {}).genres || []).length ? `<ul class="adm-rank">${d.filters.genres.map(g => `<li><span>${esc(g.genre)}</span><b>${g.count}</b></li>`).join('')}</ul>` : '<div class="adm-empty">nenhum</div>'}</div>
-              <div class="adm-card"><h3>Latência por etapa</h3><div class="cap">amostra da janela (ms) · ${(d.query_len || {}).avg ? 'consulta média ' + d.query_len.avg + ' car., ' + Math.round((d.query_len.short_share || 0) * 100) + '% curtas' : ''}</div>
-                ${Object.keys(d.latency || {}).length ? `<table class="adm-mini"><thead><tr><th>etapa</th><th>p50</th><th>p95</th><th>p99</th><th>n</th></tr></thead><tbody>${Object.entries(d.latency).map(([s, v]) => `<tr><td>${esc(s)}</td><td>${v.p50}</td><td>${v.p95}</td><td>${v.p99}</td><td>${v.n}</td></tr>`).join('')}</tbody></table>` : '<div class="adm-empty">sem amostras</div>'}</div>
-
-              <div class="adm-card wide"><h3>Atividade — hora × dia da semana</h3><div class="cap">todos os eventos da janela</div>${d.heatmap ? heatmap(d.heatmap) : ''}</div>
-
-              <div class="adm-card wide"><h3>Engajamento por dia</h3><div class="cap">avaliações · resenhas · listas criadas</div><div class="chart-box"><canvas id="cEng"></canvas></div></div>`;
-
-            const line = (id, ds) => mkChart(id, { type: 'line', data: { labels, datasets: ds }, options: baseOpts({ elements: { point: { radius: 0 }, line: { tension: .3, borderWidth: 2 } } }) });
-            line('cVolume', [
-                { label: 'buscas', data: by.map(x => x.search), borderColor: C.search, backgroundColor: C.search + '22', fill: true },
-                { label: 'fichas', data: by.map(x => x.open), borderColor: C.open, backgroundColor: 'transparent' },
-                { label: 'recs', data: by.map(x => x.rec), borderColor: C.rec, backgroundColor: 'transparent' },
-                { label: 'sem resultado', data: by.map(x => x.zero), borderColor: C.zero, backgroundColor: 'transparent', borderDash: [4, 3] },
-            ]);
-            const sb = d.sessions_by_day || [];
-            mkChart('cSess', {
-                type: 'bar',
-                data: {
-                    labels: sb.map(x => x.day.slice(5)),
-                    datasets: [
-                        { label: 'novas', data: sb.map(x => x.new), backgroundColor: C.a },
-                        { label: 'recorrentes', data: sb.map(x => x.returning), backgroundColor: C.b },
-                    ],
-                },
-                options: baseOpts({ scales: { x: { stacked: true, grid: { color: C.grid }, ticks: { color: C.txt, font: { size: 10 } } }, y: { stacked: true, grid: { color: C.grid }, ticks: { color: C.txt, font: { size: 10 } }, beginAtZero: true } } }),
-            });
-            mkChart('cPos', {
-                type: 'bar',
-                data: { labels: (d.click_positions || []).map(x => x.bucket), datasets: [{ data: (d.click_positions || []).map(x => x.count), backgroundColor: C.open }] },
-                options: baseOpts({ plugins: { legend: { display: false } } }),
-            });
-            mkChart('cFunnel', {
-                type: 'bar',
-                data: { labels: (d.funnel || []).map(x => x.step), datasets: [{ data: (d.funnel || []).map(x => x.sessions), backgroundColor: [C.search, C.rec, C.open] }] },
-                options: baseOpts({ indexAxis: 'y', plugins: { legend: { display: false } } }),
-            });
-            const eg = d.engagement_by_day || [];
-            mkChart('cEng', {
-                type: 'bar',
-                data: {
-                    labels: eg.map(x => x.day.slice(5)),
-                    datasets: [
-                        { label: 'avaliações', data: eg.map(x => x.ratings), backgroundColor: C.rec },
-                        { label: 'resenhas', data: eg.map(x => x.reviews), backgroundColor: C.open },
-                        { label: 'listas', data: eg.map(x => x.lists), backgroundColor: C.zero },
-                    ],
-                },
-                options: baseOpts({ scales: { x: { stacked: true, grid: { color: C.grid }, ticks: { color: C.txt, font: { size: 10 } } }, y: { stacked: true, grid: { color: C.grid }, ticks: { color: C.txt, font: { size: 10 } }, beginAtZero: true } } }),
-            });
-
             $('usageStatus').hidden = true; $('usageBody').hidden = false;
+            renderSub();
         }
 
         // ================= nav =================
@@ -359,11 +389,16 @@
             $('tabAccounts').classList.toggle('on', !usage);
             $('tabUsage').classList.toggle('on', usage);
             $('daysWrap').hidden = !usage;
-            if (usage) loadUsage();
+            if (usage && !DATA) loadUsage();
         }
         $('tabAccounts').onclick = () => show('accounts');
         $('tabUsage').onclick = () => show('usage');
         $('daysSel').onchange = () => loadUsage();
+        $('usageSub').querySelectorAll('button').forEach(b => b.onclick = () => {
+            SUB = b.dataset.sub;
+            $('usageSub').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+            renderSub();
+        });
 
         loadOverview();
         loadUsers();

@@ -553,3 +553,28 @@ def engagement_by_day(days: int = 30) -> list[dict]:
         d = (today - timedelta(days=i)).isoformat()
         out.append({"day": d, "ratings": ratings.get(d, 0), "reviews": reviews.get(d, 0), "lists": lst.get(d, 0)})
     return out
+
+
+def top_engaged_movies(days: int = 30, limit: int = 15) -> list[dict]:
+    """Filmes mais avaliados + mais adicionados a listas na janela — popularidade
+    por uso real. Título vem denormalizado das próprias tabelas."""
+    days = max(1, min(int(days), 365))
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+    agg: dict[int, dict] = {}
+    with _connect() as conn:
+        for tid, title, year, n in conn.execute(
+            "SELECT tmdb_id, title, release_year, COUNT(*) FROM ratings WHERE created_at >= ? GROUP BY tmdb_id",
+            (since,),
+        ):
+            agg.setdefault(int(tid), {"tmdb_id": int(tid), "title": title, "year": year, "ratings": 0, "lists": 0})
+            agg[int(tid)]["ratings"] = n
+        for tid, title, year, n in conn.execute(
+            "SELECT li.tmdb_id, li.title, li.release_year, COUNT(*) FROM list_items li"
+            " JOIN lists l ON l.list_id = li.list_id WHERE li.added_at >= ? GROUP BY li.tmdb_id",
+            (since,),
+        ):
+            d = agg.setdefault(int(tid), {"tmdb_id": int(tid), "title": title, "year": year, "ratings": 0, "lists": 0})
+            d["lists"] = n
+            d["title"] = d.get("title") or title
+    rows = sorted(agg.values(), key=lambda x: -(x["ratings"] + x["lists"]))
+    return rows[:limit]

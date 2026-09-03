@@ -176,6 +176,11 @@ def search():
         _f["director"] = 1
     if actor:
         _f["actor"] = 1
+    _top = None
+    try:
+        _top = int(results[0].get("tmdb_id")) if results else None
+    except (TypeError, ValueError, AttributeError, IndexError):
+        _top = None
     events.log(
         "search",
         query=query,
@@ -185,6 +190,7 @@ def search():
         stage_ms=_stages or None,
         user_id=_uid_or_none(),
         sid=_sid(),
+        item_id=_top,  # o filme que ficou em #1 (para "mais frequentes no topo")
     )
 
     return jsonify(
@@ -1253,13 +1259,15 @@ def admin_analytics():
     payload = {
         "users": {**users.count_users(), "engaged": engaged},
         "engagement_by_day": user_data.engagement_by_day(days),
+        "top_engaged": user_data.top_engaged_movies(days),
         **events.analytics(days),
     }
-    # anexa título aos filmes mais abertos
-    for it in payload.get("top_items", []):
-        mv = catalog.get_movie(it["tmdb_id"]) or {}
-        it["title"] = mv.get("title") or f"#{it['tmdb_id']}"
-        it["year"] = mv.get("release_year")
+    # anexa título/ano aos filmes referenciados por tmdb_id
+    for key in ("top_items", "top_clicked", "top_ranked"):
+        for it in payload.get(key, []):
+            mv = catalog.get_movie(it["tmdb_id"]) or {}
+            it["title"] = mv.get("title") or f"#{it['tmdb_id']}"
+            it["year"] = mv.get("release_year")
     return jsonify(payload)
 
 
