@@ -300,9 +300,13 @@ Login por **e-mail + senha** com **Argon2id** (rehash automático quando os par�
 
 `.github/workflows/ci.yml` (a cada PR): **ruff** (`check` + `format`), **mypy** (checagem gradual — módulos novos), **pytest** (smoke hermético, sem modelo/rede).
 
-`.github/workflows/eval-smoke.yml` (**PRs que afetam a recuperação** — `retrieval/`, `eval/`, `core/{catalog,db,metrics,device}.py`): roda `python -m eval.run --split dev --fast --gate-ndcg 0.65` com o índice **e5-small** — **falha o PR se o nDCG@10 da fusão cair abaixo do limiar** (fusão e5-small no dev ≈ 0,71). O `.dvc/cache` é cacheado pelo GitHub e chaveado pelos ponteiros `*.dvc`, então o `dvc pull` só toca o B2 quando o índice ou o catálogo mudam de verdade (o free tier do B2 dá 1 GB de download/dia; o `movies.db` tem 1,2 GB).
+`.github/workflows/eval-gate.yml` (**segunda 06:00 UTC + sob demanda** via "Run workflow"): `dvc pull` do índice **e5-large** + catálogo e `python -m eval.run --split dev --gate-ndcg 0.78` — **falha o build se o nDCG@10 da fusão cair abaixo do limiar**. Requer os secrets `DVC_ACCESS_KEY_ID` / `DVC_SECRET_ACCESS_KEY`.
 
-`.github/workflows/eval-gate.yml` (semanal + sob demanda): o mesmo portão com o encoder **e5-large** e limiar `0.78` — o check pesado. Ambos requerem os secrets `DVC_ACCESS_KEY_ID` / `DVC_SECRET_ACCESS_KEY`.
+> **Antes de um PR que mexa em `retrieval/` ou `eval/`**, rode o portão local (~1 min, índice e5-small):
+> ```bash
+> RECOMENDAI_INDEX_DIR=retrieval/index_e5small python -m eval.run --split dev --fast --gate-ndcg 0.65
+> ```
+> Um portão automático **por PR** exigiria `dvc pull` do índice + catálogo (~1,3 GB) a cada run — não cabe no free tier do B2 (1 GB de download/dia). O gate semanal cobre a `main`; a mini-fixture (catálogo reduzido commitado) é o caminho para um gate por-PR sem billing, se um dia for necessário.
 
 ---
 
