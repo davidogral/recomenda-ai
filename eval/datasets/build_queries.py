@@ -788,6 +788,30 @@ ENTITY_V3 = [
 
 
 # ---------------------------------------------------------------------------
+# v3 — split "object": consultas por OBJETO / IMAGEM ICÔNICA (carro, prop, cena),
+# quase sempre fora da sinopse. É o alvo do canal de enredo da Wikipédia — a
+# maioria FALHA sem esse dado e passa a resolver depois do crawl + reindex.
+# ---------------------------------------------------------------------------
+OBJECT_V3 = [
+    ("Nissan Skyline azul e prata arrancada", "+ Velozes + Furiosos", 2003),
+    ("Dodge Charger preto do careca", "Velozes e Furiosos", 2001),
+    ("carro DeLorean que viaja no tempo", "De Volta para o Futuro", 1985),
+    ("pião que não para de girar", "A Origem", 2010),
+    ("luz verde do outro lado da baía", "O Grande Gatsby", 2013),
+    ("anel que deixa a pessoa invisível", "O Senhor dos Anéis: A Sociedade do Anel", 2001),
+    ("tubarão gigante que ataca banhistas", "Tubarão", 1975),
+    ("boneco assassino ruivo de macacão", "Brinquedo Assassino", 1988),
+    ("homem na cadeira de rodas espiando os vizinhos pela janela", "Janela Indiscreta", 1954),
+    ("bicicleta voando na frente da lua", "E.T. - O Extraterrestre", 1982),
+    ("chinelo de cristal perdido na escada", "Cinderela", 1950),
+    ("máquina de escrever e um labirinto de neve", "O Iluminado", 1980),
+    ("guarda-chuva vermelho e um caminhão de sorvete", "Fome de Poder", 2016),
+    ("caixa de bombons e um banco de praça", "Forrest Gump", 1994),
+    ("colar de coração jogado no mar", "Titanic", 1997),
+]
+
+
+# ---------------------------------------------------------------------------
 # Resolução (dica de título PT, ano) -> tmdb_id — cópia autocontida da lógica
 # do harness, para o pacote eval/ não depender de retrieval/eval_harness.py.
 # ---------------------------------------------------------------------------
@@ -831,6 +855,7 @@ def build():
     v2 = [("v2", q, h, y) for (q, h, y) in NEW_V2]
     v3h = [("v3-hard", q, h, y) for (q, h, y) in HARD_V3]
     v3e = [("v3-entity", q, h, y) for (q, h, y) in ENTITY_V3]
+    v3o = [("v3-object", q, h, y) for (q, h, y) in OBJECT_V3]
 
     # Split: v1 com 35/52 em dev (~0.673, = a divisão 35/17 pedida); v2 com 2/3.
     # v3 (hard e entity) não entra em dev/test — cada um é seu próprio split
@@ -844,6 +869,7 @@ def build():
         ("v2", v2, dev_v2, None),
         ("v3", v3h, set(), "hard"),
         ("v3", v3e, set(), "entity"),
+        ("v3", v3o, set(), "object"),
     ):
         seen_v3: set[int] = set()
         for i, (source, query, hint, year) in enumerate(items):

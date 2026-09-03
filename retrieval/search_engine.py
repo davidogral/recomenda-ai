@@ -127,6 +127,7 @@ SIGNAL_LABELS = {
     "synopsis": "sentido da sinopse",
     "keyword": "tema",
     "entity": "personagem",
+    "plot": "enredo detalhado",
     "name": "nome",
 }
 
@@ -151,6 +152,12 @@ DEFAULT_KEYWORD_WEIGHT = 0.5
 # nDCG@10 ~0.49 -> ~0.74; test/dev não mudam (a consulta longa não dispara). 0 desliga.
 DEFAULT_ENTITY_WEIGHT = float(os.environ.get("RECOMENDAI_ENTITY_WEIGHT", "0.45"))
 _ENTITY_MAX_QUERY_TOKENS = int(os.environ.get("RECOMENDAI_ENTITY_MAX_TOKENS", "6"))
+
+# Canal do ENREDO da Wikipédia: embedding do texto de "Plot/Enredo" (5–10× a
+# sinopse) num 4º espaço vetorial. Pega objeto/personagem/cena que a sinopse não
+# cita ("Nissan Skyline", "pião", "luz verde"). Só existe se o índice foi
+# construído com esses embeddings (após `core.enrich --wikipedia`). 0 desliga.
+DEFAULT_PLOT_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_WEIGHT", "0.4"))
 
 # Prior de popularidade/aclamação (z-score de log(vote_count)). Desempata a favor
 # do filme famoso quando muitos casam parecido com uma descrição genérica (ex.:
@@ -235,6 +242,7 @@ class SearchEngine:
         self._bm25 = None                                  # BM25Index (sinal lexical)
         self._embeddings: Optional[np.ndarray] = None      # N×D sinopse (L2-norm)
         self._kw_embeddings: Optional[np.ndarray] = None   # N×D temático (L2-norm)
+        self._plot_embeddings: Optional[np.ndarray] = None  # N×D enredo Wikipédia (L2-norm)
         self._kw_term_emb: Optional[np.ndarray] = None     # Nkw×D por keyword (L2-norm)
         self._kw_term_row: dict[str, int] = {}             # nome(lower) -> linha em _kw_term_emb
         self._embed_model = None
@@ -286,6 +294,8 @@ class SearchEngine:
             self._embed_model_name = meta.get("embed_model")
             if meta.get("has_keyword_embeddings") and os.path.exists(P["kw_embeddings"]):
                 self._kw_embeddings = np.load(P["kw_embeddings"])
+            if meta.get("has_plot_embeddings") and os.path.exists(P["plot_embeddings"]):
+                self._plot_embeddings = np.load(P["plot_embeddings"])
             if meta.get("has_keyword_terms") and os.path.exists(P["keyword_term_emb"]):
                 self._kw_term_emb = np.load(P["keyword_term_emb"])
                 with open(P["keyword_terms"], encoding="utf-8") as f:
@@ -604,6 +614,7 @@ class SearchEngine:
             "synopsis": zero.copy(),
             "keyword": zero.copy(),
             "entity": zero.copy(),
+            "plot": zero.copy(),
             # Prior de popularidade (sempre presente; pode ser negativo p/ obscuros).
             "prior": DEFAULT_POP_PRIOR * self._pop_prior_vec,
             "_z_synopsis": zero.copy(),
@@ -624,12 +635,14 @@ class SearchEngine:
                 z_kw = _zscore(self._kw_embeddings @ kw_q)
                 comps["keyword"] = keyword_weight * relu(z_kw)
                 comps["_z_keyword"] = z_kw
+            if DEFAULT_PLOT_WEIGHT > 0 and self._plot_embeddings is not None:
+                comps["plot"] = DEFAULT_PLOT_WEIGHT * relu(_zscore(self._plot_embeddings @ q_emb))
         return comps
 
     def _synopsis_scores(self, query: str, **weights) -> np.ndarray:
         """Vetor de scores de sinopse fundido (ReLU dos sinais + prior)."""
         comps = self._synopsis_components(query, **weights)
-        return comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["prior"]
+        return comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["prior"]
 
     def search_by_synopsis(self, query: str, n: int = 10, **weights) -> list[tuple[int, float]]:
         """Sinopse híbrida sobre todo o catálogo (top n*4 candidatos)."""
@@ -860,7 +873,8 @@ class SearchEngine:
             sub = {"lexical": float(comps["lexical"][row]),
                    "synopsis": float(comps["synopsis"][row]),
                    "keyword": float(comps["keyword"][row]),
-                   "entity": float(comps["entity"][row])}
+                   "entity": float(comps["entity"][row]),
+                   "plot": float(comps["plot"][row])}
             if syn_norm is not None:
                 total = syn_w * float(syn_norm.get(tmdb_id, 0.0))
                 pos = {k: max(0.0, v) for k, v in sub.items()}
@@ -1036,7 +1050,7 @@ class SearchEngine:
         cq = clean_descriptive_query(query)
         q_emb = self._encode(cq) if self._embeddings is not None else None
         comps = self._synopsis_components(cq, q_emb=q_emb)
-        fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["prior"]
+        fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["prior"]
         order = np.argsort(fused)[::-1]
 
         if not blend_name:
@@ -1064,7 +1078,7 @@ class SearchEngine:
         # sinal temático) que a fusão sozinha deixaria fora da janela de re-rank.
         per_signal_k = max(n * 4, 80)
         cand_ids = {int(self._movie_ids[i]) for i in order[: n * 4]}
-        for sig in ("synopsis", "keyword", "entity"):
+        for sig in ("synopsis", "keyword", "entity", "plot"):
             sig_order = np.argsort(comps[sig])[::-1][:per_signal_k]
             cand_ids |= {int(self._movie_ids[i]) for i in sig_order}
         cand_ids |= set(name_scores)
@@ -1141,7 +1155,8 @@ class SearchEngine:
         syn_norm: dict[int, float] = {}
         if comps is not None:
             syn_raw = {tid: float(comps["lexical"][row[tid]] + comps["synopsis"][row[tid]]
-                                  + comps["keyword"][row[tid]] + comps["entity"][row[tid]]) if tid in row else 0.0
+                                  + comps["keyword"][row[tid]] + comps["entity"][row[tid]]
+                                  + comps["plot"][row[tid]]) if tid in row else 0.0
                        for tid in cand_ids}
             lo, hi = min(syn_raw.values()), max(syn_raw.values())
             syn_norm = {tid: ((v - lo) / (hi - lo) if hi > lo else 0.0)

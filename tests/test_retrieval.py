@@ -27,3 +27,27 @@ def test_entity_split_present_in_eval_set():
     assert len(qs) >= 15
     joined = " ".join(q.query.lower() for q in qs)
     assert "toretto" in joined or "toreto" in joined  # o caso âncora
+
+
+def test_object_split_present_in_eval_set():
+    from eval.dataset import load_queries
+
+    qs = load_queries("object")
+    assert len(qs) >= 10
+    joined = " ".join(q.query.lower() for q in qs)
+    assert "skyline" in joined  # alvo do canal de enredo da Wikipédia
+
+
+def test_clean_wikitext_strips_markup_keeps_prose():
+    from core.enrich import _clean_wikitext
+
+    raw = (
+        "'''Dom Cobb''' is an [[extractor]] using {{lang|la|foo}} dream tech."
+        "<ref name=x>cite web</ref> He drives the [[Nissan Skyline GT-R|Skyline]]."
+        "<!-- editor note --> [[File:poster.jpg|thumb|A poster]] The end."
+    )
+    out = _clean_wikitext(raw)
+    assert "{{" not in out and "[[" not in out and "<ref" not in out and "File:" not in out
+    assert "Dom Cobb is an extractor" in out
+    assert "Skyline" in out  # o nome do carro sobrevive — é o ponto do canal
+    assert "The end." in out
