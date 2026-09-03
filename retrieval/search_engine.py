@@ -126,6 +126,7 @@ SIGNAL_LABELS = {
     "lexical": "termos da sinopse",
     "synopsis": "sentido da sinopse",
     "keyword": "tema",
+    "entity": "personagem",
     "name": "nome",
 }
 
@@ -142,6 +143,14 @@ SIGNAL_LABELS = {
 DEFAULT_LEXICAL_WEIGHT = 0.25   # consultas curtas (ver _adaptive_lexical_weight)
 DEFAULT_EMBED_WEIGHT = 0.6
 DEFAULT_KEYWORD_WEIGHT = 0.5
+
+# Canal de ENTIDADE: casa (fuzzy, Jaro-Winkler) uma consulta CURTA com nomes de
+# personagem do elenco de topo ("Toretto", "Roman Pearce", "Jonh wick"). É assim
+# que o usuário digita nome de personagem; paráfrase de enredo é longa, não cita
+# personagem e não paga o custo do rapidfuzz. Medido: split `entity` do eval sobe
+# nDCG@10 ~0.49 -> ~0.74; test/dev não mudam (a consulta longa não dispara). 0 desliga.
+DEFAULT_ENTITY_WEIGHT = float(os.environ.get("RECOMENDAI_ENTITY_WEIGHT", "0.45"))
+_ENTITY_MAX_QUERY_TOKENS = int(os.environ.get("RECOMENDAI_ENTITY_MAX_TOKENS", "6"))
 
 # Prior de popularidade/aclamação (z-score de log(vote_count)). Desempata a favor
 # do filme famoso quando muitos casam parecido com uma descrição genérica (ex.:
@@ -594,11 +603,15 @@ class SearchEngine:
             "lexical": lexical_weight * relu(z_lex),
             "synopsis": zero.copy(),
             "keyword": zero.copy(),
+            "entity": zero.copy(),
             # Prior de popularidade (sempre presente; pode ser negativo p/ obscuros).
             "prior": DEFAULT_POP_PRIOR * self._pop_prior_vec,
             "_z_synopsis": zero.copy(),
             "_z_keyword": zero.copy(),
         }
+        ent = self._entity_scores(query)
+        if ent is not None:
+            comps["entity"] = DEFAULT_ENTITY_WEIGHT * relu(_zscore(ent))
         if self._embeddings is not None and (embed_weight > 0 or keyword_weight > 0):
             if q_emb is None:
                 q_emb = self._encode(query)
@@ -616,7 +629,7 @@ class SearchEngine:
     def _synopsis_scores(self, query: str, **weights) -> np.ndarray:
         """Vetor de scores de sinopse fundido (ReLU dos sinais + prior)."""
         comps = self._synopsis_components(query, **weights)
-        return comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["prior"]
+        return comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["prior"]
 
     def search_by_synopsis(self, query: str, n: int = 10, **weights) -> list[tuple[int, float]]:
         """Sinopse híbrida sobre todo o catálogo (top n*4 candidatos)."""
@@ -651,6 +664,76 @@ class SearchEngine:
         self._people_names = [
             (r["person_id"], r["name"]) for r in db.query("SELECT person_id, name FROM people")
         ]
+
+    def _build_character_index(self) -> None:
+        """Índice invertido `token de personagem -> {linha do filme}` do elenco de
+        topo. Comparar os poucos tokens da consulta contra os ~dezenas de milhares
+        de tokens distintos de personagem é barato; comparar contra cada nome
+        inteiro não é."""
+        tok_films: dict[str, set[int]] = {}
+        pos = {int(t): i for i, t in enumerate(self._movie_ids)}
+        for r in db.iter_query(
+            "SELECT tmdb_id, character FROM movie_people "
+            "WHERE role = 'actor' AND character IS NOT NULL AND character <> '' "
+            "AND (credit_order IS NULL OR credit_order < 10)"
+        ):
+            row = pos.get(int(r["tmdb_id"]))
+            if row is None:
+                continue
+            raw = re.sub(r"\s*\([^)]*\)\s*$", "", r["character"] or "")
+            for tok in _strip_accents(raw.lower()).replace("/", " ").split():
+                tok = tok.strip(".,'-’\"")
+                if len(tok) >= 3 and tok not in _PT_STOP:
+                    tok_films.setdefault(tok, set()).add(row)
+        self._char_tok_films = tok_films
+        self._char_toks = list(tok_films)
+
+    def _entity_scores(self, query: str) -> Optional[np.ndarray]:
+        """Vetor [0,1] alinhado a `self._movie_ids`: casa (fuzzy) os tokens de uma
+        consulta **curta** com tokens de nome de personagem do elenco.
+
+        - 1 token de conteúdo ("Toreto"): exige match quase-exato (typo de nome).
+        - 2+ tokens ("Roman pearce"): pontua pela fração deles que o mesmo filme
+          cobre, exigindo ao menos 2 — assim "Roman Pearce" só ganha de "Roman
+          <qualquer>" se o filme tiver os dois.
+        None para consulta longa (paráfrase de enredo) ou sem nenhum match."""
+        if DEFAULT_ENTITY_WEIGHT <= 0 or self._bm25 is None:
+            return None
+        toks = [
+            t for t in _strip_accents(query.lower()).split()
+            if len(t) >= 3 and t not in _PT_STOP
+        ]
+        if not toks or len(query.split()) > _ENTITY_MAX_QUERY_TOKENS:
+            return None
+        if getattr(self, "_char_toks", None) is None:
+            self._build_character_index()
+        if not self._char_toks:
+            return None
+        # Jaro-Winkler tolera transposição/prefixo — o padrão dos typos reais
+        # ("Jonh" wick, "Dogde", "Toreto"). Score já normalizado em [0, 1].
+        from rapidfuzz import process
+        from rapidfuzz.distance import JaroWinkler
+
+        n = len(self._movie_ids)
+        hits = np.zeros(n, dtype=np.float64)
+        best = np.zeros(n, dtype=np.float64)
+        for qt in toks[:6]:
+            rows_hit: set[int] = set()
+            for tok, s, _idx in process.extract(
+                qt, self._char_toks, scorer=JaroWinkler.normalized_similarity,
+                limit=10, score_cutoff=0.93,
+            ):
+                for row in self._char_tok_films[tok]:
+                    rows_hit.add(row)
+                    if s > best[row]:
+                        best[row] = s
+            for row in rows_hit:
+                hits[row] += 1.0
+        if len(toks) >= 2:
+            vec = np.where(hits >= 2, hits / len(toks), 0.0)
+        else:
+            vec = np.where(best >= 0.94, best, 0.0)  # 1 token: só typo de nome
+        return vec if vec.any() else None
 
     def search_by_person(self, query: str, n: int = 10, role: Optional[str] = None,
                          score_cutoff: float = 75.0) -> list[tuple[int, float]]:
@@ -776,7 +859,8 @@ class SearchEngine:
         if comps is not None and row is not None:
             sub = {"lexical": float(comps["lexical"][row]),
                    "synopsis": float(comps["synopsis"][row]),
-                   "keyword": float(comps["keyword"][row])}
+                   "keyword": float(comps["keyword"][row]),
+                   "entity": float(comps["entity"][row])}
             if syn_norm is not None:
                 total = syn_w * float(syn_norm.get(tmdb_id, 0.0))
                 pos = {k: max(0.0, v) for k, v in sub.items()}
@@ -952,7 +1036,7 @@ class SearchEngine:
         cq = clean_descriptive_query(query)
         q_emb = self._encode(cq) if self._embeddings is not None else None
         comps = self._synopsis_components(cq, q_emb=q_emb)
-        fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["prior"]
+        fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["prior"]
         order = np.argsort(fused)[::-1]
 
         if not blend_name:
@@ -980,7 +1064,7 @@ class SearchEngine:
         # sinal temático) que a fusão sozinha deixaria fora da janela de re-rank.
         per_signal_k = max(n * 4, 80)
         cand_ids = {int(self._movie_ids[i]) for i in order[: n * 4]}
-        for sig in ("synopsis", "keyword"):
+        for sig in ("synopsis", "keyword", "entity"):
             sig_order = np.argsort(comps[sig])[::-1][:per_signal_k]
             cand_ids |= {int(self._movie_ids[i]) for i in sig_order}
         cand_ids |= set(name_scores)
@@ -1057,7 +1141,7 @@ class SearchEngine:
         syn_norm: dict[int, float] = {}
         if comps is not None:
             syn_raw = {tid: float(comps["lexical"][row[tid]] + comps["synopsis"][row[tid]]
-                                  + comps["keyword"][row[tid]]) if tid in row else 0.0
+                                  + comps["keyword"][row[tid]] + comps["entity"][row[tid]]) if tid in row else 0.0
                        for tid in cand_ids}
             lo, hi = min(syn_raw.values()), max(syn_raw.values())
             syn_norm = {tid: ((v - lo) / (hi - lo) if hi > lo else 0.0)

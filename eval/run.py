@@ -308,7 +308,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument(
         "--split",
         default="test",
-        choices=["test", "dev", "hard", "all"],
+        choices=["test", "dev", "hard", "entity", "all"],
         help="qual split avaliar (padrão: test — o único reportado).",
     )
     ap.add_argument(

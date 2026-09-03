@@ -759,6 +759,35 @@ HARD_V3 = [
 
 
 # ---------------------------------------------------------------------------
+# v3 — split "entity": consultas que CITAM UM PERSONAGEM (nome, apelido ou com
+# erro de grafia), às vezes com um fragmento de cena. Diagnóstico do canal de
+# entidade (nomes de personagem do elenco). Pode reusar tmdb_ids de v1/v2.
+# ---------------------------------------------------------------------------
+ENTITY_V3 = [
+    ("Toretto corridas de rua", "Velozes e Furiosos", 2001),
+    ("Roman Pearce", "+ Velozes + Furiosos", 2003),
+    ("Brian oconner", "Velozes e Furiosos 4", 2009),
+    ("filme do Torreto puxando cofre no Rio", "Velozes e Furiosos 5", 2011),
+    ("Hobbs e Toreto", "Velozes & Furiosos 7", 2015),
+    ("Jonh Wick assassino cachorro", "John Wick", 2014),
+    ("Michael Corleone máfia", "O Poderoso Chefão", 1972),
+    ("Anton Chigurh", "Onde os Fracos Não Têm Vez", 2007),
+    ("Rick Deckard replicantes", "Blade Runner", 1982),
+    ("Travis Bickle taxista", "Taxi Driver", 1976),
+    ("Tyler Durden clube da luta", "Clube da Luta", 1999),
+    ("Patrick Bateman psicopata Wall Street", "Psicopata Americano", 2000),
+    ("Hannibal Lecter Clarice", "O Silêncio dos Inocentes", 1991),
+    ("Andy Dufresne prisão", "Um Sonho de Liberdade", 1994),
+    ("Maximus gladiador", "Gladiador", 2000),
+    ("Doc Brown Marty McFly", "De Volta para o Futuro", 1985),
+    ("Jack Dawson Rose navio", "Titanic", 1997),
+    ("John Rambo", "Rambo: Programado para Matar", 1982),
+    ("Ellen Ripley alien", "Alien: O Oitavo Passageiro", 1979),
+    ("Sarah Connor exterminador", "O Exterminador do Futuro", 1984),
+]
+
+
+# ---------------------------------------------------------------------------
 # Resolução (dica de título PT, ano) -> tmdb_id — cópia autocontida da lógica
 # do harness, para o pacote eval/ não depender de retrieval/eval_harness.py.
 # ---------------------------------------------------------------------------
@@ -800,15 +829,23 @@ def build():
 
     v1 = [("v1-core", q, h, y) for (q, h, y) in CORE_V1] + [("v1-ext", q, h, y) for (q, h, y) in EXT_V1]
     v2 = [("v2", q, h, y) for (q, h, y) in NEW_V2]
-    v3 = [("v3-hard", q, h, y) for (q, h, y) in HARD_V3]
+    v3h = [("v3-hard", q, h, y) for (q, h, y) in HARD_V3]
+    v3e = [("v3-entity", q, h, y) for (q, h, y) in ENTITY_V3]
 
     # Split: v1 com 35/52 em dev (~0.673, = a divisão 35/17 pedida); v2 com 2/3.
-    # v3 é o split "hard" inteiro (descrições oblíquas) — não entra em dev/test.
+    # v3 (hard e entity) não entra em dev/test — cada um é seu próprio split
+    # diagnóstico e pode reusar tmdb_ids de v1/v2.
     dev_v1 = _split_indices(len(v1), 35 / 52, SPLIT_SEED)
     dev_v2 = _split_indices(len(v2), 2 / 3, SPLIT_SEED + 1)
 
     rows, errors, seen = [], [], {}
-    for group, items, dev_set in (("v1", v1, dev_v1), ("v2", v2, dev_v2), ("v3", v3, set())):
+    for group, items, dev_set, split_name in (
+        ("v1", v1, dev_v1, None),
+        ("v2", v2, dev_v2, None),
+        ("v3", v3h, set(), "hard"),
+        ("v3", v3e, set(), "entity"),
+    ):
+        seen_v3: set[int] = set()
         for i, (source, query, hint, year) in enumerate(items):
             tid = resolve_target(hint, year)
             qid = f"{source}-{i:03d}" if group in ("v2", "v3") else f"{source}-{i:02d}"
@@ -816,16 +853,18 @@ def build():
                 errors.append(f"{qid}: '{hint}' ({year}) não resolveu")
                 continue
             # v1/v2 não podem colidir entre si; v3 PODE reusar alvo de v1/v2
-            # (mesmo filme, fraseado difícil), mas não pode duplicar dentro do v3.
+            # (mesmo filme, fraseado difícil), mas não pode duplicar dentro do seu grupo.
             if group != "v3" and tid in seen:
                 errors.append(f"{qid}: '{hint}' ({year}) colide com {seen[tid]} (tmdb {tid})")
                 continue
-            if group == "v3" and any(r["source"] == "v3-hard" and r["relevant_tmdb_id"] == tid for r in rows):
-                errors.append(f"{qid}: '{hint}' ({year}) duplicado dentro do v3 (tmdb {tid})")
-                continue
-            if group != "v3":
+            if group == "v3":
+                if tid in seen_v3:
+                    errors.append(f"{qid}: '{hint}' ({year}) duplicado dentro de {source} (tmdb {tid})")
+                    continue
+                seen_v3.add(tid)
+            else:
                 seen[tid] = qid
-            split = "hard" if group == "v3" else ("dev" if i in dev_set else "test")
+            split = split_name if group == "v3" else ("dev" if i in dev_set else "test")
             rows.append(
                 {
                     "qid": qid,
