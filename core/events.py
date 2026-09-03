@@ -30,6 +30,10 @@ from core.user_data import _connect
 RETENTION_DAYS = int(os.environ.get("RECOMENDAI_EVENT_RETENTION_DAYS", "90"))
 _MAX_QUERY = 300
 
+# Só a tabela + índices sobre colunas "base". Os índices de colunas que podem
+# não existir num banco antigo (ex.: sid) são criados DEPOIS do ALTER, em
+# `_ensure` — senão o `executescript` explode num banco pré-existente e os
+# `ALTER TABLE` nem chegam a rodar.
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS events (
     event_id   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,10 +55,10 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS idx_events_day ON events(day);
 CREATE INDEX IF NOT EXISTS idx_events_kind_day ON events(kind, day);
 CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id);
-CREATE INDEX IF NOT EXISTS idx_events_sid ON events(sid);
 """
 
 _UPGRADE_COLS = (("sid", "TEXT"), ("ref", "TEXT"), ("pos", "INTEGER"), ("item_id", "INTEGER"))
+_LATE_INDEXES = ("CREATE INDEX IF NOT EXISTS idx_events_sid ON events(sid)",)
 _ensured = False
 
 
@@ -67,6 +71,8 @@ def _ensure(conn) -> None:
     for col, decl in _UPGRADE_COLS:
         if col not in have:
             conn.execute(f"ALTER TABLE events ADD COLUMN {col} {decl}")
+    for stmt in _LATE_INDEXES:  # agora as colunas existem
+        conn.execute(stmt)
     _ensured = True
 
 
