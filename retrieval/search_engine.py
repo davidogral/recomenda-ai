@@ -172,9 +172,15 @@ DEFAULT_PLOT_BM25_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_BM25_WEIGHT", "
 # Canal do ENREDO (trecho/MaxSim): o enredo é fatiado em janelas de ~380 palavras
 # e cada uma é um embedding; o score do filme é o MÁXIMO sobre os trechos. Assim
 # um objeto/cena do 3º ato ainda casa — o embedding do plot inteiro perde isso
-# (e5 trunca em 512 tokens). Só existe com `plot_chunk_*` no índice
-# (index_builder --plot-chunks-only). 0 desliga.
-DEFAULT_PLOT_CHUNK_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_CHUNK_WEIGHT", "0.0"))
+# (e5 trunca em 512 tokens). Ablação de 2026-09-04 (índice parcial, top-1500 por
+# voto, split `object`): sobe monotônico com o peso, sem teto até 0.8 —
+# nDCG@10 0.225→0.271, MRR 0.175→0.223; R@50 já satura em 0.5 (0.571). Peso 0.5
+# também SOBE (não regride) `entity` (0.746, ~igual ao histórico 0.735) e `test`
+# (0.791 vs. 0.726 sem este canal). Só existe com `plot_chunk_*` no índice
+# (index_builder --plot-chunks-only) — 0 filmes com o trecho = inerte, então
+# fica seguro como default mesmo antes do build completo (hoje só top-1500;
+# falta rodar sem `--limit` pra cobrir os ~6078 filmes com wikipedia_plot).
+DEFAULT_PLOT_CHUNK_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_CHUNK_WEIGHT", "0.5"))
 
 # Prior de popularidade/aclamação (z-score de log(vote_count)). Desempata a favor
 # do filme famoso quando muitos casam parecido com uma descrição genérica (ex.:

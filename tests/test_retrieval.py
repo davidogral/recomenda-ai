@@ -38,15 +38,18 @@ def test_object_split_present_in_eval_set():
     assert "skyline" in joined  # alvo dos canais de enredo (embedding + lexical)
 
 
-def test_plot_channels_are_off_by_default():
-    """Três formas de usar o enredo da Wikipédia, todas desligadas por padrão
-    (ligar é via env var): embedding do plot inteiro (ablação 2026-09-04: negativo,
-    e5 trunca em 512 tokens), BM25 sobre o texto, e MaxSim sobre trechos."""
+def test_plot_channels_default():
+    """Três formas de usar o enredo da Wikipédia. Embedding do plot inteiro e BM25
+    sobre o texto seguem desligados (ablação 2026-09-04: negativo/marginal). MaxSim
+    sobre trechos vai LIGADO por padrão (peso 0.5) — ablação 2026-09-04 no split
+    `object`: nDCG@10 0.225→0.259, sem regressão em `entity`/`test`; inerte até o
+    índice ter `plot_chunk_*` (index_builder --plot-chunks-only), então é seguro
+    mesmo antes do build completo."""
     from retrieval import search_engine as se
 
     assert se.DEFAULT_PLOT_WEIGHT == 0.0
     assert se.DEFAULT_PLOT_BM25_WEIGHT == 0.0
-    assert se.DEFAULT_PLOT_CHUNK_WEIGHT == 0.0
+    assert se.DEFAULT_PLOT_CHUNK_WEIGHT == 0.5
     assert {"plot", "plot_lexical", "plot_maxsim"} <= set(se.SIGNAL_LABELS)
 
 
