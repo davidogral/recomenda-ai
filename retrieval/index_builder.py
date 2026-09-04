@@ -52,6 +52,8 @@ def index_paths(index_dir: str = INDEX_DIR) -> dict[str, str]:
         "movie_ids": j("movie_ids.npy"),
         "bm25_vectorizer": j("bm25_vectorizer.pkl"),
         "bm25_counts": j("bm25_counts.npz"),
+        "bm25_plot_vectorizer": j("bm25_plot_vectorizer.pkl"),
+        "bm25_plot_counts": j("bm25_plot_counts.npz"),
         "embeddings": j("embeddings.npy"),
         "kw_embeddings": j("kw_embeddings.npy"),
         "keyword_term_emb": j("keyword_term_embeddings.npy"),
@@ -380,7 +382,64 @@ def build_index(
     with open(P["meta"], "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
+    try:
+        meta.update(build_plot_bm25(index_dir))
+    except Exception as e:  # BM25 de enredo e opcional; nunca derruba o build
+        print(f"[index] BM25 de enredo pulado: {e}")
+
     return meta
+
+
+def build_plot_bm25(index_dir: str = INDEX_DIR) -> dict:
+    """(Re)constroi so o BM25 sobre o texto do enredo da Wikipedia (`bm25_plot_*`),
+    sem reencodar embedding nenhum -- barato (segundos). Deixa somar o sinal
+    lexical de enredo a um indice ja pronto.
+
+    O enredo nomeia objeto/carro/lugar ("Nissan Skyline GT-R", "DeLorean",
+    "green light") -- nome proprio sobrevive a traducao, entao uma consulta em PT
+    ("skyline azul") casa pelo termo distintivo mesmo com o texto em ingles. Filme
+    sem enredo entra como documento vazio (nunca casa) -- sem fallback para a
+    sinopse, que so somaria ruido."""
+    from retrieval.bm25 import BM25Index
+
+    P = index_paths(index_dir)
+    if not os.path.exists(P["movie_ids"]) or not os.path.exists(P["meta"]):
+        raise RuntimeError(f"indice ausente em {index_dir}; rode build_index primeiro.")
+    ids = np.load(P["movie_ids"])
+    plot_map = {int(r["tmdb_id"]): (r["wikipedia_plot"] or "") for r in _plot_rows()}
+    plot_docs = [plot_map.get(int(t), "") for t in ids.tolist()]
+    n_plot = sum(1 for d in plot_docs if d)
+    if not n_plot:
+        raise RuntimeError("nenhum filme com wikipedia_plot; rode core.enrich --wikipedia")
+
+    import unicodedata
+
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+    def _noacc(s: str) -> str:
+        return "".join(c for c in unicodedata.normalize("NFD", s)
+                       if unicodedata.category(c) != "Mn")
+
+    # Enredo e sobretudo em ingles; junta as duas listas (sem acento, como o BM25
+    # tokeniza) para nao indexar "the"/"of" nem "de"/"que".
+    stop = sorted({_noacc(w) for w in list(ENGLISH_STOP_WORDS) + portuguese_stopwords()})
+    t0 = time.time()
+    bm25 = BM25Index.build(plot_docs, stop_words=stop, strip_accents="unicode")
+    bm25.save(P["bm25_plot_vectorizer"], P["bm25_plot_counts"])
+
+    with open(P["meta"], encoding="utf-8") as f:
+        meta = json.load(f)
+    info = {
+        "has_plot_bm25": True,
+        "n_plot_bm25_docs": int(n_plot),
+        "plot_bm25_vocab_size": int(bm25.vocab_size),
+        "plot_bm25_build_secs": round(time.time() - t0, 1),
+    }
+    meta.update(info)
+    with open(P["meta"], "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    print(f"  bm25 de enredo: {n_plot} docs, vocab {bm25.vocab_size}")
+    return info
 
 
 if __name__ == "__main__":
@@ -392,13 +451,18 @@ if __name__ == "__main__":
     p.add_argument("--model", default=DEFAULT_EMBED_MODEL)
     p.add_argument("--batch-size", type=int, default=64)
     p.add_argument("--index-dir", default=INDEX_DIR)
+    p.add_argument("--plot-bm25-only", action="store_true",
+                   help="(Re)constroi so o BM25 do enredo (bm25_plot_*), sem reencodar nada.")
     args = p.parse_args()
 
-    info = build_index(
-        embed_model_name=args.model,
-        index_dir=args.index_dir,
-        with_embeddings=not args.no_embeddings,
-        limit=args.limit,
-        batch_size=args.batch_size,
-    )
+    if args.plot_bm25_only:
+        info = build_plot_bm25(args.index_dir)
+    else:
+        info = build_index(
+            embed_model_name=args.model,
+            index_dir=args.index_dir,
+            with_embeddings=not args.no_embeddings,
+            limit=args.limit,
+            batch_size=args.batch_size,
+        )
     print(json.dumps(info, ensure_ascii=False, indent=2))
