@@ -129,6 +129,7 @@ SIGNAL_LABELS = {
     "entity": "personagem",
     "plot": "enredo detalhado",
     "plot_lexical": "enredo (texto)",
+    "plot_maxsim": "enredo (trecho)",
     "name": "nome",
 }
 
@@ -167,6 +168,13 @@ DEFAULT_PLOT_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_WEIGHT", "0.0"))
 # distintivo mesmo com o texto em inglês. Sem truncamento de tokens. Só existe se
 # o índice tem `bm25_plot_*` (index_builder --plot-bm25-only). 0 desliga.
 DEFAULT_PLOT_BM25_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_BM25_WEIGHT", "0.0"))
+
+# Canal do ENREDO (trecho/MaxSim): o enredo é fatiado em janelas de ~380 palavras
+# e cada uma é um embedding; o score do filme é o MÁXIMO sobre os trechos. Assim
+# um objeto/cena do 3º ato ainda casa — o embedding do plot inteiro perde isso
+# (e5 trunca em 512 tokens). Só existe com `plot_chunk_*` no índice
+# (index_builder --plot-chunks-only). 0 desliga.
+DEFAULT_PLOT_CHUNK_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_CHUNK_WEIGHT", "0.0"))
 
 # Prior de popularidade/aclamação (z-score de log(vote_count)). Desempata a favor
 # do filme famoso quando muitos casam parecido com uma descrição genérica (ex.:
@@ -253,6 +261,8 @@ class SearchEngine:
         self._kw_embeddings: Optional[np.ndarray] = None   # N×D temático (L2-norm)
         self._plot_embeddings: Optional[np.ndarray] = None  # N×D enredo Wikipédia (L2-norm)
         self._bm25_plot = None                             # BM25Index sobre o texto do enredo
+        self._plot_chunk_emb: Optional[np.ndarray] = None   # M×D trechos de enredo (L2-norm)
+        self._plot_chunk_rows: Optional[np.ndarray] = None  # M -> linha do filme em _movie_ids
         self._kw_term_emb: Optional[np.ndarray] = None     # Nkw×D por keyword (L2-norm)
         self._kw_term_row: dict[str, int] = {}             # nome(lower) -> linha em _kw_term_emb
         self._embed_model = None
@@ -311,6 +321,9 @@ class SearchEngine:
                 self._kw_embeddings = np.load(P["kw_embeddings"])
             if meta.get("has_plot_embeddings") and os.path.exists(P["plot_embeddings"]):
                 self._plot_embeddings = np.load(P["plot_embeddings"])
+            if meta.get("has_plot_chunks") and os.path.exists(P["plot_chunk_emb"]):
+                self._plot_chunk_emb = np.load(P["plot_chunk_emb"])
+                self._plot_chunk_rows = np.load(P["plot_chunk_rows"])
             if meta.get("has_keyword_terms") and os.path.exists(P["keyword_term_emb"]):
                 self._kw_term_emb = np.load(P["keyword_term_emb"])
                 with open(P["keyword_terms"], encoding="utf-8") as f:
@@ -631,6 +644,7 @@ class SearchEngine:
             "entity": zero.copy(),
             "plot": zero.copy(),
             "plot_lexical": zero.copy(),
+            "plot_maxsim": zero.copy(),
             # Prior de popularidade (sempre presente; pode ser negativo p/ obscuros).
             "prior": DEFAULT_POP_PRIOR * self._pop_prior_vec,
             "_z_synopsis": zero.copy(),
@@ -655,12 +669,21 @@ class SearchEngine:
                 comps["_z_keyword"] = z_kw
             if DEFAULT_PLOT_WEIGHT > 0 and self._plot_embeddings is not None:
                 comps["plot"] = DEFAULT_PLOT_WEIGHT * relu(_zscore(self._plot_embeddings @ q_emb))
+            if DEFAULT_PLOT_CHUNK_WEIGHT > 0 and self._plot_chunk_emb is not None:
+                cs = self._plot_chunk_emb @ q_emb  # (M,) sim por trecho
+                ms = np.full(n, np.nan)
+                np.fmax.at(ms, self._plot_chunk_rows, cs)  # max por filme; sem trecho -> nan
+                have = ~np.isnan(ms)
+                z = zero.copy()
+                if have.any():
+                    z[have] = _zscore(ms[have])
+                comps["plot_maxsim"] = DEFAULT_PLOT_CHUNK_WEIGHT * relu(z)
         return comps
 
     def _synopsis_scores(self, query: str, **weights) -> np.ndarray:
         """Vetor de scores de sinopse fundido (ReLU dos sinais + prior)."""
         comps = self._synopsis_components(query, **weights)
-        return comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["plot_lexical"] + comps["prior"]
+        return comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["plot_lexical"] + comps["plot_maxsim"] + comps["prior"]
 
     def search_by_synopsis(self, query: str, n: int = 10, **weights) -> list[tuple[int, float]]:
         """Sinopse híbrida sobre todo o catálogo (top n*4 candidatos)."""
@@ -893,7 +916,8 @@ class SearchEngine:
                    "keyword": float(comps["keyword"][row]),
                    "entity": float(comps["entity"][row]),
                    "plot": float(comps["plot"][row]),
-                   "plot_lexical": float(comps["plot_lexical"][row])}
+                   "plot_lexical": float(comps["plot_lexical"][row]),
+                   "plot_maxsim": float(comps["plot_maxsim"][row])}
             if syn_norm is not None:
                 total = syn_w * float(syn_norm.get(tmdb_id, 0.0))
                 pos = {k: max(0.0, v) for k, v in sub.items()}
@@ -1069,7 +1093,7 @@ class SearchEngine:
         cq = clean_descriptive_query(query)
         q_emb = self._encode(cq) if self._embeddings is not None else None
         comps = self._synopsis_components(cq, q_emb=q_emb)
-        fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["plot_lexical"] + comps["prior"]
+        fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["plot_lexical"] + comps["plot_maxsim"] + comps["prior"]
         order = np.argsort(fused)[::-1]
 
         if not blend_name:
@@ -1097,7 +1121,7 @@ class SearchEngine:
         # sinal temático) que a fusão sozinha deixaria fora da janela de re-rank.
         per_signal_k = max(n * 4, 80)
         cand_ids = {int(self._movie_ids[i]) for i in order[: n * 4]}
-        for sig in ("synopsis", "keyword", "entity", "plot", "plot_lexical"):
+        for sig in ("synopsis", "keyword", "entity", "plot", "plot_lexical", "plot_maxsim"):
             sig_order = np.argsort(comps[sig])[::-1][:per_signal_k]
             cand_ids |= {int(self._movie_ids[i]) for i in sig_order}
         cand_ids |= set(name_scores)
@@ -1175,7 +1199,8 @@ class SearchEngine:
         if comps is not None:
             syn_raw = {tid: float(comps["lexical"][row[tid]] + comps["synopsis"][row[tid]]
                                   + comps["keyword"][row[tid]] + comps["entity"][row[tid]]
-                                  + comps["plot"][row[tid]] + comps["plot_lexical"][row[tid]]) if tid in row else 0.0
+                                  + comps["plot"][row[tid]] + comps["plot_lexical"][row[tid]]
+                                  + comps["plot_maxsim"][row[tid]]) if tid in row else 0.0
                        for tid in cand_ids}
             lo, hi = min(syn_raw.values()), max(syn_raw.values())
             syn_norm = {tid: ((v - lo) / (hi - lo) if hi > lo else 0.0)

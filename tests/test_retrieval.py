@@ -39,14 +39,26 @@ def test_object_split_present_in_eval_set():
 
 
 def test_plot_channels_are_off_by_default():
-    """Enredo por embedding: ablação de 2026-09-04 deu negativo (e5 trunca em 512
-    tokens). Enredo por BM25: recall sobe mas nDCG@10 só melhora com re-ranker.
-    Os dois nascem desligados; ligar é via env var."""
+    """Três formas de usar o enredo da Wikipédia, todas desligadas por padrão
+    (ligar é via env var): embedding do plot inteiro (ablação 2026-09-04: negativo,
+    e5 trunca em 512 tokens), BM25 sobre o texto, e MaxSim sobre trechos."""
     from retrieval import search_engine as se
 
     assert se.DEFAULT_PLOT_WEIGHT == 0.0
     assert se.DEFAULT_PLOT_BM25_WEIGHT == 0.0
-    assert "plot_lexical" in se.SIGNAL_LABELS
+    assert se.DEFAULT_PLOT_CHUNK_WEIGHT == 0.0
+    assert {"plot", "plot_lexical", "plot_maxsim"} <= set(se.SIGNAL_LABELS)
+
+
+def test_chunk_words_windows_long_text():
+    from retrieval.index_builder import _chunk_words
+
+    assert _chunk_words("") == []
+    assert _chunk_words("um dois tres") == ["um dois tres"]  # curto: 1 janela
+    chunks = _chunk_words(" ".join(str(i) for i in range(1000)), size=380, overlap=50)
+    assert len(chunks) >= 3  # 1000 palavras -> várias janelas
+    assert all(len(c.split()) <= 380 for c in chunks)
+    assert chunks[0].split()[-50:] == chunks[1].split()[:50]  # janelas se sobrepõem em 50
 
 
 def test_clean_wikitext_strips_markup_keeps_prose():
