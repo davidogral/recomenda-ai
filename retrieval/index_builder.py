@@ -54,6 +54,8 @@ def index_paths(index_dir: str = INDEX_DIR) -> dict[str, str]:
         "bm25_counts": j("bm25_counts.npz"),
         "bm25_plot_vectorizer": j("bm25_plot_vectorizer.pkl"),
         "bm25_plot_counts": j("bm25_plot_counts.npz"),
+        "plot_chunk_emb": j("plot_chunk_embeddings.npy"),
+        "plot_chunk_rows": j("plot_chunk_rows.npy"),
         "embeddings": j("embeddings.npy"),
         "kw_embeddings": j("kw_embeddings.npy"),
         "keyword_term_emb": j("keyword_term_embeddings.npy"),
@@ -442,6 +444,79 @@ def build_plot_bm25(index_dir: str = INDEX_DIR) -> dict:
     return info
 
 
+def _chunk_words(text: str, size: int = 380, overlap: int = 50) -> list[str]:
+    """Janelas de ~`size` palavras com `overlap` de sobreposicao. ~380 palavras
+    ~= ~500 tokens do e5 (fica sob o limite de 512 sem truncar de verdade)."""
+    words = text.split()
+    if len(words) <= size:
+        return [text] if text.strip() else []
+    step = size - overlap
+    return [" ".join(words[i:i + size]) for i in range(0, len(words), step) if words[i:i + size]]
+
+
+def build_plot_chunks(index_dir: str = INDEX_DIR, batch_size: int = 64,
+                      embed_model_name: str = DEFAULT_EMBED_MODEL,
+                      limit: Optional[int] = None) -> dict:
+    """Enredo em TRECHOS: cada plot vira N janelas de ~380 palavras; cada janela
+    e um embedding. Na busca o score do filme = max sobre os trechos (MaxSim) —
+    assim um objeto/cena citado no 3o ato ainda casa, o que o embedding do plot
+    inteiro perde (e5 trunca em 512 tokens). ~3s + o encode dos trechos.
+    `limit` = so os N filmes com enredo mais votados (janela barata p/ testar)."""
+    import numpy as _np
+    from sentence_transformers import SentenceTransformer
+
+    from core.device import get_device
+
+    P = index_paths(index_dir)
+    if not os.path.exists(P["movie_ids"]) or not os.path.exists(P["meta"]):
+        raise RuntimeError(f"indice ausente em {index_dir}; rode build_index primeiro.")
+    ids = _np.load(P["movie_ids"])
+    row_of = {int(t): i for i, t in enumerate(ids.tolist())}
+    rows = db.query(
+        "SELECT tmdb_id, wikipedia_plot FROM movies "
+        "WHERE wikipedia_plot IS NOT NULL AND wikipedia_plot <> '' "
+        "ORDER BY vote_count DESC"
+    )
+    if limit:
+        rows = rows[:limit]
+    plot_map = {int(r["tmdb_id"]): (r["wikipedia_plot"] or "") for r in rows}
+
+    chunk_texts: list[str] = []
+    chunk_rows: list[int] = []
+    for tid, plot in plot_map.items():
+        if tid not in row_of:
+            continue
+        for ch in _chunk_words(plot):
+            chunk_texts.append(ch)
+            chunk_rows.append(row_of[tid])
+    if not chunk_texts:
+        raise RuntimeError("nenhum trecho de enredo; rode core.enrich --wikipedia")
+
+    q_pref, p_pref = embed_prefixes(embed_model_name)
+    model = SentenceTransformer(embed_model_name, device=get_device())
+    t0 = time.time()
+    payload = [f"{p_pref}{t}" for t in chunk_texts] if p_pref else chunk_texts
+    emb = model.encode(payload, batch_size=batch_size, normalize_embeddings=True,
+                       show_progress_bar=True, convert_to_numpy=True).astype(np.float32)
+    np.save(P["plot_chunk_emb"], emb)
+    np.save(P["plot_chunk_rows"], np.asarray(chunk_rows, dtype=np.int32))
+
+    with open(P["meta"], encoding="utf-8") as f:
+        meta = json.load(f)
+    n_films = len(set(chunk_rows))
+    info = {
+        "has_plot_chunks": True,
+        "n_plot_chunks": len(chunk_texts),
+        "n_plot_chunk_films": n_films,
+        "plot_chunk_build_secs": round(time.time() - t0, 1),
+    }
+    meta.update(info)
+    with open(P["meta"], "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    print(f"  trechos de enredo: {len(chunk_texts)} de {n_films} filmes")
+    return info
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -453,10 +528,15 @@ if __name__ == "__main__":
     p.add_argument("--index-dir", default=INDEX_DIR)
     p.add_argument("--plot-bm25-only", action="store_true",
                    help="(Re)constroi so o BM25 do enredo (bm25_plot_*), sem reencodar nada.")
+    p.add_argument("--plot-chunks-only", action="store_true",
+                   help="(Re)constroi so os embeddings de TRECHO do enredo (plot_chunk_*).")
     args = p.parse_args()
 
     if args.plot_bm25_only:
         info = build_plot_bm25(args.index_dir)
+    elif args.plot_chunks_only:
+        info = build_plot_chunks(args.index_dir, batch_size=args.batch_size,
+                                 embed_model_name=args.model, limit=args.limit)
     else:
         info = build_index(
             embed_model_name=args.model,
