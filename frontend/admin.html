@@ -2,13 +2,13 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#0d0d0f">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09090b">
     <meta name="color-scheme" content="dark">
     <meta name="robots" content="noindex,nofollow">
     <title>Admin — Cinerd</title>
     <link rel="icon" type="image/png" sizes="96x96" href="{{ url_for('static', filename='icon-96.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=9">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
         .adm { max-width: 1120px; margin: 0 auto; padding: 28px 16px 80px; }
@@ -94,44 +94,64 @@
         .adm-empty { color: var(--gray); font-size: var(--fs-sm); }
         [hidden] { display: none !important; }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}?v=1">
 </head>
 <body>
     <div class="adm">
-        <h1>Painel Admin</h1>
-        <p class="sub"><a href="/">← Cinerd</a> · dados de contas e uso · acesso restrito à allowlist</p>
+        <header class="adm-header">
+            <a class="adm-brand" href="/" aria-label="Voltar ao Cinerd"><span aria-hidden="true">🍿</span></a>
+            <div class="adm-heading">
+                <span class="adm-eyebrow">Operação Cinerd</span>
+                <h1>Painel administrativo</h1>
+                <p class="sub">Contas, comportamento e saúde do produto em uma visão operacional.</p>
+            </div>
+            <span class="adm-restricted"><span aria-hidden="true">●</span> Acesso restrito</span>
+        </header>
 
-        <div class="adm-nav">
-            <button id="tabAccounts" class="on" type="button">Contas</button>
-            <button id="tabUsage" type="button">Uso</button>
+        <div class="adm-nav" role="tablist" aria-label="Áreas do painel">
+            <button id="tabAccounts" class="on" type="button" role="tab" aria-selected="true"
+                    aria-controls="viewAccounts">Contas</button>
+            <button id="tabUsage" type="button" role="tab" aria-selected="false"
+                    aria-controls="viewUsage">Uso do produto</button>
             <label class="days" hidden id="daysWrap">janela
                 <select id="daysSel"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select>
             </label>
         </div>
 
-        <section id="viewAccounts">
+        <section id="viewAccounts" role="tabpanel" aria-labelledby="tabAccounts">
             <div class="adm-tiles" id="tiles"></div>
-            <div class="adm-spark" id="spark" title="cadastros por dia (30d)"></div>
-            <div class="adm-scroll">
-                <table class="adm-t">
+            <article class="adm-card adm-signups">
+                <div class="adm-section-head">
+                    <div><h2>Novas contas</h2><p>Cadastros por dia nos últimos 30 dias</p></div>
+                </div>
+                <div class="adm-spark" id="spark" title="cadastros por dia (30d)" aria-label="Gráfico de cadastros por dia"></div>
+            </article>
+            <article class="adm-card adm-users-card">
+                <div class="adm-section-head">
+                    <div><h2>Usuários</h2><p>Selecione uma conta para consultar histórico e ações.</p></div>
+                </div>
+                <div class="adm-scroll" tabindex="0" role="region" aria-label="Tabela de usuários, rolável horizontalmente">
+                <table class="adm-t" aria-label="Contas cadastradas">
                     <thead><tr>
                         <th>#</th><th>e-mail</th><th>verif.</th><th>ativa</th>
                         <th>diário</th><th>resenhas</th><th>listas</th><th>criada</th>
                     </tr></thead>
                     <tbody id="rows"></tbody>
                 </table>
-            </div>
+                </div>
+            </article>
             <div id="detail"></div>
         </section>
 
-        <section id="viewUsage" hidden>
+        <section id="viewUsage" role="tabpanel" aria-labelledby="tabUsage" hidden>
             <div id="usageStatus" class="adm-empty">carregando…</div>
             <div id="usageBody" hidden>
                 <div class="kpis" id="kpis"></div>
-                <div class="adm-sub" id="usageSub">
-                    <button data-sub="overview" class="on" type="button">Visão geral</button>
-                    <button data-sub="search" type="button">Busca</button>
-                    <button data-sub="content" type="button">Conteúdo</button>
-                    <button data-sub="sessions" type="button">Sessões</button>
+                <div class="adm-sub" id="usageSub" role="tablist" aria-label="Métricas de uso">
+                    <button data-sub="overview" class="on" type="button" role="tab" aria-selected="true">Visão geral</button>
+                    <button data-sub="search" type="button" role="tab" aria-selected="false">Busca</button>
+                    <button data-sub="content" type="button" role="tab" aria-selected="false">Conteúdo</button>
+                    <button data-sub="sessions" type="button" role="tab" aria-selected="false">Sessões</button>
                 </div>
                 <div class="adm-grid" id="paneOverview"></div>
                 <div class="adm-grid" id="paneSearch" hidden></div>
@@ -170,17 +190,27 @@
             const d = await (await fetch('/admin/api/users')).json();
             $('rows').innerHTML = (d.users || []).map(u => {
                 const c = u.counts || {};
-                return `<tr data-uid="${u.user_id}">
-                    <td>${u.user_id}</td>
-                    <td>${esc(u.email)}</td>
-                    <td>${u.email_verified ? '<span class="pill ok">✓</span>' : '<span class="pill no">—</span>'}</td>
-                    <td>${u.is_active ? '<span class="pill ok">sim</span>' : '<span class="pill no">não</span>'}</td>
-                    <td>${c.ratings || 0}</td><td>${c.reviews || 0}</td><td>${c.lists || 0}</td>
-                    <td class="off">${esc((u.created_at || '').slice(0, 10))}</td>
+                return `<tr data-uid="${u.user_id}" tabindex="0" role="button" aria-label="Abrir conta ${esc(u.email)}">
+                    <td data-label="ID">${u.user_id}</td>
+                    <td data-label="E-mail">${esc(u.email)}</td>
+                    <td data-label="Verificada">${u.email_verified ? '<span class="pill ok">sim</span>' : '<span class="pill no">não</span>'}</td>
+                    <td data-label="Ativa">${u.is_active ? '<span class="pill ok">sim</span>' : '<span class="pill no">não</span>'}</td>
+                    <td data-label="Diário">${c.ratings || 0}</td><td data-label="Resenhas">${c.reviews || 0}</td><td data-label="Listas">${c.lists || 0}</td>
+                    <td data-label="Criada" class="off">${esc((u.created_at || '').slice(0, 10))}</td>
                 </tr>`;
             }).join('') || '<tr><td colspan="8" class="adm-empty">nenhuma conta ainda</td></tr>';
-            $('rows').querySelectorAll('tr[data-uid]').forEach(tr =>
-                tr.onclick = () => { if (selRow) selRow.classList.remove('sel'); selRow = tr; tr.classList.add('sel'); showUser(tr.dataset.uid); });
+            $('rows').querySelectorAll('tr[data-uid]').forEach(tr => {
+                const open = () => {
+                    if (selRow) selRow.classList.remove('sel');
+                    selRow = tr;
+                    tr.classList.add('sel');
+                    showUser(tr.dataset.uid);
+                };
+                tr.onclick = open;
+                tr.onkeydown = e => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+                };
+            });
         }
 
         async function showUser(uid) {
@@ -388,6 +418,8 @@
             $('viewUsage').hidden = !usage;
             $('tabAccounts').classList.toggle('on', !usage);
             $('tabUsage').classList.toggle('on', usage);
+            $('tabAccounts').setAttribute('aria-selected', String(!usage));
+            $('tabUsage').setAttribute('aria-selected', String(usage));
             $('daysWrap').hidden = !usage;
             if (usage && !DATA) loadUsage();
         }
@@ -396,7 +428,10 @@
         $('daysSel').onchange = () => loadUsage();
         $('usageSub').querySelectorAll('button').forEach(b => b.onclick = () => {
             SUB = b.dataset.sub;
-            $('usageSub').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+            $('usageSub').querySelectorAll('button').forEach(x => {
+                x.classList.toggle('on', x === b);
+                x.setAttribute('aria-selected', String(x === b));
+            });
             renderSub();
         });
 

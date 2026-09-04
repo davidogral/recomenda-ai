@@ -11,8 +11,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="preconnect" href="https://image.tmdb.org">
     <link rel="dns-prefetch" href="https://image.tmdb.org">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=8">
-    <script src="{{ url_for('static', filename='app.js') }}?v=8" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=9">
+    <script src="{{ url_for('static', filename='app.js') }}?v=9" defer></script>
 </head>
 <body>
     <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
@@ -81,21 +81,25 @@
                 </div>
             </div>
 
-            <button class="nav-help" id="tourBtn" type="button" aria-label="Como usar o Cinerd" title="Como usar">?</button>
         </nav>
 
         <!-- BARRA DE STREAMING (onde assistir) — aparece só com TMDB configurado -->
-        <section id="streamingBar" class="streaming-bar" style="display:none">
-            <div class="streaming-head">
-                <button type="button" id="streamingToggleBtn" class="streaming-summary" aria-expanded="false">
-                    🎬 Meus streamings <span id="streamingCount" class="streaming-count">0</span>
-                    <span class="streaming-caret">▾</span>
-                </button>
-                <label class="streaming-only">
-                    <input type="checkbox" id="streamingOnly"> mostrar só o que eu tenho
-                </label>
+        <section id="streamingBar" class="streaming-bar" style="display:none" aria-label="Preferências de streaming">
+            <div class="streaming-copy">
+                <span class="eyebrow">Disponibilidade</span>
+                <strong>Onde você assiste?</strong>
+                <small id="streamingSummary">Escolha seus serviços para destacá-los nos filmes.</small>
             </div>
-            <div class="streaming-chips" id="streamingChips" style="display:none"></div>
+            <div class="streaming-actions">
+                <label class="streaming-only" id="streamingOnlyWrap" hidden>
+                    <input type="checkbox" id="streamingOnly">
+                    <span>Mostrar só nos meus serviços</span>
+                </label>
+                <button type="button" id="streamingToggleBtn" class="streaming-summary"
+                        aria-haspopup="dialog" aria-controls="streamingModal">
+                    Gerenciar <span id="streamingCount" class="streaming-count">0</span>
+                </button>
+            </div>
         </section>
 
         <!-- ABA 1: BUSCA -->
@@ -112,52 +116,29 @@
                            placeholder="Ex.: brinquedos que ganham vida quando ninguém está olhando">
                     <button id="searchBtn" class="btn-primary" type="button">Buscar</button>
                 </div>
-                <details class="search-refine" id="searchRefine">
-                    <summary>
-                        <span><span aria-hidden="true">⚙</span> Refinar busca</span>
-                        <small>diretor, ator, gênero, idioma ou período</small>
-                    </summary>
-                    <div class="search-refine-body">
-                        <div class="search-row people-row">
-                            <div class="autocomplete-wrap">
-                                <input type="text" id="directorInput" class="text-input" autocomplete="off"
-                                       aria-label="Filtrar por diretor" aria-controls="directorDropdown" aria-expanded="false"
-                                       placeholder="🎬 Diretor (opcional)">
-                                <div class="autocomplete-dropdown" id="directorDropdown" role="listbox" aria-label="Sugestões de diretores"></div>
-                            </div>
-                            <div class="autocomplete-wrap">
-                                <input type="text" id="actorInput" class="text-input" autocomplete="off"
-                                       aria-label="Filtrar por ator" aria-controls="actorDropdown" aria-expanded="false"
-                                       placeholder="⭐ Ator (opcional)">
-                                <div class="autocomplete-dropdown" id="actorDropdown" role="listbox" aria-label="Sugestões de atores"></div>
-                            </div>
-                        </div>
-                        <div class="filters">
-                            <label>Gênero
-                                <select id="filterGenre"><option value="">Todos</option></select>
-                            </label>
-                            <label>Idioma
-                                <input type="text" id="filterLang" class="mini-input" placeholder="ex: en, pt, fr">
-                            </label>
-                            <label>Ano de
-                                <input type="number" id="filterYearMin" class="mini-input" placeholder="1950">
-                            </label>
-                            <label>até
-                                <input type="number" id="filterYearMax" class="mini-input" placeholder="2025">
-                            </label>
-                        </div>
-                        <p class="hint">Tudo o que você souber ajuda a afunilar a busca.
-                            <a href="#" class="eng-link" data-goto="engenharia">Entenda como encontramos →</a></p>
-                    </div>
-                </details>
+                <button class="search-refine-trigger" id="filterOpenBtn" type="button"
+                        aria-haspopup="dialog" aria-controls="filterModal">
+                    <span class="refine-icon" aria-hidden="true">☷</span>
+                    <span class="refine-copy"><strong>Refinar busca</strong>
+                        <small id="filterSummary">Diretor, ator, gênero, idioma ou período</small></span>
+                    <span class="refine-count" id="filterCount" hidden>0</span>
+                    <span class="refine-arrow" aria-hidden="true">›</span>
+                </button>
             </div>
 
-            <div id="searchStatus" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
+            <div id="searchResults" class="results-anchor" tabindex="-1">
+                <div id="searchStatus" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
+            </div>
             <div class="movies-grid" id="searchGrid"></div>
         </section>
 
         <!-- ABA: PARECIDOS (item-to-item) -->
         <section id="tab-similar" class="tab-panel">
+            <div class="panel-heading">
+                <span class="eyebrow">Descoberta</span>
+                <h2>Mais filmes nessa vibe</h2>
+                <p>Parta de um filme que você gostou e encontre conexões de tema e público.</p>
+            </div>
             <div class="form-section">
                 <p class="hint">Digite um filme que você curtiu e veja outros parecidos — por <strong>tema</strong> e por quem <strong>também gostou</strong>. Ex.: <em>gostei de Blade Runner, quero mais como ele</em>.</p>
                 <div class="search-row">
@@ -175,6 +156,11 @@
 
         <!-- ABA: ESSENCIAIS (gêneros, estilos, diretores) -->
         <section id="tab-explore" class="tab-panel">
+            <div class="panel-heading">
+                <span class="eyebrow">Curadoria</span>
+                <h2>Essenciais do cinema</h2>
+                <p>Explore o cânone por gênero, estilo ou diretor, já em ordem para assistir.</p>
+            </div>
             <div class="form-section">
                 <p class="hint">Os filmes que todo cinéfilo precisa ver — por <strong>gênero</strong> (terror...), <strong>estilo</strong> (giallo, noir, slasher...) ou <strong>diretor</strong> (Dario Argento...). Cada filme conta <strong>uma vez, no seu gênero principal</strong> (Pulp Fiction fica no Crime, não na Comédia). Ranking de clássico: <em>aclamação</em> (nota) + <em>fama</em> (votos) + <em>longevidade</em> (continua relevante décadas depois).</p>
                 <div class="explore-mode">
@@ -199,6 +185,11 @@
 
         <!-- ABA 2: ESCOLHER FILMES FAVORITOS -->
         <section id="tab-pick3" class="tab-panel">
+            <div class="panel-heading">
+                <span class="eyebrow">Seu gosto</span>
+                <h2>Escolha filmes que você curte</h2>
+                <p>Monte um perfil rápido e receba recomendações personalizadas.</p>
+            </div>
             <div class="form-section">
                 <p class="hint">Clique nos filmes que você curte — quanto mais escolher, melhor o seu perfil. Depois é só recomendar.</p>
                 <div class="search-row">
@@ -225,6 +216,11 @@
 
         <!-- ABA 3: LETTERBOXD -->
         <section id="tab-recommend" class="tab-panel">
+            <div class="panel-heading">
+                <span class="eyebrow">Importação</span>
+                <h2>Traga seu Letterboxd</h2>
+                <p>Use suas notas existentes para começar com um perfil mais completo.</p>
+            </div>
             <div class="form-section">
                 <p class="hint">
                     Exporte suas notas no Letterboxd em
@@ -232,7 +228,13 @@
                     e envie o <code>ratings.csv</code> de dentro do .zip.
                 </p>
                 <div class="search-row">
-                    <input type="file" id="ratingsFile" accept=".csv" class="file-input" aria-label="Selecionar arquivo ratings.csv do Letterboxd">
+                    <label class="file-picker" id="ratingsPicker" for="ratingsFile">
+                        <span class="file-picker-icon" aria-hidden="true">↑</span>
+                        <span><strong id="ratingsFileName">Selecionar ratings.csv</strong>
+                            <small>Arquivo CSV exportado pelo Letterboxd</small></span>
+                        <input type="file" id="ratingsFile" accept=".csv" class="file-input"
+                               aria-label="Selecionar arquivo ratings.csv do Letterboxd">
+                    </label>
                     <button id="recommendBtn" class="btn-primary" type="button">Recomendar</button>
                 </div>
             </div>
@@ -243,6 +245,11 @@
 
         <!-- ABA: ASSISTIDOS (diário estilo Letterboxd) -->
         <section id="tab-watched" class="tab-panel">
+            <div class="panel-heading">
+                <span class="eyebrow">Sua conta</span>
+                <h2>Diário de filmes</h2>
+                <p>Notas, curtidas, resenhas e datas em um histórico só seu.</p>
+            </div>
             <div class="form-section">
                 <p class="hint">Seu diário: nota em estrelas, ❤ de curtida, resenha e data — tudo salvo aqui na plataforma. Para avaliar (ou editar), abra a ficha de qualquer filme.</p>
                 <div class="search-row watched-controls">
@@ -264,6 +271,11 @@
 
         <!-- ABA: LISTAS (ordem de assistir) -->
         <section id="tab-lists" class="tab-panel">
+            <div class="panel-heading">
+                <span class="eyebrow">Sua conta</span>
+                <h2>Listas para assistir</h2>
+                <p>Organize filmes e franquias na sequência que fizer sentido para você.</p>
+            </div>
             <div id="listsHome">
                 <div class="form-section">
                     <p class="hint">Monte listas com a <strong>ordem certa de assistir</strong> — arraste para reordenar. Pela ficha de um filme dá para adicioná-lo a qualquer lista, ou importar a franquia inteira de uma vez.</p>
@@ -346,8 +358,91 @@
                 Dados de avaliações para a recomendação: ver <a href="https://github.com/davidogral/recomenda-ai#-proveniência-dos-dados" target="_blank" rel="noopener">proveniência dos dados</a>.
             </p>
             <p class="data-credits"><a href="/privacidade">Política de Privacidade</a> ·
-                <a href="#" data-goto="engenharia">Como o Cinerd encontra filmes</a> · seus dados são seus.</p>
+                <a href="#" data-goto="engenharia">Como o Cinerd encontra filmes</a> ·
+                <button class="footer-action" type="button" data-open-guide>Guia de recursos</button> · seus dados são seus.</p>
         </footer>
+    </div>
+
+    <!-- MODAL: FILTROS DA BUSCA -->
+    <div id="filterModal" class="modal-overlay" style="display:none" aria-hidden="true">
+        <div class="modal preference-modal filter-modal" role="dialog" aria-modal="true"
+             aria-labelledby="filterModalTitle" tabindex="-1">
+            <button class="modal-close" id="filterClose" type="button" aria-label="Fechar filtros">&times;</button>
+            <div class="modal-head preference-head">
+                <span class="eyebrow">Busca avançada</span>
+                <h2 id="filterModalTitle">Refinar resultados</h2>
+                <p>Use apenas o que você souber. Nenhum campo é obrigatório.</p>
+            </div>
+            <div class="filter-dialog-grid">
+                <div class="autocomplete-wrap field-wide">
+                    <label class="field-label" for="directorInput">Diretor</label>
+                    <input type="text" id="directorInput" class="text-input" autocomplete="off"
+                           aria-controls="directorDropdown" aria-expanded="false" placeholder="Ex.: Jordan Peele">
+                    <div class="autocomplete-dropdown" id="directorDropdown" role="listbox" aria-label="Sugestões de diretores"></div>
+                </div>
+                <div class="autocomplete-wrap field-wide">
+                    <label class="field-label" for="actorInput">Ator ou atriz</label>
+                    <input type="text" id="actorInput" class="text-input" autocomplete="off"
+                           aria-controls="actorDropdown" aria-expanded="false" placeholder="Ex.: Fernanda Montenegro">
+                    <div class="autocomplete-dropdown" id="actorDropdown" role="listbox" aria-label="Sugestões de atores"></div>
+                </div>
+                <label class="field-label">Gênero
+                    <select id="filterGenre"><option value="">Todos os gêneros</option></select>
+                </label>
+                <label class="field-label">Idioma
+                    <input type="text" id="filterLang" class="mini-input" placeholder="Ex.: pt, en, fr">
+                </label>
+                <label class="field-label">Ano inicial
+                    <input type="number" id="filterYearMin" class="mini-input" inputmode="numeric" placeholder="1950">
+                </label>
+                <label class="field-label">Ano final
+                    <input type="number" id="filterYearMax" class="mini-input" inputmode="numeric" placeholder="2025">
+                </label>
+            </div>
+            <p class="hint filter-help">Os filtros combinam com a sua descrição.
+                <a href="#" class="eng-link" data-goto="engenharia">Entenda como encontramos filmes →</a></p>
+            <div class="dialog-actions">
+                <button id="filterResetBtn" class="btn-secondary" type="button">Limpar filtros</button>
+                <button id="filterApplyBtn" class="btn-primary" type="button">Aplicar e buscar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PREFERÊNCIAS DE STREAMING -->
+    <div id="streamingModal" class="modal-overlay" style="display:none" aria-hidden="true">
+        <div class="modal preference-modal streaming-modal" role="dialog" aria-modal="true"
+             aria-labelledby="streamingModalTitle" tabindex="-1">
+            <button class="modal-close" id="streamingClose" type="button" aria-label="Fechar streamings">&times;</button>
+            <div class="modal-head preference-head">
+                <span class="eyebrow">Onde assistir</span>
+                <h2 id="streamingModalTitle">Seus serviços</h2>
+                <p>Selecione os streamings que você assina. A escolha fica salva somente neste navegador.</p>
+            </div>
+            <div class="streaming-chips" id="streamingChips" aria-label="Serviços disponíveis"></div>
+            <div class="dialog-actions">
+                <button id="streamingDoneBtn" class="btn-primary" type="button">Concluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GUIA ESTÁVEL DO PRODUTO -->
+    <div id="guideModal" class="modal-overlay guide-overlay" style="display:none" aria-hidden="true">
+        <div class="modal guide-modal" role="dialog" aria-modal="true" aria-labelledby="guideTitle" tabindex="-1">
+            <button class="modal-close" id="guideClose" type="button" aria-label="Fechar guia">&times;</button>
+            <div class="guide-progress" id="guideProgress" aria-hidden="true"></div>
+            <div class="guide-visual" id="guideIcon" aria-hidden="true"></div>
+            <span class="eyebrow" id="guideEyebrow"></span>
+            <h2 id="guideTitle"></h2>
+            <p id="guideBody"></p>
+            <ul class="guide-points" id="guidePoints"></ul>
+            <div class="guide-actions">
+                <span id="guideCount" class="guide-count"></span>
+                <div>
+                    <button id="guidePrev" class="btn-secondary" type="button">Voltar</button>
+                    <button id="guideNext" class="btn-primary" type="button">Próximo</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL: AUTENTICAÇÃO (login / cadastro / recuperar / redefinir senha) -->

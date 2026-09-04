@@ -80,6 +80,38 @@ Essas decisões aplicam estética minimalista, reconhecimento em vez de memória
 controle do usuário. Filtros selecionados nunca são descartados ao recolher o
 painel de refinamento.
 
+## Auditoria completa v3
+
+A v3 substitui componentes que ainda dependiam de expansão vertical ou
+reposicionamento frágil e inclui explicitamente o painel administrativo. O
+contrato foi conferido em 320, 360, 390, 768, 1024 e 1440 px conforme a tela.
+
+| Heurística de Nielsen | Evidência implementada |
+|---|---|
+| Visibilidade do estado | contagem e resumo de filtros/streamings, estados de busca anunciados e aba ativa com `aria-selected` no admin |
+| Correspondência com o mundo real | tarefas nomeadas como Buscar, Onde assistir, Parecidos, Diário e Listas, com descrições orientadas à intenção |
+| Controle e liberdade | fechar por botão, fundo ou Escape; limpar filtros; streaming opcional; guia nunca abre sozinho |
+| Consistência e padrões | mesmos tokens, alvos de 44 px, cabeçalhos, cartões, diálogos e estados ativos na home e no admin |
+| Prevenção de erros | filtro “só nos meus serviços” desabilitado sem serviço escolhido e ações destrutivas do admin continuam confirmadas |
+| Reconhecimento em vez de memória | menus descrevem cada destino; filtros e serviços selecionados ficam resumidos no acionador |
+| Flexibilidade e eficiência | Enter executa busca, teclado opera contas e modais, e a busca leva diretamente ao início dos resultados |
+| Estética minimalista | filtros e catálogo de streamings saíram do fluxo vertical; botão `?` e spotlight móvel foram removidos |
+| Recuperação de erros | regiões de status preservam mensagens acionáveis sem apagar silenciosamente o contexto da pessoa |
+| Ajuda e documentação | guia fixo de sete etapas cobre busca, filtros, streaming, descoberta, Letterboxd, conta e transparência |
+
+### Comportamento responsivo verificado
+
+- em até 768 px, a navegação principal é uma barra inferior de quatro destinos,
+  com menus em folha acima dela e espaço seguro no fim da página;
+- filtros e streamings usam diálogos com foco contido e folha inferior no
+  celular, sem empurrar ou sobrepor o formulário;
+- cada aba tem título e contexto próprios; controles internos usam grades que
+  colapsam sem rolagem horizontal;
+- no admin, KPIs reorganizam a grade, subabas passam de quatro para duas colunas
+  e cada linha da tabela vira um cartão legível e acionável por teclado;
+- tabelas analíticas largas mantêm rolagem dentro da própria região, sem alargar
+  o documento.
+
 ## Checklist antes de merge
 
 ### Automático

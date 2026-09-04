@@ -1,7 +1,7 @@
 /* Cinerd — front-end. Extraído do <script> inline de index.html sem alterar
    comportamento; servido como /static/app.js (cacheável) e carregado com defer.
    Blocos novos adicionados abaixo: navegação agrupada (goTo), skeleton loaders,
-   busca com refinamento progressivo e tour de coach-marks sob demanda. */
+   painéis responsivos de preferências e guia estável de recursos. */
 'use strict';
 
         // ---------- Camada compartilhada de modais ----------
@@ -89,6 +89,7 @@
             },
             render() {
                 const bar = document.getElementById('authBar');
+                bar.classList.toggle('has-user', Boolean(this.user));
                 if (this.user) {
                     bar.innerHTML = `<span class="auth-email" title="${this.user.email}">${this.user.email}</span>`
                         + (this.user.email_verified ? '' : ' <button class="auth-link" id="authResend">confirmar e-mail</button>')
@@ -244,7 +245,11 @@
         });
         // Links "leva para uma aba" fora da nav (ex.: "como a busca funciona").
         document.querySelectorAll('[data-goto]').forEach(el => {
-            el.addEventListener('click', e => { e.preventDefault(); goTo(el.dataset.goto); });
+            el.addEventListener('click', e => {
+                e.preventDefault();
+                if (el.closest('#filterModal')) closeFilters();
+                goTo(el.dataset.goto);
+            });
         });
         NAV.querySelectorAll('.nav-trigger').forEach(trigger => {
             trigger.addEventListener('click', e => {
@@ -407,6 +412,49 @@
         setupPersonAutocomplete('directorInput', 'directorDropdown', 'director');
         setupPersonAutocomplete('actorInput', 'actorDropdown', 'actor');
 
+        // Filtros vivem em um diálogo estável: não empurram o conteúdo da busca
+        // nem criam um acordeão comprido em telas estreitas.
+        const filterModal = document.getElementById('filterModal');
+        const filterFields = ['directorInput', 'actorInput', 'filterGenre', 'filterLang', 'filterYearMin', 'filterYearMax'];
+
+        function activeFilterLabels() {
+            const values = [
+                ['directorInput', 'Diretor'], ['actorInput', 'Elenco'], ['filterGenre', 'Gênero'],
+                ['filterLang', 'Idioma'], ['filterYearMin', 'Ano inicial'], ['filterYearMax', 'Ano final'],
+            ];
+            return values.filter(([id]) => document.getElementById(id).value.trim()).map(([, label]) => label);
+        }
+
+        function updateFilterSummary() {
+            const labels = activeFilterLabels();
+            const summary = document.getElementById('filterSummary');
+            const count = document.getElementById('filterCount');
+            summary.textContent = labels.length ? labels.join(' · ') : 'Diretor, ator, gênero, idioma ou período';
+            count.textContent = labels.length;
+            count.hidden = labels.length === 0;
+        }
+
+        function openFilters() { openOverlay(filterModal, '#directorInput'); }
+        function closeFilters() { closeOverlay(filterModal); updateFilterSummary(); }
+
+        document.getElementById('filterOpenBtn').addEventListener('click', openFilters);
+        document.getElementById('filterClose').addEventListener('click', closeFilters);
+        filterModal.addEventListener('click', e => { if (e.target === filterModal) closeFilters(); });
+        filterFields.forEach(id => {
+            const field = document.getElementById(id);
+            field.addEventListener('input', updateFilterSummary);
+            field.addEventListener('change', updateFilterSummary);
+        });
+        document.getElementById('filterResetBtn').addEventListener('click', () => {
+            filterFields.forEach(id => { document.getElementById(id).value = ''; });
+            updateFilterSummary();
+            document.getElementById('directorInput').focus();
+        });
+        document.getElementById('filterApplyBtn').addEventListener('click', () => {
+            closeFilters();
+            doSearch();
+        });
+
         async function doSearch() {
             const status = document.getElementById('searchStatus');
             const body = {
@@ -420,10 +468,18 @@
                 n: 18,
             };
             if (!body.query && !body.director && !body.actor) {
-                status.textContent = 'Descreva o filme ou escolha um diretor/ator.'; return;
+                status.textContent = 'Descreva o filme ou escolha um diretor/ator.';
+                document.getElementById('searchQuery').focus();
+                return;
             }
             status.textContent = 'Buscando...';
             skeletonGrid('searchGrid');
+            const results = document.getElementById('searchResults');
+            results.focus({ preventScroll: true });
+            results.scrollIntoView({
+                behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                block: 'start',
+            });
             try {
                 const res = await fetch('/search', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -443,7 +499,7 @@
         document.getElementById('searchBtn').addEventListener('click', doSearch);
         ['searchQuery', 'directorInput', 'actorInput'].forEach(id => {
             document.getElementById(id).addEventListener('keydown', e => {
-                if (e.key === 'Enter') doSearch();
+                if (e.key === 'Enter') { closeFilters(); doSearch(); }
             });
         });
 
@@ -651,6 +707,11 @@
             } catch (e) { status.textContent = 'Erro: ' + e.message; }
         }
         document.getElementById('recommendBtn').addEventListener('click', runLetterboxd);
+        document.getElementById('ratingsFile').addEventListener('change', e => {
+            const file = e.target.files[0];
+            document.getElementById('ratingsFileName').textContent = file ? file.name : 'Selecionar ratings.csv';
+            document.getElementById('ratingsPicker').classList.toggle('has-file', Boolean(file));
+        });
 
         // ========== STREAMING (onde assistir) ==========
         const lastGridMovies = {};   // gridId -> filmes renderizados (p/ re-decorar)
@@ -666,6 +727,8 @@
         let streamingRegion = 'BR';
         let activeRerun = null;      // re-executa a última consulta de descoberta (tab)
         let modalRerun = null;       // idem, para o modal de parecidos
+        let streamingDirty = false;
+        const streamingModal = document.getElementById('streamingModal');
 
         // Parâmetros de streaming p/ o servidor — só quando "só o que tenho" está ligado.
         function streamingParams() {
@@ -687,6 +750,13 @@
                 localStorage.setItem('streamingOnly', streamingOnly ? '1' : '0');
             } catch (e) { /* armazenamento bloqueado: a interface continua funcional */ }
             document.getElementById('streamingCount').textContent = myProviders.size;
+            const selected = providerCatalog.filter(p => myProviders.has(String(p.id))).map(p => p.name);
+            document.getElementById('streamingSummary').textContent = selected.length
+                ? `${selected.slice(0, 2).join(' · ')}${selected.length > 2 ? ` +${selected.length - 2}` : ''}`
+                : 'Escolha seus serviços para destacá-los nos filmes.';
+            document.getElementById('streamingOnly').disabled = myProviders.size === 0;
+            document.getElementById('streamingOnlyWrap').hidden = myProviders.size === 0;
+            document.getElementById('streamingBar').classList.toggle('has-selection', myProviders.size > 0);
         }
 
         // Mudou serviço/toggle: o filtro é no servidor, então re-roda a consulta ativa.
@@ -696,6 +766,13 @@
             if (modalRerun) { modalRerun(); reran = true; }
             if (activeRerun) { activeRerun(); reran = true; }
             if (!reran) reannotateAll();   // nada pra re-rodar: só atualiza os selos
+        }
+
+        function closeStreaming() {
+            closeOverlay(streamingModal);
+            if (!streamingDirty) return;
+            streamingDirty = false;
+            onStreamingChange();
         }
 
         function reannotateAll() {
@@ -715,7 +792,8 @@
                     const id = String(p.id);
                     if (myProviders.has(id)) myProviders.delete(id); else myProviders.add(id);
                     chip.classList.toggle('on', myProviders.has(id));
-                    onStreamingChange();
+                    streamingDirty = true;
+                    saveStreaming();
                 });
                 box.appendChild(chip);
             });
@@ -726,17 +804,15 @@
                 providerCatalog = d.providers || [];
                 streamingRegion = d.region || 'BR';
                 if (!providerCatalog.length) return;   // sem TMDB → recurso indisponível
-                document.getElementById('streamingBar').style.display = 'block';
-                document.getElementById('streamingCount').textContent = myProviders.size;
+                document.getElementById('streamingBar').style.removeProperty('display');
                 renderProviderChips();
+                saveStreaming();
 
-                const chips = document.getElementById('streamingChips');
                 const btn = document.getElementById('streamingToggleBtn');
-                btn.addEventListener('click', () => {
-                    const open = chips.style.display !== 'none';
-                    chips.style.display = open ? 'none' : 'flex';
-                    btn.setAttribute('aria-expanded', String(!open));
-                });
+                btn.addEventListener('click', () => openOverlay(streamingModal, '.stream-chip'));
+                document.getElementById('streamingClose').addEventListener('click', closeStreaming);
+                document.getElementById('streamingDoneBtn').addEventListener('click', closeStreaming);
+                streamingModal.addEventListener('click', e => { if (e.target === streamingModal) closeStreaming(); });
 
                 const only = document.getElementById('streamingOnly');
                 only.checked = streamingOnly;
@@ -828,6 +904,9 @@
             if (top === similarModal) closeSimilar();
             else if (top === movieModal) closeMovie();
             else if (top === document.getElementById('authModal')) AUTH.close();
+            else if (top === document.getElementById('filterModal')) closeFilters();
+            else if (top === document.getElementById('streamingModal')) closeStreaming();
+            else if (top === document.getElementById('guideModal')) closeGuide();
         });
 
         // --- Aba "Parecidos": escolhe um filme e mostra os parecidos inline ---
@@ -1718,119 +1797,71 @@
             )).join('');
         }
 
-        // ========== TOUR (coach-marks) ==========
-        // Passo a passo destacando elementos reais, aberto sob demanda pelo botão
-        // "?". A nova busca já é autoexplicativa e não interrompe a 1ª visita.
-        const TOUR_STEPS = [
-            { sel: '#searchQuery', tab: 'find', title: 'Comece descrevendo o filme',
-              body: 'Uma cena, um clima, um pedaço da história — sem precisar do nome. Ex.: <em>“brinquedos que ganham vida quando ninguém está olhando”</em>.' },
-            { sel: '.people-row', tab: 'find', refine: true, title: 'Sabe quem fez?',
-              body: 'Diretor e/ou ator entram aqui e afunilam junto com a descrição. Tudo o que você souber soma.' },
-            { sel: '.filters', tab: 'find', refine: true, title: 'Estreite quando quiser',
-              body: 'Gênero, idioma e faixa de anos. Opcionais — use só o que ajudar.' },
-            { sel: '[data-menu="descobrir"]', title: 'Já sabe o filme?',
-              body: 'Em <strong>Descobrir</strong>: parecidos com um filme que você curtiu, o cânone de um gênero/estilo/diretor, ou um perfil de gosto montado por você.' },
-            { sel: '[data-menu="meu"]', title: 'Seu espaço',
-              body: 'Com conta, o <strong>Diário</strong> (notas, ❤, resenhas, datas) e as <strong>Listas</strong> com ordem de assistir ficam salvos.' },
-            { sel: '#tourBtn', title: 'É isso!',
-              body: 'Clique em qualquer pôster para a ficha completa: sinopse, onde assistir e elenco. Este <strong>?</strong> reabre o guia.' },
+        // ========== GUIA DE RECURSOS ==========
+        // Um diálogo fixo substitui o antigo spotlight que reposicionava a página.
+        // Assim o fundo fica bloqueado e o conteúdo não muda de aba durante o guia.
+        const GUIDE_STEPS = [
+            { icon: '🔎', eyebrow: 'Encontrar', title: 'Descreva o que você lembra',
+              body: 'A busca entende pistas da história, cenas, clima e palavras do título.',
+              points: ['Escreva do seu jeito', 'Use diretor ou elenco se souber', 'Os resultados aparecem logo abaixo'] },
+            { icon: '☷', eyebrow: 'Precisão', title: 'Refine sem poluir a tela',
+              body: 'Diretor, elenco, gênero, idioma e período ficam em um painel próprio.',
+              points: ['Filtros são opcionais', 'A seleção aparece resumida na busca', 'Você pode limpar tudo com uma ação'] },
+            { icon: '▶', eyebrow: 'Disponibilidade', title: 'Priorize seus streamings',
+              body: 'Escolha os serviços que você assina e destaque onde cada filme está disponível.',
+              points: ['Preferência salva no navegador', 'Filtro opcional pelos seus serviços', 'Logos aparecem nos resultados'] },
+            { icon: '✦', eyebrow: 'Descobrir', title: 'Explore por diferentes caminhos',
+              body: 'O menu Descobrir reúne três experiências para quando você quer inspiração.',
+              points: ['Parecidos com um filme', 'Essenciais por gênero, estilo ou diretor', 'Recomendações a partir dos seus favoritos'] },
+            { icon: '🍿', eyebrow: 'Importar', title: 'Aproveite seu histórico do Letterboxd',
+              body: 'Importe o ratings.csv exportado pelo Letterboxd para gerar recomendações.',
+              points: ['Nenhuma nota precisa ser digitada de novo', 'O perfil explica seus gêneros fortes', 'Você continua no controle do arquivo'] },
+            { icon: '♡', eyebrow: 'Seu espaço', title: 'Guarde diário e listas',
+              body: 'Com uma conta, suas notas, resenhas, datas e listas ficam organizadas.',
+              points: ['Avalie pela ficha do filme', 'Reordene listas para definir uma sequência', 'Exporte ou exclua seus dados quando quiser'] },
+            { icon: 'ⓘ', eyebrow: 'Transparência', title: 'Entenda cada recomendação',
+              body: 'Abra qualquer pôster para ver sinopse, elenco, onde assistir e ações pessoais.',
+              points: ['Os cards explicam por que apareceram', 'A página de Engenharia mostra como o motor funciona', 'A Política de Privacidade explica o uso dos dados'] },
         ];
-        let tourAt = -1, tourEls = null;
-        const tourReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const guideModal = document.getElementById('guideModal');
+        let guideAt = 0;
 
-        function buildTour() {
-            if (tourEls) return tourEls;
-            const wrap = document.createElement('div');
-            wrap.className = 'tour';
-            wrap.id = 'tourOverlay';
-            wrap.innerHTML =
-                '<div class="tour-spot" id="tourSpot"></div>'
-                + '<div class="tour-pop" id="tourPop" role="dialog" aria-modal="true" aria-labelledby="tourTitle">'
-                + '<h4 id="tourTitle"></h4><p id="tourBody"></p>'
-                + '<div class="tour-foot"><span class="tour-count"></span>'
-                + '<span class="tour-btns">'
-                + '<button type="button" class="tour-skip">Pular</button>'
-                + '<button type="button" class="tour-prev">Voltar</button>'
-                + '<button type="button" class="tour-next"></button>'
-                + '</span></div></div>';
-            document.body.appendChild(wrap);
-            tourEls = {
-                wrap, spot: wrap.querySelector('#tourSpot'), pop: wrap.querySelector('#tourPop'),
-                title: wrap.querySelector('#tourTitle'), body: wrap.querySelector('#tourBody'),
-                count: wrap.querySelector('.tour-count'), prev: wrap.querySelector('.tour-prev'),
-                next: wrap.querySelector('.tour-next'), skip: wrap.querySelector('.tour-skip'),
-            };
-            tourEls.skip.addEventListener('click', endTour);
-            tourEls.prev.addEventListener('click', () => showStep(tourAt - 1));
-            tourEls.next.addEventListener('click', () => {
-                if (tourAt >= TOUR_STEPS.length - 1) endTour();
-                else showStep(tourAt + 1);
-            });
-            wrap.addEventListener('click', e => { if (e.target === wrap) endTour(); });
-            addEventListener('keydown', tourKey);
-            addEventListener('resize', tourReposition);
-            addEventListener('scroll', tourReposition, true);
-            return tourEls;
+        function renderGuide() {
+            const step = GUIDE_STEPS[guideAt];
+            document.getElementById('guideIcon').textContent = step.icon;
+            document.getElementById('guideEyebrow').textContent = step.eyebrow;
+            document.getElementById('guideTitle').textContent = step.title;
+            document.getElementById('guideBody').textContent = step.body;
+            document.getElementById('guidePoints').innerHTML = step.points.map(point => `<li>${esc(point)}</li>`).join('');
+            document.getElementById('guideCount').textContent = `${guideAt + 1} de ${GUIDE_STEPS.length}`;
+            document.getElementById('guidePrev').disabled = guideAt === 0;
+            document.getElementById('guideNext').textContent = guideAt === GUIDE_STEPS.length - 1 ? 'Concluir' : 'Próximo';
+            document.getElementById('guideProgress').style.setProperty('--guide-progress', `${(guideAt + 1) / GUIDE_STEPS.length * 100}%`);
         }
 
-        function tourKey(e) {
-            if (tourAt < 0) return;
-            if (e.key === 'Escape') endTour();
-            else if (e.key === 'ArrowRight') tourEls.next.click();
-            else if (e.key === 'ArrowLeft') showStep(tourAt - 1);
+        function openGuide() {
+            guideAt = 0;
+            renderGuide();
+            openOverlay(guideModal, '#guideNext');
         }
 
-        function tourReposition() {
-            if (tourAt < 0) return;
-            const step = TOUR_STEPS[tourAt];
-            const el = document.querySelector(step.sel);
-            const { spot, pop } = tourEls;
-            if (!el) { tourEls.wrap.classList.add('no-target'); return; }
-            tourEls.wrap.classList.remove('no-target');
-            const r = el.getBoundingClientRect();
-            const pad = 8;
-            spot.style.top = (r.top - pad) + 'px';
-            spot.style.left = (r.left - pad) + 'px';
-            spot.style.width = (r.width + pad * 2) + 'px';
-            spot.style.height = (r.height + pad * 2) + 'px';
-            if (matchMedia('(max-width: 560px)').matches) {
-                pop.classList.add('sheet');
-                pop.style.top = pop.style.left = pop.style.right = '';
-                return;
-            }
-            pop.classList.remove('sheet');
-            const pr = pop.getBoundingClientRect();
-            let top = r.bottom + 14, left = Math.max(12, Math.min(r.left, innerWidth - pr.width - 12));
-            if (top + pr.height > innerHeight - 12) top = Math.max(12, r.top - pr.height - 14);
-            pop.style.top = top + 'px';
-            pop.style.left = left + 'px';
-        }
+        function closeGuide() { closeOverlay(guideModal); }
 
-        function showStep(i) {
-            if (i < 0 || i >= TOUR_STEPS.length) return;
-            buildTour();
-            const step = TOUR_STEPS[i];
-            if (step.tab) goTo(step.tab, { silent: true });
-            if (step.refine) document.getElementById('searchRefine').open = true;
-            closeNavMenus();
-            tourAt = i;
-            tourEls.wrap.classList.add('on');
-            tourEls.title.innerHTML = step.title;
-            tourEls.body.innerHTML = step.body;
-            tourEls.count.textContent = (i + 1) + ' / ' + TOUR_STEPS.length;
-            tourEls.prev.style.visibility = i === 0 ? 'hidden' : '';
-            tourEls.next.textContent = i === TOUR_STEPS.length - 1 ? 'Começar' : 'Próximo';
-            const el = document.querySelector(step.sel);
-            if (el && !tourReduced) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            requestAnimationFrame(() => setTimeout(tourReposition, tourReduced ? 0 : 260));
-        }
-
-        function endTour() {
-            tourAt = -1;
-            if (tourEls) tourEls.wrap.classList.remove('on');
-        }
-
-        document.getElementById('tourBtn').addEventListener('click', () => showStep(0));
+        document.querySelectorAll('[data-open-guide]').forEach(button => button.addEventListener('click', openGuide));
+        document.getElementById('guideClose').addEventListener('click', closeGuide);
+        document.getElementById('guidePrev').addEventListener('click', () => {
+            if (guideAt > 0) { guideAt -= 1; renderGuide(); }
+        });
+        document.getElementById('guideNext').addEventListener('click', () => {
+            if (guideAt === GUIDE_STEPS.length - 1) closeGuide();
+            else { guideAt += 1; renderGuide(); }
+        });
+        guideModal.addEventListener('click', e => { if (e.target === guideModal) closeGuide(); });
+        document.addEventListener('keydown', e => {
+            if (topOpenOverlay() !== guideModal) return;
+            if (e.key === 'ArrowRight') document.getElementById('guideNext').click();
+            else if (e.key === 'ArrowLeft') document.getElementById('guidePrev').click();
+        });
 
         // ========== INIT ==========
         // Crítico primeiro (auth já roda acima); o resto quando o navegador respira.

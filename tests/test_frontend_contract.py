@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
 STYLE = (ROOT / "frontend" / "style.css").read_text(encoding="utf-8")
 APP = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+ADMIN = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
+ADMIN_STYLE = (ROOT / "frontend" / "admin.css").read_text(encoding="utf-8")
 
 
 def _tag_with_id(element_id: str) -> str:
@@ -23,20 +25,32 @@ def test_mobile_viewport_and_skip_link_are_present():
 
 
 def test_frontend_assets_share_the_same_cache_version():
-    assert "style.css') }}?v=8" in INDEX
-    assert "app.js') }}?v=8" in INDEX
+    assert "style.css') }}?v=9" in INDEX
+    assert "app.js') }}?v=9" in INDEX
+    assert "style.css') }}?v=9" in ADMIN
 
 
-def test_search_uses_editorial_hero_and_progressive_refinement():
+def test_search_uses_editorial_hero_and_stable_filter_dialog():
     assert 'class="form-section search-hero"' in INDEX
-    assert '<details class="search-refine" id="searchRefine">' in INDEX
-    assert "<summary>" in INDEX
-    assert 'class="search-refine-body"' in INDEX
+    assert 'id="filterOpenBtn"' in INDEX
+    assert 'id="filterModal"' in INDEX
+    assert 'aria-controls="filterModal"' in INDEX
+    assert "function updateFilterSummary()" in APP
 
 
-def test_onboarding_is_started_only_by_user_action():
-    assert "getElementById('tourBtn').addEventListener('click', () => showStep(0))" in APP
-    assert "setTimeout(() => startTour" not in APP
+def test_product_guide_is_stable_and_does_not_move_the_page():
+    assert 'id="guideModal"' in INDEX
+    assert "const GUIDE_STEPS = [" in APP
+    assert APP.count("eyebrow: '") == 7
+    assert "tourReposition" not in APP
+    assert "scrollIntoView({ block: 'center'" not in APP
+    assert 'id="tourBtn"' not in INDEX
+
+
+def test_search_moves_focus_to_results_after_submit():
+    assert 'id="searchResults" class="results-anchor" tabindex="-1"' in INDEX
+    assert "results.focus({ preventScroll: true })" in APP
+    assert "results.scrollIntoView({" in APP
 
 
 def test_primary_inputs_have_accessible_names():
@@ -51,7 +65,8 @@ def test_primary_inputs_have_accessible_names():
         "newListName",
     )
     for element_id in input_ids:
-        assert "aria-label=" in _tag_with_id(element_id), f"#{element_id} sem nome acessível"
+        tag = _tag_with_id(element_id)
+        assert "aria-label=" in tag or f'for="{element_id}"' in INDEX, f"#{element_id} sem nome acessível"
 
 
 def test_async_status_regions_are_announced():
@@ -63,9 +78,10 @@ def test_async_status_regions_are_announced():
 
 
 def test_modal_contract_supports_focus_and_escape():
-    for modal_id in ("authModal", "similarModal", "movieModal"):
+    modal_ids = ("filterModal", "streamingModal", "guideModal", "authModal", "similarModal", "movieModal")
+    for modal_id in modal_ids:
         assert 'aria-hidden="true"' in _tag_with_id(modal_id)
-    assert INDEX.count('role="dialog" aria-modal="true"') == 3
+    assert INDEX.count('role="dialog" aria-modal="true"') == len(modal_ids)
     assert "function openOverlay(" in APP
     assert "function closeOverlay(" in APP
     assert "e.key !== 'Tab'" in APP
@@ -86,3 +102,12 @@ def test_clickable_movie_cards_use_native_buttons():
     assert '<button class="movie-title movie-open"' in APP
     assert 'role="slider"' in APP
     assert "function portalNavMenu(" in APP
+
+
+def test_admin_has_responsive_navigation_and_account_cards():
+    assert 'role="tablist" aria-label="Áreas do painel"' in ADMIN
+    assert 'role="tabpanel" aria-labelledby="tabAccounts"' in ADMIN
+    assert 'tabindex="0" role="button"' in ADMIN
+    assert 'data-label="E-mail"' in ADMIN
+    assert "@media (max-width: 760px)" in ADMIN_STYLE
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in ADMIN_STYLE
