@@ -33,9 +33,20 @@ def test_object_split_present_in_eval_set():
     from eval.dataset import load_queries
 
     qs = load_queries("object")
-    assert len(qs) >= 10
+    assert len(qs) >= 40  # v3 ampliado: 15 -> 42 consultas de objeto/cena icônica
     joined = " ".join(q.query.lower() for q in qs)
-    assert "skyline" in joined  # alvo do canal de enredo da Wikipédia
+    assert "skyline" in joined  # alvo dos canais de enredo (embedding + lexical)
+
+
+def test_plot_channels_are_off_by_default():
+    """Enredo por embedding: ablação de 2026-09-04 deu negativo (e5 trunca em 512
+    tokens). Enredo por BM25: recall sobe mas nDCG@10 só melhora com re-ranker.
+    Os dois nascem desligados; ligar é via env var."""
+    from retrieval import search_engine as se
+
+    assert se.DEFAULT_PLOT_WEIGHT == 0.0
+    assert se.DEFAULT_PLOT_BM25_WEIGHT == 0.0
+    assert "plot_lexical" in se.SIGNAL_LABELS
 
 
 def test_clean_wikitext_strips_markup_keeps_prose():
