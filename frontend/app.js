@@ -1,7 +1,7 @@
 /* Cinerd — front-end. Extraído do <script> inline de index.html sem alterar
    comportamento; servido como /static/app.js (cacheável) e carregado com defer.
    Blocos novos adicionados abaixo: navegação agrupada (goTo), skeleton loaders,
-   e o tour de coach-marks. */
+   busca com refinamento progressivo e tour de coach-marks sob demanda. */
 'use strict';
 
         // ---------- Camada compartilhada de modais ----------
@@ -1719,15 +1719,14 @@
         }
 
         // ========== TOUR (coach-marks) ==========
-        // Passo a passo destacando elementos reais. 1ª visita dispara sozinho; o
-        // botão "?" no cabeçalho reabre. Estado em localStorage.
-        const TOUR_KEY = 'cinerd:tour:v1';
+        // Passo a passo destacando elementos reais, aberto sob demanda pelo botão
+        // "?". A nova busca já é autoexplicativa e não interrompe a 1ª visita.
         const TOUR_STEPS = [
             { sel: '#searchQuery', tab: 'find', title: 'Comece descrevendo o filme',
               body: 'Uma cena, um clima, um pedaço da história — sem precisar do nome. Ex.: <em>“brinquedos que ganham vida quando ninguém está olhando”</em>.' },
-            { sel: '.people-row', tab: 'find', title: 'Sabe quem fez?',
+            { sel: '.people-row', tab: 'find', refine: true, title: 'Sabe quem fez?',
               body: 'Diretor e/ou ator entram aqui e afunilam junto com a descrição. Tudo o que você souber soma.' },
-            { sel: '.filters', tab: 'find', title: 'Estreite quando quiser',
+            { sel: '.filters', tab: 'find', refine: true, title: 'Estreite quando quiser',
               body: 'Gênero, idioma e faixa de anos. Opcionais — use só o que ajudar.' },
             { sel: '[data-menu="descobrir"]', title: 'Já sabe o filme?',
               body: 'Em <strong>Descobrir</strong>: parecidos com um filme que você curtiu, o cânone de um gênero/estilo/diretor, ou um perfil de gosto montado por você.' },
@@ -1812,6 +1811,7 @@
             buildTour();
             const step = TOUR_STEPS[i];
             if (step.tab) goTo(step.tab, { silent: true });
+            if (step.refine) document.getElementById('searchRefine').open = true;
             closeNavMenus();
             tourAt = i;
             tourEls.wrap.classList.add('on');
@@ -1828,18 +1828,9 @@
         function endTour() {
             tourAt = -1;
             if (tourEls) tourEls.wrap.classList.remove('on');
-            try { localStorage.setItem(TOUR_KEY, 'done'); } catch (e) { /* modo privado */ }
         }
 
-        function startTour(force) {
-            let done = false;
-            try { done = localStorage.getItem(TOUR_KEY) === 'done'; } catch (e) { /* ignore */ }
-            if (done && !force) return;
-            // Não abre por cima do fluxo de redefinir senha / confirmar e-mail.
-            if (!force && document.getElementById('authModal').style.display === 'flex') return;
-            showStep(0);
-        }
-        document.getElementById('tourBtn').addEventListener('click', () => startTour(true));
+        document.getElementById('tourBtn').addEventListener('click', () => showStep(0));
 
         // ========== INIT ==========
         // Crítico primeiro (auth já roda acima); o resto quando o navegador respira.
@@ -1849,9 +1840,6 @@
         if (document.getElementById('tab-pick3').classList.contains('active') && !popularLoaded) {
             popularLoaded = true; loadPopular();
         }
-        // 1ª visita: dá um tempo pro layout assentar e abre o guia.
-        setTimeout(() => startTour(false), 800);
-
         // ========== ABA: ENGENHARIA (vitrine do motor) ==========
         let engLoaded = false;
 

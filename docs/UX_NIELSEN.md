@@ -57,6 +57,29 @@ além dos contratos semânticos em `frontend/index.html` e `frontend/app.js`.
 Mantenha os tokens e os breakpoints existentes; não crie correções isoladas com
 valores menores de alvo ou novos `z-index` sem verificar a pilha de modais.
 
+## Decisões da remodelação visual v2
+
+A rodada v1 estabilizou interação e responsividade, mas preservou quase toda a
+aparência anterior. A v2 altera deliberadamente a apresentação sem trocar a
+stack nem aumentar o JavaScript crítico:
+
+- a busca virou o foco editorial da primeira tela, com título, orientação curta
+  e uma única ação primária;
+- diretor, ator, gênero, idioma e período passaram para divulgação progressiva
+  em “Refinar busca”, reduzindo carga visual sem remover poder;
+- Engenharia saiu da navegação principal e continua acessível no contexto da
+  busca e no rodapé;
+- a grade ficou mais densa e cinematográfica, mostrando mais pôsteres por tela e
+  reduzindo o peso de metadados secundários;
+- cabeçalho, superfícies, tipografia, contraste, sombras e ritmo passaram a usar
+  uma direção visual única, ainda reconhecível como Cinerd;
+- o tour deixou de interromper automaticamente a primeira visita e permanece
+  disponível no botão de ajuda.
+
+Essas decisões aplicam estética minimalista, reconhecimento em vez de memória e
+controle do usuário. Filtros selecionados nunca são descartados ao recolher o
+painel de refinamento.
+
 ## Checklist antes de merge
 
 ### Automático
