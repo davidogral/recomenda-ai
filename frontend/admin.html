@@ -92,6 +92,23 @@
         .adm-detail .rv { color: var(--gray); font-style: italic; }
         .adm-msg { min-height: 1.3em; font-size: var(--fs-sm); color: var(--gray); }
         .adm-empty { color: var(--gray); font-size: var(--fs-sm); }
+
+        .adm-card h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .adm-expand { font: inherit; font-size: var(--fs-xs); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--card-border); background: transparent; color: var(--gray); cursor: pointer; white-space: nowrap; }
+        .adm-expand:hover { color: var(--light); border-color: var(--border-strong); }
+
+        .adm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+        .adm-modal { background: var(--input-bg); border: 1px solid var(--card-border); border-radius: var(--radius); width: min(920px, 100%); max-height: min(720px, 90vh); display: flex; flex-direction: column; }
+        .adm-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--card-border); }
+        .adm-modal-head h3 { margin: 0; font-size: var(--fs-md); }
+        .adm-modal-head .cap { font-size: var(--fs-xs); color: var(--gray); margin-top: 2px; }
+        .adm-modal-close { font: inherit; font-size: 1.1rem; line-height: 1; padding: 4px 9px; border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--light); cursor: pointer; }
+        .adm-modal-body { overflow: auto; padding: 0 18px 16px; }
+        table.adm-log { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); min-width: 560px; }
+        .adm-log th, .adm-log td { padding: 6px 10px; border-bottom: 1px solid var(--card-border); text-align: left; }
+        .adm-log thead th { position: sticky; top: 0; background: var(--input-bg); color: var(--gray); font-size: 10px; text-transform: uppercase; letter-spacing: .03em; }
+        .adm-log td.mono { color: var(--gray); white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .adm-log tr.zero td { color: #f0b8bb; }
         [hidden] { display: none !important; }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}?v=1">
@@ -159,6 +176,24 @@
                 <div class="adm-grid" id="paneSessions" hidden></div>
             </div>
         </section>
+    </div>
+
+    <div class="adm-overlay" id="searchLogOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="searchLogTitle">
+        <div class="adm-modal">
+            <div class="adm-modal-head">
+                <div>
+                    <h3 id="searchLogTitle">Log de buscas</h3>
+                    <div class="cap" id="searchLogCap"></div>
+                </div>
+                <button class="adm-modal-close" id="searchLogClose" type="button" aria-label="Fechar">×</button>
+            </div>
+            <div class="adm-modal-body">
+                <table class="adm-log" aria-label="Todas as buscas do período">
+                    <thead><tr><th>quando</th><th>consulta</th><th>resultados</th><th>filtros</th><th>topo</th></tr></thead>
+                    <tbody id="searchLogRows"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -352,7 +387,7 @@
                 const f = d.filters || {};
                 $('paneSearch').innerHTML = `
                   <div class="adm-card wide"><h3>Nuvem de palavras</h3><div class="cap">termos mais buscados (fora dos conectivos)</div>${wordCloud(d.word_freq)}</div>
-                  <div class="adm-card"><h3>Top buscas</h3><div class="cap">consultas mais frequentes</div>${rankList(d.top_queries)}</div>
+                  <div class="adm-card"><h3>Top buscas<button class="adm-expand" id="btnSearchLog" type="button">⛶ ver todas</button></h3><div class="cap">consultas mais frequentes (agrupadas, top 25) — "ver todas" abre o log completo</div>${rankList(d.top_queries)}</div>
                   <div class="adm-card zero"><h3>Buscas sem resultado</h3><div class="cap">buracos do catálogo</div>${rankList(d.zero_result)}</div>
                   <div class="adm-card"><h3>Reformulações</h3><div class="cap">o que buscou → o que refez na mesma sessão</div>${rankList(d.reformulations, x => x.from + ' → ' + x.to)}</div>
                   <div class="adm-card"><h3>Posição do clique</h3><div class="cap">em que posição do resultado a pessoa clica</div><div class="chart-box"><canvas id="cPos"></canvas></div></div>
@@ -360,6 +395,7 @@
                   <div class="adm-card"><h3>Mais clicados a partir da busca</h3><div class="cap">o que a pessoa realmente abriu</div>${rankList(d.top_clicked, movieLabel)}</div>
                   <div class="adm-card"><h3>Uso de filtros</h3><div class="cap">${f.with_any_filter || 0} de ${f.of_searches || 0} buscas com filtro · ano ${f.year_range || 0} · idioma ${f.language || 0} · consulta média ${(d.query_len || {}).avg || '–'} car.</div>${rankList((f.genres || []).map(g => ({ query: g.genre, count: g.count })))}</div>`;
                 mkChart('cPos', { type: 'bar', data: { labels: (d.click_positions || []).map(x => x.bucket), datasets: [{ data: (d.click_positions || []).map(x => x.count), backgroundColor: C.open }] }, options: baseOpts({ plugins: { legend: { display: false } } }) });
+                $('btnSearchLog').onclick = openSearchLog;
             }
 
             if (SUB === 'content') {
@@ -410,6 +446,39 @@
             $('usageStatus').hidden = true; $('usageBody').hidden = false;
             renderSub();
         }
+
+        // ================= log de buscas (modal) =================
+        function fmtFilters(f) {
+            if (!f || !Object.keys(f).length) return '—';
+            const parts = [];
+            if (f.genre) parts.push(f.genre);
+            if (f.language) parts.push(f.language);
+            if (f.year_min || f.year_max) parts.push(`${f.year_min || ''}–${f.year_max || ''}`);
+            if (f.director) parts.push('diretor');
+            if (f.actor) parts.push('ator');
+            return parts.join(' · ') || '—';
+        }
+        async function openSearchLog() {
+            $('searchLogOverlay').hidden = false;
+            $('searchLogCap').textContent = 'carregando…';
+            $('searchLogRows').innerHTML = '';
+            const days = $('daysSel').value;
+            const d = await (await fetch(`/admin/api/searches?days=${days}&limit=1000`)).json();
+            const rows = d.searches || [];
+            $('searchLogCap').textContent = `${rows.length} busca(s) nos últimos ${days} dias (mais recentes primeiro, máx. 1000)`;
+            $('searchLogRows').innerHTML = rows.map(r => `
+                <tr class="${r.found ? '' : 'zero'}">
+                    <td class="mono">${esc((r.ts || '').slice(0, 16).replace('T', ' '))}</td>
+                    <td>${esc(r.query) || '<span class="adm-empty">(sem texto)</span>'}</td>
+                    <td class="mono">${r.n_results ?? '—'}</td>
+                    <td>${esc(fmtFilters(r.filters))}</td>
+                    <td>${r.item_title ? esc(r.item_title) : '—'}</td>
+                </tr>`).join('') || '<tr><td colspan="5" class="adm-empty">nenhuma busca no período</td></tr>';
+        }
+        function closeSearchLog() { $('searchLogOverlay').hidden = true; }
+        $('searchLogClose').onclick = closeSearchLog;
+        $('searchLogOverlay').addEventListener('click', e => { if (e.target === $('searchLogOverlay')) closeSearchLog(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('searchLogOverlay').hidden) closeSearchLog(); });
 
         // ================= nav =================
         function show(which) {

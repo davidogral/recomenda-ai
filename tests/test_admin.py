@@ -70,6 +70,23 @@ def test_admin_analytics(client, csrf, monkeypatch):
     assert "engaged" in d["users"]
 
 
+def test_admin_searches_log(client, csrf, monkeypatch):
+    from core import events
+
+    assert client.get("/admin/api/searches").status_code == 404  # não-admin
+
+    admin = _email("admin-log")
+    monkeypatch.setenv("RECOMENDAI_ADMIN_EMAILS", admin)
+    _register(client, csrf, admin)
+
+    events.log("search", query="uma consulta qualquer", n_results=3, filters={"genre": "Terror"})
+    d = client.get("/admin/api/searches?days=7").get_json()
+    rows = d["searches"]
+    assert rows and rows[0]["query"] == "uma consulta qualquer"
+    assert rows[0]["filters"] == {"genre": "Terror"}
+    assert rows[0]["found"] is True
+
+
 def test_admin_actions(client, csrf, monkeypatch):
     from core import users as users_mod
 

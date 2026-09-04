@@ -1271,6 +1271,27 @@ def admin_analytics():
     return jsonify(payload)
 
 
+@app.route("/admin/api/searches")
+@auth_routes.admin_required
+def admin_searches():
+    from core import events
+
+    try:
+        days = max(1, min(int(request.args.get("days", 30)), 365))
+    except (TypeError, ValueError):
+        days = 30
+    try:
+        limit = max(1, min(int(request.args.get("limit", 500)), 2000))
+    except (TypeError, ValueError):
+        limit = 500
+    rows = events.raw_searches(days, limit)
+    for r in rows:
+        if r["item_id"] is not None:
+            mv = catalog.get_movie(r["item_id"]) or {}
+            r["item_title"] = mv.get("title") or f"#{r['item_id']}"
+    return jsonify({"searches": rows})
+
+
 @app.route("/admin/api/users/<int:uid>")
 @auth_routes.admin_required
 def admin_user_detail(uid: int):

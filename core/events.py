@@ -438,3 +438,39 @@ def analytics(days: int = 30) -> dict:
     except Exception as e:  # analytics nunca derruba o painel
         out["error"] = str(e)
     return out
+
+
+def raw_searches(days: int = 30, limit: int = 500) -> list[dict]:
+    """Log cru das últimas buscas (mais recente primeiro) — o `top_queries` de
+    `analytics()` agrupa por texto e corta em 25, então uma consulta nova some
+    atrás das mais frequentes; esta lista mostra CADA busca, sem agrupar."""
+    days = max(1, min(int(days), 365))
+    limit = max(1, min(int(limit), 2000))
+    d0 = (_now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    out = []
+    try:
+        with _connect() as conn:
+            _ensure(conn)
+            rows = conn.execute(
+                "SELECT ts, query, filters, n_results, found, latency_ms, user_id, item_id"
+                " FROM events WHERE kind='search' AND day>=? ORDER BY event_id DESC LIMIT ?",
+                (d0, limit),
+            )
+            for ts, query, filters, n_results, found, latency_ms, user_id, item_id in rows:
+                try:
+                    f = json.loads(filters) if filters else {}
+                except Exception:
+                    f = {}
+                out.append({
+                    "ts": ts,
+                    "query": query,
+                    "filters": f,
+                    "n_results": n_results,
+                    "found": bool(found),
+                    "latency_ms": latency_ms,
+                    "user_id": user_id,
+                    "item_id": item_id,
+                })
+    except Exception:
+        pass
+    return out
