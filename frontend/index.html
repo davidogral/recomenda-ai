@@ -11,11 +11,12 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="preconnect" href="https://image.tmdb.org">
     <link rel="dns-prefetch" href="https://image.tmdb.org">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
-    <script src="{{ url_for('static', filename='app.js') }}?v=6" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
+    <script src="{{ url_for('static', filename='app.js') }}?v=7" defer></script>
 </head>
 <body>
-    <div class="container">
+    <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+    <div class="container" id="main-content" tabindex="-1">
         <header class="header">
             <div id="authBar" class="auth-bar"></div>
             <h1 class="brand"><a href="/"><span class="brand-mark" aria-hidden="true">🍿</span>Cinerd</a></h1>
@@ -23,7 +24,7 @@
         </header>
 
         <nav class="nav" id="nav" aria-label="Navegação principal">
-            <button class="nav-item nav-primary is-active" type="button" data-tab="find">
+            <button class="nav-item nav-primary is-active" type="button" data-tab="find" aria-current="page">
                 <span class="nav-ic" aria-hidden="true">🔎</span>Buscar
             </button>
 
@@ -104,19 +105,22 @@
             <div class="form-section">
                 <div class="search-row">
                     <input type="text" id="searchQuery" class="text-input"
+                           aria-label="Descreva o filme que deseja encontrar" enterkeyhint="search"
                            placeholder="Trecho da sinopse ou nome do filme (ex: brinquedos que ganham vida)">
-                    <button id="searchBtn" class="btn-primary">Buscar</button>
+                    <button id="searchBtn" class="btn-primary" type="button">Buscar</button>
                 </div>
                 <div class="search-row people-row">
                     <div class="autocomplete-wrap">
                         <input type="text" id="directorInput" class="text-input" autocomplete="off"
+                               aria-label="Filtrar por diretor" aria-controls="directorDropdown" aria-expanded="false"
                                placeholder="🎬 Diretor (opcional)">
-                        <div class="autocomplete-dropdown" id="directorDropdown"></div>
+                        <div class="autocomplete-dropdown" id="directorDropdown" role="listbox" aria-label="Sugestões de diretores"></div>
                     </div>
                     <div class="autocomplete-wrap">
                         <input type="text" id="actorInput" class="text-input" autocomplete="off"
+                               aria-label="Filtrar por ator" aria-controls="actorDropdown" aria-expanded="false"
                                placeholder="⭐ Ator (opcional)">
-                        <div class="autocomplete-dropdown" id="actorDropdown"></div>
+                        <div class="autocomplete-dropdown" id="actorDropdown" role="listbox" aria-label="Sugestões de atores"></div>
                     </div>
                 </div>
                 <div class="filters">
@@ -137,7 +141,7 @@
                     <a href="#" class="eng-link" data-goto="engenharia">Como a busca funciona por dentro →</a></p>
             </div>
 
-            <div id="searchStatus" class="status"></div>
+            <div id="searchStatus" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
             <div class="movies-grid" id="searchGrid"></div>
         </section>
 
@@ -148,12 +152,13 @@
                 <div class="search-row">
                     <div class="autocomplete-wrap" style="flex:1">
                         <input type="text" id="similarSearch" class="text-input" autocomplete="off"
+                               aria-label="Buscar filme para encontrar parecidos" aria-controls="similarSearchDropdown" aria-expanded="false"
                                placeholder="🎬 Nome de um filme (ex: Blade Runner, O Poderoso Chefão...)">
-                        <div class="autocomplete-dropdown" id="similarSearchDropdown"></div>
+                        <div class="autocomplete-dropdown" id="similarSearchDropdown" role="listbox" aria-label="Sugestões de filmes"></div>
                     </div>
                 </div>
             </div>
-            <div id="similarTabStatus" class="status"></div>
+            <div id="similarTabStatus" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
             <div class="movies-grid" id="similarTabGrid"></div>
         </section>
 
@@ -169,14 +174,15 @@
                 <div class="explore-chips" id="exploreChips"></div>
                 <div class="autocomplete-wrap explore-director-wrap" id="exploreDirectorWrap" style="display:none">
                     <input type="text" id="exploreDirectorInput" class="text-input" autocomplete="off"
+                           aria-label="Buscar diretor no catálogo" aria-controls="exploreDirectorDropdown" aria-expanded="false"
                            placeholder="🎬 Ou busque qualquer diretor do catálogo (ex: Dario Argento)">
-                    <div class="autocomplete-dropdown" id="exploreDirectorDropdown"></div>
+                    <div class="autocomplete-dropdown" id="exploreDirectorDropdown" role="listbox" aria-label="Sugestões de diretores"></div>
                 </div>
             </div>
             <div class="explore-actions" id="exploreActions" style="display:none">
                 <button id="exploreSaveList" class="btn-secondary" type="button">💾 Salvar como lista (ordem de assistir)</button>
             </div>
-            <div id="exploreStatus" class="status"></div>
+            <div id="exploreStatus" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
             <div class="movies-grid" id="exploreGrid"></div>
         </section>
 
@@ -187,8 +193,9 @@
                 <div class="search-row">
                     <div class="autocomplete-wrap" style="flex:1">
                         <input type="text" id="pickSearch" class="text-input" autocomplete="off"
+                               aria-label="Buscar filme para adicionar ao perfil" aria-controls="pickSearchDropdown" aria-expanded="false"
                                placeholder="🔎 Não está abaixo? Busque um filme para adicionar...">
-                        <div class="autocomplete-dropdown" id="pickSearchDropdown"></div>
+                        <div class="autocomplete-dropdown" id="pickSearchDropdown" role="listbox" aria-label="Sugestões de filmes"></div>
                     </div>
                     <button id="pickRecommendBtn" class="btn-primary" disabled>
                         Recomendar (<span id="pickCount">0</span>)
@@ -200,7 +207,7 @@
             <div class="pick-grid" id="popularGrid"></div>
             <button id="pickMoreBtn" class="btn-secondary" style="display:none">Mostrar mais filmes</button>
 
-            <div id="pick3Status" class="status"></div>
+            <div id="pick3Status" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
             <div id="pick3Profile" class="profile-card" style="display:none"></div>
             <div class="movies-grid" id="pick3Grid"></div>
         </section>
@@ -214,11 +221,11 @@
                     e envie o <code>ratings.csv</code> de dentro do .zip.
                 </p>
                 <div class="search-row">
-                    <input type="file" id="ratingsFile" accept=".csv" class="file-input">
-                    <button id="recommendBtn" class="btn-primary">Recomendar</button>
+                    <input type="file" id="ratingsFile" accept=".csv" class="file-input" aria-label="Selecionar arquivo ratings.csv do Letterboxd">
+                    <button id="recommendBtn" class="btn-primary" type="button">Recomendar</button>
                 </div>
             </div>
-            <div id="recommendStatus" class="status"></div>
+            <div id="recommendStatus" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
             <div id="recommendProfile" class="profile-card" style="display:none"></div>
             <div class="movies-grid" id="recommendGrid"></div>
         </section>
@@ -238,7 +245,7 @@
                     <button id="watchedRecBtn" class="btn-primary" disabled>🍿 Recomendar do meu histórico</button>
                 </div>
             </div>
-            <div id="watchedStatus" class="status"></div>
+            <div id="watchedStatus" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
             <div class="diary-grid" id="watchedGrid"></div>
             <div id="watchedProfile" class="profile-card" style="display:none"></div>
             <div class="movies-grid" id="watchedRecGrid"></div>
@@ -251,11 +258,12 @@
                     <p class="hint">Monte listas com a <strong>ordem certa de assistir</strong> — arraste para reordenar. Pela ficha de um filme dá para adicioná-lo a qualquer lista, ou importar a franquia inteira de uma vez.</p>
                     <div class="search-row">
                         <input type="text" id="newListName" class="text-input"
+                               aria-label="Nome da nova lista"
                                placeholder="Nome da nova lista (ex: Ordem para ver o giallo essencial)">
                         <button id="newListBtn" class="btn-primary">Criar lista</button>
                     </div>
                 </div>
-                <div id="listsStatus" class="status"></div>
+                <div id="listsStatus" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
                 <div class="lists-grid" id="listsGrid"></div>
             </div>
             <div id="listDetail" style="display:none">
@@ -263,7 +271,7 @@
                     <button id="listBackBtn" class="btn-secondary" type="button">← Minhas listas</button>
                     <h2 id="listDetailName"></h2>
                 </div>
-                <div id="listDetailCount" class="status"></div>
+                <div id="listDetailCount" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
                 <div class="list-items" id="listItems"></div>
             </div>
         </section>
@@ -278,7 +286,7 @@
                 <div class="eng-diagram" id="engDiagram"></div>
             </div>
 
-            <div id="engStatus" class="status">Carregando…</div>
+            <div id="engStatus" class="status" role="status" aria-live="polite" aria-atomic="true">Carregando…</div>
             <div id="engBody" hidden>
                 <div class="form-section">
                     <h3>Ablação por sinal <span class="eng-prov" id="engAblProv"></span></h3>
@@ -331,8 +339,8 @@
     </div>
 
     <!-- MODAL: AUTENTICAÇÃO (login / cadastro / recuperar / redefinir senha) -->
-    <div id="authModal" class="modal-overlay" style="display:none">
-        <div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div id="authModal" class="modal-overlay" style="display:none" aria-hidden="true">
+        <div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle" tabindex="-1">
             <button class="modal-close" id="authClose" type="button" aria-label="Fechar">&times;</button>
             <h2 id="authTitle">Entrar</h2>
             <div class="auth-tabs" id="authTabs">
@@ -341,13 +349,21 @@
                 <button type="button" data-authtab="forgot">Esqueci a senha</button>
             </div>
             <form id="authFormLogin" class="auth-form" data-authview="login">
-                <input type="email" name="email" placeholder="e-mail" autocomplete="email" required>
-                <input type="password" name="password" placeholder="senha" autocomplete="current-password" required>
+                <label class="field-label">E-mail
+                    <input type="email" name="email" placeholder="voce@exemplo.com" autocomplete="email" required>
+                </label>
+                <label class="field-label">Senha
+                    <input type="password" name="password" placeholder="Sua senha" autocomplete="current-password" required>
+                </label>
                 <button type="submit">Entrar</button>
             </form>
             <form id="authFormRegister" class="auth-form" data-authview="register" hidden>
-                <input type="email" name="email" placeholder="e-mail" autocomplete="email" required>
-                <input type="password" name="password" placeholder="senha (mín. 8)" autocomplete="new-password" minlength="8" required>
+                <label class="field-label">E-mail
+                    <input type="email" name="email" placeholder="voce@exemplo.com" autocomplete="email" required>
+                </label>
+                <label class="field-label">Senha
+                    <input type="password" name="password" placeholder="Mínimo de 8 caracteres" autocomplete="new-password" minlength="8" required>
+                </label>
                 <label class="auth-consent">
                     <input type="checkbox" name="privacy" required>
                     Li e aceito a <a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.
@@ -355,34 +371,38 @@
                 <button type="submit">Criar conta</button>
             </form>
             <form id="authFormForgot" class="auth-form" data-authview="forgot" hidden>
-                <input type="email" name="email" placeholder="e-mail" autocomplete="email" required>
+                <label class="field-label">E-mail
+                    <input type="email" name="email" placeholder="voce@exemplo.com" autocomplete="email" required>
+                </label>
                 <button type="submit">Enviar link de recuperação</button>
             </form>
             <form id="authFormReset" class="auth-form" data-authview="reset" hidden>
                 <p class="hint">Escolha uma nova senha.</p>
-                <input type="password" name="password" placeholder="nova senha (mín. 8)" autocomplete="new-password" minlength="8" required>
+                <label class="field-label">Nova senha
+                    <input type="password" name="password" placeholder="Mínimo de 8 caracteres" autocomplete="new-password" minlength="8" required>
+                </label>
                 <button type="submit">Redefinir senha</button>
             </form>
-            <div id="authMsg" class="auth-msg" role="status"></div>
+            <div id="authMsg" class="auth-msg" role="status" aria-live="polite" aria-atomic="true"></div>
         </div>
     </div>
 
     <!-- MODAL: FILMES PARECIDOS (item-to-item) -->
-    <div id="similarModal" class="modal-overlay" style="display:none">
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="similarTitle">
+    <div id="similarModal" class="modal-overlay" style="display:none" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="similarTitle" tabindex="-1">
             <button class="modal-close" id="similarClose" type="button" aria-label="Fechar">&times;</button>
             <div class="modal-head">
                 <h2 id="similarTitle">Parecidos</h2>
                 <p class="hint" id="similarHint">Filmes parecidos por tema (conteúdo) e por quem gostou deles (colaborativo).</p>
             </div>
-            <div id="similarStatus" class="status"></div>
+            <div id="similarStatus" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
             <div class="movies-grid" id="similarGrid"></div>
         </div>
     </div>
 
     <!-- MODAL: FICHA DO FILME (sinopse + onde assistir + elenco) -->
-    <div id="movieModal" class="modal-overlay" style="display:none">
-        <div class="modal movie-sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div id="movieModal" class="modal-overlay" style="display:none" aria-hidden="true">
+        <div class="modal movie-sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" tabindex="-1">
             <button class="modal-close" id="movieClose" type="button" aria-label="Fechar">&times;</button>
             <div id="movieSheetBody"></div>
         </div>
