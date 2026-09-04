@@ -192,3 +192,19 @@ def test_verify_token_is_single_use(client):
 
     r2 = c.get(f"/auth/verify/{token}")  # e-mail já confirmado → link morto
     assert "verify=invalid" in r2.headers["Location"]
+
+
+def test_mailer_console_mode_carries_link_and_product_name(capsys, monkeypatch):
+    """Sem SMTP_HOST, `send` cai no modo console: devolve True e imprime o link.
+    O nome do produto no assunto/corpo é 'Cinerd' (não 'RecomendAI')."""
+    from core import mailer
+
+    monkeypatch.delenv("SMTP_HOST", raising=False)
+    assert mailer.is_configured() is False
+    assert mailer.APP_NAME == "Cinerd"
+
+    ok = mailer.send_verify("alguem@example.com", "https://cinerd.davispecia.com.br/auth/verify/abc123")
+    assert ok is True
+    err = capsys.readouterr().err
+    assert "https://cinerd.davispecia.com.br/auth/verify/abc123" in err
+    assert "Cinerd" in err and "RecomendAI" not in err
