@@ -16,7 +16,7 @@ import smtplib
 import sys
 from email.message import EmailMessage
 
-APP_NAME = "RecomendAI"
+APP_NAME = os.environ.get("RECOMENDAI_APP_NAME", "Cinerd")
 
 
 def _cfg() -> dict:
