@@ -11,16 +11,18 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="preconnect" href="https://image.tmdb.org">
     <link rel="dns-prefetch" href="https://image.tmdb.org">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
-    <script src="{{ url_for('static', filename='app.js') }}?v=7" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=8">
+    <script src="{{ url_for('static', filename='app.js') }}?v=8" defer></script>
 </head>
 <body>
     <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
     <div class="container" id="main-content" tabindex="-1">
         <header class="header">
-            <div id="authBar" class="auth-bar"></div>
-            <h1 class="brand"><a href="/"><span class="brand-mark" aria-hidden="true">🍿</span>Cinerd</a></h1>
-            <p class="tagline">Ache aquele filme que você não lembra o nome — ou descubra o que assistir a seguir.</p>
+            <div class="header-top">
+                <h1 class="brand"><a href="/"><span class="brand-mark" aria-hidden="true">🍿</span>Cinerd</a></h1>
+                <div id="authBar" class="auth-bar"></div>
+            </div>
+            <p class="tagline">Cinema para quem lembra da cena, da sensação — mas não do título.</p>
         </header>
 
         <nav class="nav" id="nav" aria-label="Navegação principal">
@@ -79,10 +81,6 @@
                 </div>
             </div>
 
-            <button class="nav-item" type="button" data-tab="engenharia">
-                <span class="nav-ic" aria-hidden="true">⚙️</span>Engenharia
-            </button>
-
             <button class="nav-help" id="tourBtn" type="button" aria-label="Como usar o Cinerd" title="Como usar">?</button>
         </nav>
 
@@ -102,43 +100,56 @@
 
         <!-- ABA 1: BUSCA -->
         <section id="tab-find" class="tab-panel active">
-            <div class="form-section">
-                <div class="search-row">
+            <div class="form-section search-hero">
+                <div class="search-intro">
+                    <span class="eyebrow">Busca inteligente</span>
+                    <h2>Que filme é esse?</h2>
+                    <p>Conte o que você lembra. Uma cena, uma frase, o clima da história — nós conectamos os pontos.</p>
+                </div>
+                <div class="search-row search-main-row">
                     <input type="text" id="searchQuery" class="text-input"
                            aria-label="Descreva o filme que deseja encontrar" enterkeyhint="search"
-                           placeholder="Trecho da sinopse ou nome do filme (ex: brinquedos que ganham vida)">
+                           placeholder="Ex.: brinquedos que ganham vida quando ninguém está olhando">
                     <button id="searchBtn" class="btn-primary" type="button">Buscar</button>
                 </div>
-                <div class="search-row people-row">
-                    <div class="autocomplete-wrap">
-                        <input type="text" id="directorInput" class="text-input" autocomplete="off"
-                               aria-label="Filtrar por diretor" aria-controls="directorDropdown" aria-expanded="false"
-                               placeholder="🎬 Diretor (opcional)">
-                        <div class="autocomplete-dropdown" id="directorDropdown" role="listbox" aria-label="Sugestões de diretores"></div>
+                <details class="search-refine" id="searchRefine">
+                    <summary>
+                        <span><span aria-hidden="true">⚙</span> Refinar busca</span>
+                        <small>diretor, ator, gênero, idioma ou período</small>
+                    </summary>
+                    <div class="search-refine-body">
+                        <div class="search-row people-row">
+                            <div class="autocomplete-wrap">
+                                <input type="text" id="directorInput" class="text-input" autocomplete="off"
+                                       aria-label="Filtrar por diretor" aria-controls="directorDropdown" aria-expanded="false"
+                                       placeholder="🎬 Diretor (opcional)">
+                                <div class="autocomplete-dropdown" id="directorDropdown" role="listbox" aria-label="Sugestões de diretores"></div>
+                            </div>
+                            <div class="autocomplete-wrap">
+                                <input type="text" id="actorInput" class="text-input" autocomplete="off"
+                                       aria-label="Filtrar por ator" aria-controls="actorDropdown" aria-expanded="false"
+                                       placeholder="⭐ Ator (opcional)">
+                                <div class="autocomplete-dropdown" id="actorDropdown" role="listbox" aria-label="Sugestões de atores"></div>
+                            </div>
+                        </div>
+                        <div class="filters">
+                            <label>Gênero
+                                <select id="filterGenre"><option value="">Todos</option></select>
+                            </label>
+                            <label>Idioma
+                                <input type="text" id="filterLang" class="mini-input" placeholder="ex: en, pt, fr">
+                            </label>
+                            <label>Ano de
+                                <input type="number" id="filterYearMin" class="mini-input" placeholder="1950">
+                            </label>
+                            <label>até
+                                <input type="number" id="filterYearMax" class="mini-input" placeholder="2025">
+                            </label>
+                        </div>
+                        <p class="hint">Tudo o que você souber ajuda a afunilar a busca.
+                            <a href="#" class="eng-link" data-goto="engenharia">Entenda como encontramos →</a></p>
                     </div>
-                    <div class="autocomplete-wrap">
-                        <input type="text" id="actorInput" class="text-input" autocomplete="off"
-                               aria-label="Filtrar por ator" aria-controls="actorDropdown" aria-expanded="false"
-                               placeholder="⭐ Ator (opcional)">
-                        <div class="autocomplete-dropdown" id="actorDropdown" role="listbox" aria-label="Sugestões de atores"></div>
-                    </div>
-                </div>
-                <div class="filters">
-                    <label>Gênero
-                        <select id="filterGenre"><option value="">Todos</option></select>
-                    </label>
-                    <label>Idioma
-                        <input type="text" id="filterLang" class="mini-input" placeholder="ex: en, pt, fr">
-                    </label>
-                    <label>Ano de
-                        <input type="number" id="filterYearMin" class="mini-input" placeholder="1950">
-                    </label>
-                    <label>até
-                        <input type="number" id="filterYearMax" class="mini-input" placeholder="2025">
-                    </label>
-                </div>
-                <p class="hint">Combine o que souber: escolha diretor e/ou ator e descreva um pouco a história — tudo soma para afunilar a busca.
-                    <a href="#" class="eng-link" data-goto="engenharia">Como a busca funciona por dentro →</a></p>
+                </details>
             </div>
 
             <div id="searchStatus" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -334,7 +345,8 @@
                 Notas e votos de filmes: <a href="https://developer.imdb.com/non-commercial-datasets/" target="_blank" rel="noopener">IMDb Non-Commercial Datasets</a>.
                 Dados de avaliações para a recomendação: ver <a href="https://github.com/davidogral/recomenda-ai#-proveniência-dos-dados" target="_blank" rel="noopener">proveniência dos dados</a>.
             </p>
-            <p class="data-credits"><a href="/privacidade">Política de Privacidade</a> · seus dados são seus: exporte ou exclua a conta pelo menu de usuário.</p>
+            <p class="data-credits"><a href="/privacidade">Política de Privacidade</a> ·
+                <a href="#" data-goto="engenharia">Como o Cinerd encontra filmes</a> · seus dados são seus.</p>
         </footer>
     </div>
 

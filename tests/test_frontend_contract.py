@@ -23,8 +23,20 @@ def test_mobile_viewport_and_skip_link_are_present():
 
 
 def test_frontend_assets_share_the_same_cache_version():
-    assert "style.css') }}?v=7" in INDEX
-    assert "app.js') }}?v=7" in INDEX
+    assert "style.css') }}?v=8" in INDEX
+    assert "app.js') }}?v=8" in INDEX
+
+
+def test_search_uses_editorial_hero_and_progressive_refinement():
+    assert 'class="form-section search-hero"' in INDEX
+    assert '<details class="search-refine" id="searchRefine">' in INDEX
+    assert "<summary>" in INDEX
+    assert 'class="search-refine-body"' in INDEX
+
+
+def test_onboarding_is_started_only_by_user_action():
+    assert "getElementById('tourBtn').addEventListener('click', () => showStep(0))" in APP
+    assert "setTimeout(() => startTour" not in APP
 
 
 def test_primary_inputs_have_accessible_names():
