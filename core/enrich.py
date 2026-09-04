@@ -347,6 +347,14 @@ def _wiki_get(url: str, params: dict) -> Optional[dict]:
         return None
 
 
+# Teto de segurança (não o corte real — plot de filme raramente passa disso);
+# corta em espaço, nunca no meio de uma palavra. Antes disso era 4000 e cortava
+# BEM antes do fim de sinopses longas (Homem-Aranha, Vingadores, Rápidos e
+# Furiosos...) — cortava a cena do 3º ato que o canal `plot_maxsim` (trechos)
+# existe justamente para achar.
+_MAX_PLOT_CHARS = 20000
+
+
 def _clean_wikitext(wt: str) -> str:
     """Wikitext -> texto simples o suficiente para embutir (não precisa ser bonito)."""
     import re
@@ -369,7 +377,9 @@ def _clean_wikitext(wt: str) -> str:
     s = s.replace("&nbsp;", " ").replace("&ndash;", "–").replace("&mdash;", "—").replace("&amp;", "&")
     s = re.sub(r"[ \t]+", " ", s)
     s = re.sub(r"\n{3,}", "\n\n", s).strip()
-    return s[:4000]
+    if len(s) > _MAX_PLOT_CHARS:
+        s = s[:_MAX_PLOT_CHARS].rsplit(" ", 1)[0]
+    return s
 
 
 def _wikipedia_plot(imdb_id: str) -> Optional[dict]:
