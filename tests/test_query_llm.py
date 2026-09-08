@@ -10,13 +10,17 @@ import pytest
 @pytest.fixture(autouse=True)
 def _isolated_cache(tmp_path, monkeypatch):
     """Cache em disco isolado por teste — não toca data/tmdb_cache/ real nem
-    vaza estado entre testes (o cache é um global do módulo)."""
+    vaza estado entre testes (os caches são globais do módulo; vários testes
+    de rerank_pick reusam a MESMA consulta/candidatos, então sem isolar o
+    _rerank_cache um teste veria o resultado cacheado pelo anterior)."""
     from core import query_llm
 
     monkeypatch.setattr(query_llm, "_cache", None)
+    monkeypatch.setattr(query_llm, "_rerank_cache", None)
     monkeypatch.setattr("core.db._PROJECT_ROOT", str(tmp_path))
     yield
     monkeypatch.setattr(query_llm, "_cache", None)
+    monkeypatch.setattr(query_llm, "_rerank_cache", None)
 
 
 def test_understand_default_when_not_configured(monkeypatch):
@@ -265,6 +269,60 @@ def test_rerank_pick_empty_candidates_or_no_key(monkeypatch):
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "")
     assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) is None
+
+
+def test_rerank_pick_caches_result_same_query_and_candidates(monkeypatch):
+    """Achado 2026-09-08: sem cache, a MESMA consulta com os MESMOS
+    candidatos dava resposta diferente a cada chamada (8 chamadas idênticas
+    -> 3 respostas distintas) — a Groq não é perfeitamente determinística
+    mesmo com temperature=0. Cache faz a mesma busca sempre devolver a
+    mesma resposta a partir da 1ª chamada real."""
+    from core import query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    calls = {"n": 0}
+
+    def _post(*args, **kwargs):
+        calls["n"] += 1
+        return _fake_post(content=json.dumps({"escolha": 2, "confianca": "alta"}))()
+
+    monkeypatch.setattr(query_llm.requests, "post", _post)
+
+    for _ in range(5):
+        assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) == 102
+    assert calls["n"] == 1  # só a 1ª chamada bateu na rede
+
+
+def test_rerank_pick_cache_key_includes_candidate_ids(monkeypatch):
+    """Mesma consulta, candidatos DIFERENTES (ex.: índice mudou) não deve
+    reusar o cache de outro conjunto de candidatos."""
+    from core import query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    calls = {"n": 0}
+
+    def _post(*args, **kwargs):
+        calls["n"] += 1
+        return _fake_post(content=json.dumps({"escolha": 1, "confianca": "alta"}))()
+
+    monkeypatch.setattr(query_llm.requests, "post", _post)
+
+    outros_candidatos = [{"tmdb_id": 201, "title": "Filme D", "year": 2004, "overview": "sinopse D"}]
+    query_llm.rerank_pick("descrição qualquer", _CANDIDATES)
+    query_llm.rerank_pick("descrição qualquer", outros_candidatos)
+    assert calls["n"] == 2
+
+
+def test_rerank_pick_failure_is_not_cached(monkeypatch):
+    """Falha transiente de rede não deve virar 'sem palpite' permanente."""
+    from core import query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    monkeypatch.setattr(query_llm.requests, "post", _fake_post(raise_exc=RuntimeError("down")))
+
+    query_llm.rerank_pick("descrição instável", _CANDIDATES)
+    key = query_llm._rerank_cache_key("descrição instável", _CANDIDATES)
+    assert key not in query_llm._get_rerank_cache()
 
 
 # ============================================================ _llm_rerank

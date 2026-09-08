@@ -56,6 +56,7 @@ que a PRÓPRIA CONSULTA cita, cada um virando uma pista independente.
 Responda SOMENTE em JSON, sem comentario, no formato:
 {"tipo": "pessoa"|"objeto"|"generico",
  "consulta_reescrita": "...",
+ "consulta_ingles": "...",
  "pistas_pessoa": ["fato buscavel 1", ...],
  "pistas_objeto": ["termo 1", ...]}
 "pistas_pessoa": fatos sobre UMA pessoa (ator/diretor) citados na consulta -
@@ -68,9 +69,11 @@ pessoa, "tipo":"pessoa" e SEMPRE liste todos os fatos em pistas_pessoa -
 nunca devolva a lista vazia so porque voce nao sabe (ou nao pode dizer) quem
 e a pessoa. "pistas_objeto" fica no idioma da consulta (nome proprio/veiculo
 sobrevive a traducao). "consulta_reescrita": a MESMA busca, so mais direta -
-nunca invente fato novo. Se a consulta ja e direta/generica, sem pista
-especifica de pessoa ou objeto, "tipo":"generico" e as duas listas vazias
-(consulta_reescrita ainda pode limpar redundancia)."""
+nunca invente fato novo. "consulta_ingles": traducao literal da consulta
+inteira pro ingles (mesmo raciocinio de pistas_pessoa - o enredo detalhado
+buscado tambem e da Wikipedia em ingles). Se a consulta ja e direta/
+generica, sem pista especifica de pessoa ou objeto, "tipo":"generico" e as
+duas listas vazias (consulta_reescrita/consulta_ingles ainda valem)."""
 
 _TIPOS = ("pessoa", "objeto", "generico")
 _cache: Optional[tmdb._JsonCache] = None
@@ -93,6 +96,7 @@ def _flush_cache() -> None:
 class QueryPlan:
     tipo: str = "generico"
     consulta_reescrita: str = ""
+    consulta_ingles: str = ""
     pistas_pessoa: list[str] = field(default_factory=list)
     pistas_objeto: list[str] = field(default_factory=list)
     ok: bool = False  # True só se o Groq respondeu e foi parseado com sucesso
@@ -107,6 +111,7 @@ def _plan_from_dict(data: dict) -> QueryPlan:
     return QueryPlan(
         tipo=tipo,
         consulta_reescrita=str(data.get("consulta_reescrita") or "").strip()[:300],
+        consulta_ingles=str(data.get("consulta_ingles") or "").strip()[:300],
         pistas_pessoa=[str(x).strip() for x in (data.get("pistas_pessoa") or []) if str(x).strip()][:6],
         pistas_objeto=[str(x).strip() for x in (data.get("pistas_objeto") or []) if str(x).strip()][:6],
         ok=True,
@@ -178,6 +183,28 @@ com o fato especifico da descricao, {"escolha": null, "confianca": null} -
 nao force um palpite so pra responder algo."""
 
 RERANK_POOL = int(os.environ.get("RECOMENDAI_RERANK_LLM_POOL", "30"))
+_rerank_cache: Optional[tmdb._JsonCache] = None
+
+
+def _get_rerank_cache() -> tmdb._JsonCache:
+    global _rerank_cache
+    if _rerank_cache is None:
+        _rerank_cache = tmdb._JsonCache(os.path.join(db._PROJECT_ROOT, "data", "tmdb_cache", "rerank_llm.json"))
+    return _rerank_cache
+
+
+@atexit.register
+def _flush_rerank_cache() -> None:
+    if _rerank_cache is not None:
+        _rerank_cache.flush()
+
+
+def _rerank_cache_key(query: str, candidates: list[dict]) -> str:
+    import hashlib
+
+    ids_part = ",".join(str(c.get("tmdb_id")) for c in candidates)
+    raw = f"{query.strip().lower()}|{ids_part}"
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
 
 def rerank_pick(query: str, candidates: list[dict]) -> Optional[int]:
@@ -185,9 +212,24 @@ def rerank_pick(query: str, candidates: list[dict]) -> Optional[int]:
     ordem da fusão. Devolve o tmdb_id escolhido pela LLM (só com confiança
     "alta"/"media"), ou None — sem candidato, sem chave, falha de rede/
     timeout/parse, palpite de baixa confiança, ou índice fora da lista.
-    Nunca levanta."""
+    Nunca levanta.
+
+    Achado 2026-09-08: SEM cache, a mesma consulta com os MESMOS candidatos
+    dava resposta diferente a cada chamada (8 chamadas idênticas -> 3
+    respostas distintas) — mesmo com temperature=0, a Groq não é
+    perfeitamente determinística (efeito de lote conhecido em inferência
+    compartilhada). Cacheado por (consulta, IDs dos candidatos NA ORDEM) —
+    a mesma busca sempre devolve a mesma resposta a partir da 1ª chamada
+    real, e evita gastar a cota grátis roletando de novo. Só o SUCESSO
+    (mesmo "nenhum candidato bate") é cacheado — falha de rede/timeout/parse
+    é transiente, nunca cacheada."""
     if not candidates or not is_configured():
         return None
+    cache = _get_rerank_cache()
+    key = _rerank_cache_key(query, candidates)
+    if key in cache:
+        return cache.get(key)
+
     lines = [
         f"{i}. {c.get('title') or '?'} ({c.get('year') or '?'}): {(c.get('overview') or '').strip()}"
         for i, c in enumerate(candidates, 1)
@@ -211,12 +253,14 @@ def rerank_pick(query: str, candidates: list[dict]) -> Optional[int]:
         data = json.loads(r.json()["choices"][0]["message"]["content"])
     except Exception:
         return None
-    if data.get("confianca") not in ("alta", "media"):
-        return None
-    try:
-        idx = int(data.get("escolha")) - 1
-    except (TypeError, ValueError):
-        return None
-    if not (0 <= idx < len(candidates)):
-        return None
-    return candidates[idx].get("tmdb_id")
+
+    pick_id: Optional[int] = None
+    if data.get("confianca") in ("alta", "media"):
+        try:
+            idx = int(data.get("escolha")) - 1
+        except (TypeError, ValueError):
+            idx = -1
+        if 0 <= idx < len(candidates):
+            pick_id = candidates[idx].get("tmdb_id")
+    cache.set(key, pick_id)
+    return pick_id
