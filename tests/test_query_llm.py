@@ -209,3 +209,104 @@ def test_rewrite_query_returns_pistas_pessoa_for_tipo_pessoa(monkeypatch):
     assert plot_lexical_weight is None
     assert entity_weight is None
     assert pistas_pessoa == ["decorated by the Queen", "had a heavy metal band"]
+
+
+# ============================================================= rerank_pick
+
+_CANDIDATES = [
+    {"tmdb_id": 101, "title": "Filme A", "year": 2001, "overview": "sinopse A"},
+    {"tmdb_id": 102, "title": "Filme B", "year": 2002, "overview": "sinopse B"},
+    {"tmdb_id": 103, "title": "Filme C", "year": 2003, "overview": "sinopse C"},
+]
+
+
+def test_rerank_pick_promotes_confident_choice(monkeypatch):
+    from core import query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    payload = json.dumps({"escolha": 2, "confianca": "alta"})
+    monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
+
+    assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) == 102
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        json.dumps({"escolha": None, "confianca": None}),  # não achou
+        json.dumps({"escolha": 2, "confianca": "baixa"}),  # confiança baixa nunca promove
+        json.dumps({"escolha": 99, "confianca": "alta"}),  # índice fora da lista
+        "isso nao e json",
+    ],
+)
+def test_rerank_pick_returns_none_without_confident_valid_choice(monkeypatch, payload):
+    from core import query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
+
+    assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) is None
+
+
+def test_rerank_pick_never_raises_on_failure(monkeypatch):
+    from core import query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    monkeypatch.setattr(query_llm.requests, "post", _fake_post(raise_exc=TimeoutError("timeout")))
+
+    assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) is None
+
+
+def test_rerank_pick_empty_candidates_or_no_key(monkeypatch):
+    from core import query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    assert query_llm.rerank_pick("descrição qualquer", []) is None
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "")
+    assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) is None
+
+
+# ============================================================ _llm_rerank
+
+def _results_from_candidates():
+    return [
+        {"tmdb_id": 101, "title": "Filme A", "release_year": 2001, "overview": "sinopse A"},
+        {"tmdb_id": 102, "title": "Filme B", "release_year": 2002, "overview": "sinopse B"},
+        {"tmdb_id": 103, "title": "Filme C", "release_year": 2003, "overview": "sinopse C"},
+    ]
+
+
+def test_llm_rerank_promotes_pick_to_front(monkeypatch):
+    from core import inference_client, query_llm
+
+    # _llm_rerank importa `query_llm` localmente a cada chamada — patchar o
+    # módulo canônico (não um atributo de inference_client) é o que afeta essa
+    # importação local.
+    monkeypatch.setattr(query_llm, "rerank_pick", lambda q, c: 103)
+    monkeypatch.setattr("core.catalog.get_movie", lambda tid: {"overview": "sinopse completa"})
+
+    out = inference_client._llm_rerank("descrição", _results_from_candidates())
+    assert [r["tmdb_id"] for r in out] == [103, 101, 102]
+
+
+def test_llm_rerank_leaves_order_when_no_pick(monkeypatch):
+    from core import inference_client, query_llm
+
+    monkeypatch.setattr(query_llm, "rerank_pick", lambda q, c: None)
+    monkeypatch.setattr("core.catalog.get_movie", lambda tid: {"overview": "sinopse completa"})
+
+    original = _results_from_candidates()
+    out = inference_client._llm_rerank("descrição", list(original))
+    assert [r["tmdb_id"] for r in out] == [r["tmdb_id"] for r in original]
+
+
+def test_llm_rerank_noop_without_query_or_with_single_result(monkeypatch):
+    from core import inference_client, query_llm
+
+    called = {"n": 0}
+    monkeypatch.setattr(query_llm, "rerank_pick", lambda q, c: called.__setitem__("n", called["n"] + 1))
+
+    assert inference_client._llm_rerank("", _results_from_candidates()) == _results_from_candidates()
+    assert inference_client._llm_rerank("descrição", _results_from_candidates()[:1]) == _results_from_candidates()[:1]
+    assert called["n"] == 0

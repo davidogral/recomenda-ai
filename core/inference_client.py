@@ -98,23 +98,76 @@ def _understand_and_rewrite(query: str) -> tuple[str, list, Optional[float], Opt
     return out, (plan.pistas_pessoa if plan.tipo == "pessoa" else []), plot_lexical_weight, entity_weight
 
 
+# Reranking via LLM (ver core.query_llm.rerank_pick): lê a sinopse do topo da
+# fusão e PROMOVE pro #1 só quando acha, com confiança, um candidato que bate
+# de verdade — nunca reordena o resto. Medido 2026-09-08 nos 5 splits formais
+# (script de ablação, sinopse da TMDB só). Pool=20: test nDCG@10 0.829→0.844
+# (+0.015), hard sem mudança. Pool=30 (padrão, ver RERANK_POOL): test volta
+# a 0.829 (perde o ganho de 20 — mais candidato pode confundir a escolha),
+# mas hard 0.473→0.506 (+0.033, ganho novo — exatamente o split de consulta
+# oblíqua que mais importa); dev -0.004 (ruído), entity/object idênticos.
+# No split object a LLM só arriscou palpite em 1 de 42 consultas (a sinopse
+# da TMDB não tem o fato específico na maioria; ela recusa em vez de
+# inventar) e acertou. Sem regressão medida em nenhum split.
+RERANK_LLM_ENABLED = os.environ.get("RECOMENDAI_RERANK_LLM", "1").strip().lower() not in ("0", "false", "no")
+
+
+def _llm_rerank(query: str, results: list[dict]) -> list[dict]:
+    """Promove o candidato que a LLM confirma com confiança — nunca troca a
+    ordem do resto. Pior caso (sem chave, falha, sem candidato confiante):
+    devolve `results` inalterado, a fusão já ordenou razoável.
+
+    Usa a sinopse INTEIRA do catálogo, não a `overview` de `results` (essa já
+    vem cortada em 240 chars pra exibição — cortar antes de mandar pra LLM
+    corre o mesmo risco medido no protótipo: o fato relevante às vezes só
+    aparece depois do corte)."""
+    if not query or len(results) < 2:
+        return results
+    from core import catalog, metrics, query_llm
+
+    candidates = [
+        {"tmdb_id": r.get("tmdb_id"), "title": r.get("title"), "year": r.get("release_year"),
+         "overview": (catalog.get_movie(r.get("tmdb_id")) or {}).get("overview") or r.get("overview")}
+        for r in results
+    ]
+    with metrics.stage_timer("rerank_llm"):
+        pick_id = query_llm.rerank_pick(query, candidates)
+    if pick_id is None:
+        return results
+    for i, r in enumerate(results):
+        if r.get("tmdb_id") == pick_id:
+            if i == 0:
+                return results
+            results = list(results)
+            results.insert(0, results.pop(i))
+            return results
+    return results
+
+
 # --------------------------------------------------------------- operações
 def search_combined(
     query: str = "", director: str = "", actor: str = "", n: int = 12, filters: Optional[dict] = None
 ) -> list[dict]:
     query, pistas_pessoa, plot_lexical_weight, entity_weight = _understand_and_rewrite(query)
+    from core import query_llm
+
+    fetch_n = max(n, query_llm.RERANK_POOL) if RERANK_LLM_ENABLED else n
     if is_remote():
         out = _post(
             "/v1/search_combined",
-            {"query": query, "director": director, "actor": actor, "n": n, "filters": filters or None},
+            {"query": query, "director": director, "actor": actor, "n": fetch_n, "filters": filters or None},
         )
-        return out["results"]
-    from retrieval.search_engine import get_engine
+        results = out["results"]
+    else:
+        from retrieval.search_engine import get_engine
 
-    return get_engine().search_combined(
-        query=query, director=director, actor=actor, n=n, filters=filters or None,
-        pistas_pessoa=pistas_pessoa, plot_lexical_weight=plot_lexical_weight, entity_weight=entity_weight,
-    )
+        results = get_engine().search_combined(
+            query=query, director=director, actor=actor, n=fetch_n, filters=filters or None,
+            pistas_pessoa=pistas_pessoa, plot_lexical_weight=plot_lexical_weight, entity_weight=entity_weight,
+        )
+    if RERANK_LLM_ENABLED and query:
+        results = _llm_rerank(query, results)
+    return results[:n]
 
 
 def similar(movie_id: int, n: int = 12, region: Optional[str] = None, provider_ids: Optional[list[int]] = None) -> dict:

@@ -153,3 +153,70 @@ def understand(query: str) -> QueryPlan:
         return QueryPlan()
     cache.set(key, plan_dict)
     return _plan_from_dict(plan_dict)
+
+
+# ---------------------------------------------------------------------------
+# Reranking: verifica se o TOPO da fusão (similaridade de vetor/termo) bate
+# de verdade com a descrição, lendo a sinopse de cada candidato — ataca o
+# tipo de erro que nenhum sinal de similaridade resolve (fato composto,
+# objeto específico citado uma vez). Medido 2026-09-08: acerta "Sonho dentro
+# do sonho"->A Origem e "chove hambúrguer"->Tá Chovendo Hambúrguer lendo só a
+# sinopse da TMDB — e importante, RECUSA (não inventa) quando a sinopse
+# genuinamente não tem o fato citado, em vez de forçar um palpite.
+#
+# Só promove com confiança >= "media" — nunca troca o topo baseado num
+# palpite de baixa confiança, então o pior caso de uma falha/recusa é não
+# mudar nada (a fusão já ordenou razoavelmente).
+_RERANK_SYSTEM = """Voce recebe uma descricao de busca de filme e uma lista
+numerada de filmes candidatos (titulo, ano, sinopse). Escolha qual candidato
+REALMENTE corresponde ao que a descricao pede, lendo a sinopse de cada um -
+nao pelo tema geral, pelo FATO especifico citado na descricao.
+Responda SOMENTE em JSON, sem comentario:
+{"escolha": N, "confianca": "alta"|"media"|"baixa"}
+N e o numero do candidato (1-indexado). Se NENHUM candidato bate de verdade
+com o fato especifico da descricao, {"escolha": null, "confianca": null} -
+nao force um palpite so pra responder algo."""
+
+RERANK_POOL = int(os.environ.get("RECOMENDAI_RERANK_LLM_POOL", "30"))
+
+
+def rerank_pick(query: str, candidates: list[dict]) -> Optional[int]:
+    """`candidates`: [{"tmdb_id", "title", "year", "overview"}, ...] já na
+    ordem da fusão. Devolve o tmdb_id escolhido pela LLM (só com confiança
+    "alta"/"media"), ou None — sem candidato, sem chave, falha de rede/
+    timeout/parse, palpite de baixa confiança, ou índice fora da lista.
+    Nunca levanta."""
+    if not candidates or not is_configured():
+        return None
+    lines = [
+        f"{i}. {c.get('title') or '?'} ({c.get('year') or '?'}): {(c.get('overview') or '').strip()}"
+        for i, c in enumerate(candidates, 1)
+    ]
+    user = "Descrição: " + query + "\n\nCandidatos:\n" + "\n".join(lines)
+    try:
+        r = requests.post(
+            _URL,
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": GROQ_MODEL,
+                "messages": [{"role": "system", "content": _RERANK_SYSTEM}, {"role": "user", "content": user}],
+                "temperature": 0,
+                "max_tokens": 600,
+                "reasoning_effort": "low",
+            },
+            timeout=GROQ_TIMEOUT,
+        )
+        if r.status_code != 200:
+            return None
+        data = json.loads(r.json()["choices"][0]["message"]["content"])
+    except Exception:
+        return None
+    if data.get("confianca") not in ("alta", "media"):
+        return None
+    try:
+        idx = int(data.get("escolha")) - 1
+    except (TypeError, ValueError):
+        return None
+    if not (0 <= idx < len(candidates)):
+        return None
+    return candidates[idx].get("tmdb_id")
