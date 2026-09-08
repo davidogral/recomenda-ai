@@ -41,10 +41,35 @@ def _post(path: str, payload: dict) -> Any:
     return r.json()
 
 
+def _rewrite_query(query: str) -> str:
+    """Passa a consulta pelo entendimento via LLM (Groq) antes da busca.
+
+    Só troca o texto quando o Groq responde com algo acionável — qualquer
+    falha (sem chave, rede, timeout) devolve a consulta original sem alterar
+    nada. `pistas_objeto` vira a própria consulta (termos concretos casam
+    melhor no léxico/embedding que a frase natural inteira); senão usa a
+    `consulta_reescrita` se vier preenchida. `pistas_pessoa` ainda não tem
+    canal de busca próprio (falta o índice de bio de elenco/diretor) — por
+    ora só a reescrita geral se aplica também ao tipo "pessoa"."""
+    q = (query or "").strip()
+    if not q:
+        return query
+    from core import metrics, query_llm
+
+    with metrics.stage_timer("query_llm"):
+        plan = query_llm.understand(q)
+    if not plan.ok:
+        return query
+    if plan.tipo == "objeto" and plan.pistas_objeto:
+        return " ".join(plan.pistas_objeto)
+    return plan.consulta_reescrita or query
+
+
 # --------------------------------------------------------------- operações
 def search_combined(
     query: str = "", director: str = "", actor: str = "", n: int = 12, filters: Optional[dict] = None
 ) -> list[dict]:
+    query = _rewrite_query(query)
     if is_remote():
         out = _post(
             "/v1/search_combined",
