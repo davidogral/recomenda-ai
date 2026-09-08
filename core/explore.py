@@ -346,7 +346,7 @@ def essentials(genre: Optional[str] = None, style: Optional[str] = None,
         r["rating_source"] = source             # "imdb" ou "tmdb"
         r["critic"] = r.get("rt_score") if r.get("rt_score") is not None \
             else r.get("metascore")             # crítica (0..100): RT preferido, MC reserva
-        r["overview"] = (r["overview"] or "")[:220]
+        r["overview"] = catalog.truncate_overview(r["overview"] or "", limit=220)
 
     rows.sort(key=lambda r: r["score"], reverse=True)
     return rows[:limit]

@@ -36,6 +36,16 @@ def _split_countries(value: Optional[str]) -> list[str]:
     return [c for c in value.split("|") if c]
 
 
+def truncate_overview(text: str, limit: int = 240) -> str:
+    """Corta a sinopse pra exibição em card — corta em espaço (não no meio da
+    palavra) e marca com "…" quando corta de verdade. Só afeta a EXIBIÇÃO; a
+    sinopse inteira segue indexada (BM25/embedding lêem o overview cru)."""
+    text = text or ""
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(".,;:!?") + "…"
+
+
 def _json_to_movie(j: dict) -> dict:
     """Converte um filme do formato JSON para o formato do catálogo."""
     release_date = j.get("release_date", "") or ""

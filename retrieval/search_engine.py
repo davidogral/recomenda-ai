@@ -551,7 +551,7 @@ class SearchEngine:
             "release_year": mv.get("release_year"),
             "original_language": mv.get("original_language"),
             "vote_average": mv.get("vote_average"),
-            "overview": overview[:240],
+            "overview": catalog.truncate_overview(overview),
             "score": round(float(score), 4),
         }
 
