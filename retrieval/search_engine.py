@@ -223,21 +223,40 @@ TMDB_TITLE_CUTOFF = 0.55    # similaridade mínima do título TMDB à consulta
 TMDB_MAX_TITLE_WORDS = 8    # acima disso é descrição de enredo, não título
 
 
-def _zscore(x: np.ndarray) -> np.ndarray:
-    """Padroniza um vetor de scores (média 0, desvio 1).
+# Teto do z-score antes de somar os sinais — ver `_zscore`. Ablação de
+# 2026-09-08 (splits object/entity/test/dev/hard, valor medido, não chutado):
+# 8 vence em TODOS os splits (object nDCG@10 0.259→0.276, entity 0.746→0.772,
+# hard 0.460→0.473; test/dev caem <0.003, ruído). 0 = sem teto (comportamento
+# antigo).
+Z_SCORE_CLIP = float(os.environ.get("RECOMENDAI_ZSCORE_CLIP", "8.0"))
 
-    Fundir por z-score em vez de min-max+soma tem duas vantagens medidas no
-    harness: (1) é robusto a outliers — um único filme com score altíssimo não
-    achata todos os outros perto de zero; (2) preserva o quanto um sinal
-    *separa* um filme da média, então um enredo com termo próprio muito forte
-    (lexical) ou um tema muito específico (keywords) é resgatado mesmo quando o
-    embedding da sinopse é fraco para aquela consulta."""
+
+def _zscore(x: np.ndarray) -> np.ndarray:
+    """Padroniza um vetor de scores (média 0, desvio 1), com teto em
+    `Z_SCORE_CLIP` desvios-padrão.
+
+    Fundir por z-score em vez de min-max+soma tem duas vantagens: (1) é
+    robusto a outliers — um único filme com score altíssimo não achata todos
+    os outros perto de zero; (2) preserva o quanto um sinal *separa* um filme
+    da média, então um termo muito específico (lexical/keywords) é resgatado
+    mesmo quando o embedding da sinopse é fraco para aquela consulta.
+
+    Mas sem teto, um termo RARO que bate em pouquíssimos filmes (BM25 sobre
+    22 mil documentos, a maioria zero) produz z gigante — achado medindo
+    "filme que chove hambúrguer": "A Guerra do Hambúrguer" tinha z_lexical=75
+    só por citar a palavra na sinopse, enterrando "Tá Chovendo Hambúrguer"
+    (o filme certo, mas sem essa palavra exata na sinopse, z bem menor nos
+    outros sinais). O teto não muda QUEM vence entre sinais fracos — só evita
+    que 1 casamento literal raro, correto ou não, domine sozinho a soma."""
     if x.size == 0:
         return x
     std = float(x.std())
     if std <= 0:
         return np.zeros_like(x)
-    return (x - float(x.mean())) / std
+    z = (x - float(x.mean())) / std
+    if Z_SCORE_CLIP > 0:
+        z = np.clip(z, -Z_SCORE_CLIP, Z_SCORE_CLIP)
+    return z
 
 
 class SearchEngine:
