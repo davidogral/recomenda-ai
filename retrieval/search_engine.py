@@ -130,6 +130,7 @@ SIGNAL_LABELS = {
     "plot": "enredo detalhado",
     "plot_lexical": "enredo (texto)",
     "plot_maxsim": "enredo (trecho)",
+    "person_match": "trivia de pessoa",
     "name": "nome",
 }
 
@@ -190,6 +191,17 @@ DEFAULT_PLOT_BM25_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_BM25_WEIGHT", "
 # fica seguro como default mesmo antes do build completo (hoje só top-1500;
 # falta rodar sem `--limit` pra cobrir os ~6078 filmes com wikipedia_plot).
 DEFAULT_PLOT_CHUNK_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_CHUNK_WEIGHT", "0.5"))
+
+# Canal de TRIVIA DE PESSOA: pistas biográficas ("condecorado pela rainha",
+# "banda de heavy metal" — vêm do `core.query_llm`, tipo="pessoa") buscadas
+# por MaxSim nos trechos de `people.wikipedia_bio` (`index_builder
+# --person-chunks-only`); a pessoa achada é mapeada pros filmes dela
+# (elenco de destaque/diretor) e ESSES filmes ganham o boost — não a pessoa.
+# Exige bater em VÁRIAS pistas (mínimo, não média — ver `_person_bio_matches`)
+# pra reduzir falso-positivo do mesmo jeito que o embedding erra sinal único.
+# Ainda NÃO medido (índice novo, só 241 pessoas) — 0 = inerte/desligado.
+DEFAULT_PERSON_MATCH_WEIGHT = float(os.environ.get("RECOMENDAI_PERSON_MATCH_WEIGHT", "0.0"))
+PERSON_MATCH_TOP_K = int(os.environ.get("RECOMENDAI_PERSON_MATCH_TOP_K", "5"))
 
 # Prior de popularidade/aclamação (z-score de log(vote_count)). Desempata a favor
 # do filme famoso quando muitos casam parecido com uma descrição genérica (ex.:
@@ -297,6 +309,10 @@ class SearchEngine:
         self._bm25_plot = None                             # BM25Index sobre o texto do enredo
         self._plot_chunk_emb: Optional[np.ndarray] = None   # M×D trechos de enredo (L2-norm)
         self._plot_chunk_rows: Optional[np.ndarray] = None  # M -> linha do filme em _movie_ids
+        self._person_chunk_emb: Optional[np.ndarray] = None  # K×D trechos de bio (L2-norm)
+        self._person_chunk_rows: Optional[np.ndarray] = None  # K -> linha da pessoa em _person_ids
+        self._person_ids: Optional[np.ndarray] = None        # linha -> person_id (TMDB)
+        self._bm25_person = None                              # BM25Index sobre a bio (mesma ordem de _person_ids)
         self._kw_term_emb: Optional[np.ndarray] = None     # Nkw×D por keyword (L2-norm)
         self._kw_term_row: dict[str, int] = {}             # nome(lower) -> linha em _kw_term_emb
         self._embed_model = None
@@ -358,6 +374,15 @@ class SearchEngine:
             if meta.get("has_plot_chunks") and os.path.exists(P["plot_chunk_emb"]):
                 self._plot_chunk_emb = np.load(P["plot_chunk_emb"])
                 self._plot_chunk_rows = np.load(P["plot_chunk_rows"])
+            if meta.get("has_person_chunks") and os.path.exists(P["person_chunk_emb"]):
+                self._person_chunk_emb = np.load(P["person_chunk_emb"])
+                self._person_chunk_rows = np.load(P["person_chunk_rows"])
+                self._person_ids = np.load(P["person_ids"])
+            if meta.get("has_person_bm25") and os.path.exists(P["bm25_person_vectorizer"]):
+                self._bm25_person = BM25Index.load(
+                    P["bm25_person_vectorizer"], P["bm25_person_counts"],
+                    k1=meta.get("bm25_k1", 1.5), b=meta.get("bm25_b", 0.75),
+                )
             if meta.get("has_keyword_terms") and os.path.exists(P["keyword_term_emb"]):
                 self._kw_term_emb = np.load(P["keyword_term_emb"])
                 with open(P["keyword_terms"], encoding="utf-8") as f:
@@ -638,11 +663,63 @@ class SearchEngine:
             return 0.25
         return 0.20
 
+    def _person_bio_matches(self, pistas: list[str]) -> dict[int, float]:
+        """{tmdb_id: boost} para os filmes de pessoas cuja bio bate em VÁRIAS
+        `pistas` (fatos biográficos vindos do `core.query_llm`, tipo="pessoa",
+        em INGLÊS — a bio é majoritariamente inglesa da Wikipédia).
+
+        Cada pista usa o MELHOR entre léxico (BM25) e semântico (MaxSim nos
+        trechos) — achado com o caso do Christopher Lee: "knighted"/"Queen"
+        aparecem literalmente na bio e o léxico acerta na hora, mas o
+        embedding sozinho não é preciso o bastante (mesmo problema do canal
+        de objeto). Depois exige o MÍNIMO entre as pistas (E lógico, não
+        média/soma) — uma pista batendo sozinha ainda pode ser gente errada
+        (várias pessoas são "condecoradas pela realeza"); cruzar várias reduz
+        bem mais o falso-positivo do que reforça o verdadeiro-positivo."""
+        if self._person_chunk_emb is None or self._person_ids is None or not pistas:
+            return {}
+        n_people = int(self._person_ids.shape[0])
+        per_pista = np.zeros((len(pistas), n_people), dtype=np.float64)
+        for i, pista in enumerate(pistas):
+            q_emb = self._encode(pista)
+            cs = self._person_chunk_emb @ q_emb
+            ms = np.full(n_people, np.nan)
+            np.fmax.at(ms, self._person_chunk_rows, cs)
+            have = ~np.isnan(ms)
+            z_sem = np.zeros(n_people, dtype=np.float64)
+            if have.any():
+                z_sem[have] = _zscore(ms[have])
+            z_sem = np.maximum(0.0, z_sem)
+            if self._bm25_person is not None:
+                z_lex = np.maximum(0.0, _zscore(self._bm25_person.scores(pista)))
+                per_pista[i] = np.maximum(z_lex, z_sem)
+            else:
+                per_pista[i] = z_sem
+        combined = per_pista.min(axis=0) if len(pistas) > 1 else per_pista[0]
+        top_idx = np.argsort(combined)[::-1][:PERSON_MATCH_TOP_K]
+
+        boosts: dict[int, float] = {}
+        for idx in top_idx:
+            score = float(combined[idx])
+            if score <= 0:
+                break
+            person_id = int(self._person_ids[idx])
+            rows = db.query(
+                "SELECT tmdb_id FROM movie_people WHERE person_id=? "
+                "AND ((role='actor' AND credit_order<10) OR role='director')",
+                (person_id,),
+            )
+            for r in rows:
+                tid = int(r["tmdb_id"])
+                boosts[tid] = max(boosts.get(tid, 0.0), score)
+        return boosts
+
     def _synopsis_components(self, query: str,
                             q_emb: Optional[np.ndarray] = None,
                             lexical_weight: Optional[float] = None,
                             embed_weight: float = DEFAULT_EMBED_WEIGHT,
                             keyword_weight: float = DEFAULT_KEYWORD_WEIGHT,
+                            pistas_pessoa: Optional[list[str]] = None,
                             ) -> dict[str, np.ndarray]:
         """Contribuições **já ponderadas** de cada sinal de sinopse (alinhadas a
         `self._movie_ids`): BM25 (lexical), embedding da sinopse e embedding
@@ -679,11 +756,25 @@ class SearchEngine:
             "plot": zero.copy(),
             "plot_lexical": zero.copy(),
             "plot_maxsim": zero.copy(),
+            "person_match": zero.copy(),
             # Prior de popularidade (sempre presente; pode ser negativo p/ obscuros).
             "prior": DEFAULT_POP_PRIOR * self._pop_prior_vec,
             "_z_synopsis": zero.copy(),
             "_z_keyword": zero.copy(),
         }
+        if DEFAULT_PERSON_MATCH_WEIGHT > 0 and pistas_pessoa:
+            boosts = self._person_bio_matches(pistas_pessoa)
+            if boosts:
+                raw = zero.copy()
+                for tid, score in boosts.items():
+                    row = self._row_index.get(tid)
+                    if row is not None:
+                        raw[row] = score
+                have = raw > 0
+                if have.any():
+                    z = zero.copy()
+                    z[have] = _zscore(raw[have])
+                    comps["person_match"] = DEFAULT_PERSON_MATCH_WEIGHT * relu(z)
         if DEFAULT_PLOT_BM25_WEIGHT > 0 and self._bm25_plot is not None:
             comps["plot_lexical"] = DEFAULT_PLOT_BM25_WEIGHT * relu(_zscore(self._bm25_plot.scores(query)))
         ent = self._entity_scores(query)
@@ -717,7 +808,7 @@ class SearchEngine:
     def _synopsis_scores(self, query: str, **weights) -> np.ndarray:
         """Vetor de scores de sinopse fundido (ReLU dos sinais + prior)."""
         comps = self._synopsis_components(query, **weights)
-        return comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["plot_lexical"] + comps["plot_maxsim"] + comps["prior"]
+        return comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["plot_lexical"] + comps["plot_maxsim"] + comps["person_match"] + comps["prior"]
 
     def search_by_synopsis(self, query: str, n: int = 10, **weights) -> list[tuple[int, float]]:
         """Sinopse híbrida sobre todo o catálogo (top n*4 candidatos)."""
@@ -951,7 +1042,8 @@ class SearchEngine:
                    "entity": float(comps["entity"][row]),
                    "plot": float(comps["plot"][row]),
                    "plot_lexical": float(comps["plot_lexical"][row]),
-                   "plot_maxsim": float(comps["plot_maxsim"][row])}
+                   "plot_maxsim": float(comps["plot_maxsim"][row]),
+                   "person_match": float(comps["person_match"][row])}
             if syn_norm is not None:
                 total = syn_w * float(syn_norm.get(tmdb_id, 0.0))
                 pos = {k: max(0.0, v) for k, v in sub.items()}
@@ -1029,7 +1121,7 @@ class SearchEngine:
     # ================================================================ dispatch
     def search(self, query: str, mode: str = "auto", n: int = 10,
                filters: Optional[dict] = None, role: Optional[str] = None,
-               explain: bool = True) -> list[dict[str, Any]]:
+               explain: bool = True, pistas_pessoa: Optional[list[str]] = None) -> list[dict[str, Any]]:
         """Busca unificada.
 
         `mode`: 'name' | 'synopsis' | 'person' | 'keyword' | 'auto'.
@@ -1037,6 +1129,8 @@ class SearchEngine:
         `filters`: {year, year_min, year_max, genre, language}.
         `role`: no modo 'person', restringe a 'actor' ou 'director'.
         `explain`: anexa um objeto `explanation` por resultado.
+        `pistas_pessoa`: fatos biográficos (ver core.query_llm, tipo="pessoa")
+        pro canal `person_match` — ignorado se RECOMENDAI_PERSON_MATCH_WEIGHT=0.
         """
         query = (query or "").strip()
         if not query:
@@ -1049,7 +1143,7 @@ class SearchEngine:
                 ctx = {"name_scores": dict(scored), "name_w": 1.0, "syn_w": 0.0,
                        "q_emb": self._encode(query) if self._embeddings is not None else None}
             elif mode == "synopsis":
-                scored, ctx = self._synopsis_ranked(query, n, blend_name=False)
+                scored, ctx = self._synopsis_ranked(query, n, blend_name=False, pistas_pessoa=pistas_pessoa)
             elif mode == "person":
                 scored = self.search_by_person(query, n, role=role)
             elif mode == "keyword":
@@ -1057,7 +1151,7 @@ class SearchEngine:
                 ctx = {"q_emb": self._encode(query) if self._embeddings is not None else None}
             elif mode == "auto":
                 if self.has_synopsis_index:
-                    scored, ctx = self._synopsis_ranked(query, n, blend_name=True)
+                    scored, ctx = self._synopsis_ranked(query, n, blend_name=True, pistas_pessoa=pistas_pessoa)
                 else:
                     scored = self.search_by_name(query, n)
                     ctx = {"name_scores": dict(scored), "name_w": 1.0, "syn_w": 0.0}
@@ -1118,7 +1212,8 @@ class SearchEngine:
             return max(base, 0.6), "name"
         return base, "description"
 
-    def _synopsis_ranked(self, query: str, n: int, blend_name: bool
+    def _synopsis_ranked(self, query: str, n: int, blend_name: bool,
+                        pistas_pessoa: Optional[list[str]] = None
                          ) -> tuple[list[tuple[int, float]], dict]:
         """Ranqueia por sinopse; em 'auto' (blend_name) funde também o nome.
         Devolve (scored, ctx) — ctx carrega os componentes p/ a explicação."""
@@ -1126,8 +1221,8 @@ class SearchEngine:
         # de _synopsis_components); o nome usa a query original (casa títulos).
         cq = clean_descriptive_query(query)
         q_emb = self._encode(cq) if self._embeddings is not None else None
-        comps = self._synopsis_components(cq, q_emb=q_emb)
-        fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["plot_lexical"] + comps["plot_maxsim"] + comps["prior"]
+        comps = self._synopsis_components(cq, q_emb=q_emb, pistas_pessoa=pistas_pessoa)
+        fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["plot_lexical"] + comps["plot_maxsim"] + comps["person_match"] + comps["prior"]
         order = np.argsort(fused)[::-1]
 
         if not blend_name:
@@ -1155,7 +1250,7 @@ class SearchEngine:
         # sinal temático) que a fusão sozinha deixaria fora da janela de re-rank.
         per_signal_k = max(n * 4, 80)
         cand_ids = {int(self._movie_ids[i]) for i in order[: n * 4]}
-        for sig in ("synopsis", "keyword", "entity", "plot", "plot_lexical", "plot_maxsim"):
+        for sig in ("synopsis", "keyword", "entity", "plot", "plot_lexical", "plot_maxsim", "person_match"):
             sig_order = np.argsort(comps[sig])[::-1][:per_signal_k]
             cand_ids |= {int(self._movie_ids[i]) for i in sig_order}
         cand_ids |= set(name_scores)
@@ -1234,7 +1329,7 @@ class SearchEngine:
             syn_raw = {tid: float(comps["lexical"][row[tid]] + comps["synopsis"][row[tid]]
                                   + comps["keyword"][row[tid]] + comps["entity"][row[tid]]
                                   + comps["plot"][row[tid]] + comps["plot_lexical"][row[tid]]
-                                  + comps["plot_maxsim"][row[tid]]) if tid in row else 0.0
+                                  + comps["plot_maxsim"][row[tid]] + comps["person_match"][row[tid]]) if tid in row else 0.0
                        for tid in cand_ids}
             lo, hi = min(syn_raw.values()), max(syn_raw.values())
             syn_norm = {tid: ((v - lo) / (hi - lo) if hi > lo else 0.0)
@@ -1248,10 +1343,14 @@ class SearchEngine:
 
     def search_combined(self, query: Optional[str] = None, director: Optional[str] = None,
                         actor: Optional[str] = None, n: int = 10,
-                        filters: Optional[dict] = None) -> list[dict[str, Any]]:
+                        filters: Optional[dict] = None,
+                        pistas_pessoa: Optional[list[str]] = None) -> list[dict[str, Any]]:
         """Busca facetada: diretor/ator **restringem** (o filme precisa tê-los) e
         a consulta livre (sinopse/nome) **ranqueia** dentro do conjunto. Sem
         consulta, ordena por popularidade. Sem diretor/ator, cai na busca normal.
+
+        `pistas_pessoa`: ver `search()` — só se aplica na busca de texto livre
+        (sem diretor/ator restringindo), que é o caminho real de trivia.
         """
         query = (query or "").strip()
         director = (director or "").strip()
@@ -1259,7 +1358,7 @@ class SearchEngine:
 
         # Sem restrição de pessoa: busca de texto normal (auto).
         if not director and not actor:
-            return self.search(query, mode="auto", n=n, filters=filters) if query else []
+            return self.search(query, mode="auto", n=n, filters=filters, pistas_pessoa=pistas_pessoa) if query else []
 
         # Interseção das restrições de pessoa.
         constraint: Optional[set[int]] = None

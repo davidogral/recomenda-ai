@@ -51,8 +51,9 @@ def _post(path: str, payload: dict) -> Any:
 _REWRITE_MIN_WORDS = 7
 
 
-def _rewrite_query(query: str) -> str:
+def _understand_and_rewrite(query: str) -> tuple[str, list]:
     """Passa a consulta pelo entendimento via LLM (Groq) antes da busca.
+    Devolve (consulta_pra_buscar, pistas_pessoa).
 
     NUNCA substitui o texto — só ACRESCENTA. Medido: substituir por uma
     versão mais curta (`pistas_objeto` sozinho, ou `consulta_reescrita`)
@@ -63,27 +64,34 @@ def _rewrite_query(query: str) -> str:
     ("O Bar", "Barfuß"...). Mantendo a consulta original e só emendando
     termo novo, o tamanho/contexto que já funciona bem não muda.
 
+    `pistas_pessoa` (fatos biográficos, tipo="pessoa") vão pro canal
+    `person_match` do search_engine — aqui só passam adiante, não alteram o
+    texto da busca.
+
     Qualquer falha (sem chave, rede, timeout, consulta curta) devolve a
-    consulta original sem alterar nada."""
+    consulta original sem alterar nada e pistas_pessoa=[]."""
     q = (query or "").strip()
     if not q or len(q.split()) <= _REWRITE_MIN_WORDS:
-        return query
+        return query, []
     from core import metrics, query_llm
 
     with metrics.stage_timer("query_llm"):
         plan = query_llm.understand(q)
-    if not plan.ok or plan.tipo != "objeto" or not plan.pistas_objeto:
-        return query
-    ql = q.lower()
-    extra = [t for t in plan.pistas_objeto if t.lower() not in ql]
-    return f"{q} {' '.join(extra)}".strip() if extra else query
+    if not plan.ok:
+        return query, []
+    out = query
+    if plan.tipo == "objeto" and plan.pistas_objeto:
+        ql = q.lower()
+        extra = [t for t in plan.pistas_objeto if t.lower() not in ql]
+        out = f"{q} {' '.join(extra)}".strip() if extra else query
+    return out, (plan.pistas_pessoa if plan.tipo == "pessoa" else [])
 
 
 # --------------------------------------------------------------- operações
 def search_combined(
     query: str = "", director: str = "", actor: str = "", n: int = 12, filters: Optional[dict] = None
 ) -> list[dict]:
-    query = _rewrite_query(query)
+    query, pistas_pessoa = _understand_and_rewrite(query)
     if is_remote():
         out = _post(
             "/v1/search_combined",
@@ -92,7 +100,9 @@ def search_combined(
         return out["results"]
     from retrieval.search_engine import get_engine
 
-    return get_engine().search_combined(query=query, director=director, actor=actor, n=n, filters=filters or None)
+    return get_engine().search_combined(
+        query=query, director=director, actor=actor, n=n, filters=filters or None, pistas_pessoa=pistas_pessoa
+    )
 
 
 def similar(movie_id: int, n: int = 12, region: Optional[str] = None, provider_ids: Optional[list[int]] = None) -> dict:

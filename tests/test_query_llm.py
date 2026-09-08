@@ -123,8 +123,8 @@ def test_rewrite_query_passthrough_without_llm(monkeypatch):
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "")
     q = "carro azul e prata dando arrancada numa corrida de rua a noite"
-    assert inference_client._rewrite_query(q) == q
-    assert inference_client._rewrite_query("") == ""
+    assert inference_client._understand_and_rewrite(q) == (q, [])
+    assert inference_client._understand_and_rewrite("") == ("", [])
 
 
 def test_rewrite_query_appends_pistas_objeto_never_replaces(monkeypatch):
@@ -143,10 +143,11 @@ def test_rewrite_query_appends_pistas_objeto_never_replaces(monkeypatch):
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
     q = "carro azul e prata dando arrancada numa corrida de rua a noite"
-    out = inference_client._rewrite_query(q)
+    out, pistas_pessoa = inference_client._understand_and_rewrite(q)
     assert out.startswith(q)  # original PRESERVADO, nunca substituído
     assert "Nissan Skyline GT-R" in out
     assert "nao devia aparecer" not in out  # consulta_reescrita não é usada
+    assert pistas_pessoa == []
 
 
 def test_rewrite_query_short_query_never_calls_groq(monkeypatch):
@@ -159,15 +160,15 @@ def test_rewrite_query_short_query_never_calls_groq(monkeypatch):
     calls = {"n": 0}
     monkeypatch.setattr(query_llm.requests, "post", lambda *a, **k: calls.__setitem__("n", calls["n"] + 1))
 
-    assert inference_client._rewrite_query("Mcquen") == "Mcquen"
-    assert inference_client._rewrite_query("Brian oconner") == "Brian oconner"
+    assert inference_client._understand_and_rewrite("Mcquen") == ("Mcquen", [])
+    assert inference_client._understand_and_rewrite("Brian oconner") == ("Brian oconner", [])
     assert calls["n"] == 0
 
 
 def test_rewrite_query_generico_does_not_change_query(monkeypatch):
     """tipo=generico ainda não tem uma forma segura validada de melhorar a
-    consulta (ver docstring de _rewrite_query) — por ora só loga/decompõe,
-    não altera o texto buscado."""
+    consulta (ver docstring de _understand_and_rewrite) — por ora só loga/
+    decompõe, não altera o texto buscado."""
     from core import inference_client, query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
@@ -175,4 +176,23 @@ def test_rewrite_query_generico_does_not_change_query(monkeypatch):
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
     q = "consulta bem barroca e cheia de enrolacao mas ainda assim descritiva"
-    assert inference_client._rewrite_query(q) == q
+    assert inference_client._understand_and_rewrite(q) == (q, [])
+
+
+def test_rewrite_query_returns_pistas_pessoa_for_tipo_pessoa(monkeypatch):
+    """tipo=pessoa não altera o texto buscado (mesma cautela do genérico),
+    mas devolve pistas_pessoa pro canal person_match do search_engine."""
+    from core import inference_client, query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    payload = json.dumps({
+        "tipo": "pessoa",
+        "consulta_reescrita": "nao devia importar aqui",
+        "pistas_pessoa": ["condecorado pela realeza britanica", "tinha uma banda de heavy metal"],
+    })
+    monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
+
+    q = "ator condecorado pela rainha da inglaterra que tinha uma banda de heavy metal"
+    out, pistas_pessoa = inference_client._understand_and_rewrite(q)
+    assert out == q  # texto da busca não muda
+    assert pistas_pessoa == ["condecorado pela realeza britanica", "tinha uma banda de heavy metal"]

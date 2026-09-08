@@ -46,6 +46,13 @@ _URL = "https://api.groq.com/openai/v1/chat/completions"
 _SYSTEM = """Voce decompoe uma consulta de busca de filme em pistas atomicas e
 buscaveis, e reescreve a consulta de forma mais direta e facil de casar por
 busca textual/semantica (menos "narrativa", mais termos concretos).
+
+IMPORTANTE: sua tarefa e SO DECOMPOR — nunca identificar quem e a pessoa ou
+qual e o filme. Mesmo que voce reconheca de quem se trata, NAO escreva esse
+nome em lugar nenhum da resposta — isso e proibido e so desperdica seu
+orcamento de raciocinio tentando confirmar um palpite. So extraia os fatos
+que a PRÓPRIA CONSULTA cita, cada um virando uma pista independente.
+
 Responda SOMENTE em JSON, sem comentario, no formato:
 {"tipo": "pessoa"|"objeto"|"generico",
  "consulta_reescrita": "...",
@@ -53,12 +60,17 @@ Responda SOMENTE em JSON, sem comentario, no formato:
  "pistas_objeto": ["termo 1", ...]}
 "pistas_pessoa": fatos sobre UMA pessoa (ator/diretor) citados na consulta -
 premio, relacao pessoal, hobby, epoca - cada um buscavel sozinho numa
-biografia. "pistas_objeto": nomes/termos concretos de objeto, veiculo, marca,
-lugar citados na consulta. "consulta_reescrita": a MESMA busca, so mais
-direta - nunca invente fato novo, nunca tente adivinhar o filme ou a pessoa.
-Se a consulta ja e direta/generica, sem pista especifica de pessoa ou objeto,
-"tipo":"generico" e as duas listas vazias (consulta_reescrita ainda pode
-limpar redundancia)."""
+biografia. ESCREVA "pistas_pessoa" EM INGLES (ex.: "knighted by the Queen",
+nao "condecorado pela rainha") - a biografia buscada e da Wikipedia em
+ingles, e o termo literal em ingles ("knight", "Queen") bate no texto onde a
+traducao para portugues nao bate nada. Se a consulta cita 2+ fatos sobre uma
+pessoa, "tipo":"pessoa" e SEMPRE liste todos os fatos em pistas_pessoa -
+nunca devolva a lista vazia so porque voce nao sabe (ou nao pode dizer) quem
+e a pessoa. "pistas_objeto" fica no idioma da consulta (nome proprio/veiculo
+sobrevive a traducao). "consulta_reescrita": a MESMA busca, so mais direta -
+nunca invente fato novo. Se a consulta ja e direta/generica, sem pista
+especifica de pessoa ou objeto, "tipo":"generico" e as duas listas vazias
+(consulta_reescrita ainda pode limpar redundancia)."""
 
 _TIPOS = ("pessoa", "objeto", "generico")
 _cache: Optional[tmdb._JsonCache] = None

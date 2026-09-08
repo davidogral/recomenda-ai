@@ -56,6 +56,11 @@ def index_paths(index_dir: str = INDEX_DIR) -> dict[str, str]:
         "bm25_plot_counts": j("bm25_plot_counts.npz"),
         "plot_chunk_emb": j("plot_chunk_embeddings.npy"),
         "plot_chunk_rows": j("plot_chunk_rows.npy"),
+        "person_chunk_emb": j("person_chunk_embeddings.npy"),
+        "person_chunk_rows": j("person_chunk_rows.npy"),
+        "person_ids": j("person_ids.npy"),
+        "bm25_person_vectorizer": j("bm25_person_vectorizer.pkl"),
+        "bm25_person_counts": j("bm25_person_counts.npz"),
         "embeddings": j("embeddings.npy"),
         "kw_embeddings": j("kw_embeddings.npy"),
         "keyword_term_emb": j("keyword_term_embeddings.npy"),
@@ -517,6 +522,128 @@ def build_plot_chunks(index_dir: str = INDEX_DIR, batch_size: int = 64,
     return info
 
 
+def build_person_chunks(index_dir: str = INDEX_DIR, batch_size: int = 64,
+                        embed_model_name: str = DEFAULT_EMBED_MODEL,
+                        limit: Optional[int] = None) -> dict:
+    """Bio de elenco/diretor em TRECHOS — mesmo esquema de `build_plot_chunks`,
+    mas por PESSOA (não por filme): cada bio (`people.wikipedia_bio`, ver
+    `core.enrich --wikipedia-people`) vira janelas de ~380 palavras; a busca
+    por pista de trivia ("condecorado pela rainha", "banda de heavy metal")
+    faz MaxSim sobre esses trechos e resolve a PESSOA, que depois é mapeada
+    pros filmes dela (`movie_people`) no `search_engine`.
+
+    Espaço de linhas PRÓPRIO (`person_ids.npy`) — não é o mesmo de `movie_ids`
+    (namespace de pessoa é disjunto do de filme)."""
+    from sentence_transformers import SentenceTransformer
+
+    from core.device import get_device
+    from core.enrich import _PROMINENT_PEOPLE_SQL
+
+    P = index_paths(index_dir)
+    rows = db.query(
+        f"SELECT p.person_id AS person_id, p.wikipedia_bio AS wikipedia_bio "
+        f"FROM people p JOIN ({_PROMINENT_PEOPLE_SQL}) prom USING (person_id) "
+        "WHERE p.wikipedia_bio IS NOT NULL AND p.wikipedia_bio <> '' "
+        "ORDER BY prom.prom DESC"
+    )
+    if limit:
+        rows = rows[:limit]
+    if not rows:
+        raise RuntimeError("nenhuma bio de pessoa; rode core.enrich --wikipedia-people")
+
+    person_ids = [int(r["person_id"]) for r in rows]
+    row_of = {pid: i for i, pid in enumerate(person_ids)}
+
+    chunk_texts: list[str] = []
+    chunk_rows: list[int] = []
+    for r in rows:
+        pid = int(r["person_id"])
+        for ch in _chunk_words(r["wikipedia_bio"] or ""):
+            chunk_texts.append(ch)
+            chunk_rows.append(row_of[pid])
+    if not chunk_texts:
+        raise RuntimeError("nenhum trecho de bio; rode core.enrich --wikipedia-people")
+
+    q_pref, p_pref = embed_prefixes(embed_model_name)
+    model = SentenceTransformer(embed_model_name, device=get_device())
+    t0 = time.time()
+    payload = [f"{p_pref}{t}" for t in chunk_texts] if p_pref else chunk_texts
+    emb = model.encode(payload, batch_size=batch_size, normalize_embeddings=True,
+                       show_progress_bar=True, convert_to_numpy=True).astype(np.float32)
+    np.save(P["person_chunk_emb"], emb)
+    np.save(P["person_chunk_rows"], np.asarray(chunk_rows, dtype=np.int32))
+    np.save(P["person_ids"], np.asarray(person_ids, dtype=np.int64))
+
+    with open(P["meta"], encoding="utf-8") as f:
+        meta = json.load(f)
+    info = {
+        "has_person_chunks": True,
+        "n_person_chunks": len(chunk_texts),
+        "n_person_chunk_people": len(person_ids),
+        "person_chunk_build_secs": round(time.time() - t0, 1),
+    }
+    meta.update(info)
+    with open(P["meta"], "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    print(f"  trechos de bio: {len(chunk_texts)} de {len(person_ids)} pessoas")
+    return info
+
+
+def build_person_bio_bm25(index_dir: str = INDEX_DIR) -> dict:
+    """BM25 sobre bio de elenco/diretor (`bm25_person_*`). MESMA ordem de linha
+    de `person_ids.npy` — rode `build_person_chunks` primeiro.
+
+    Achado medindo o caso do Christopher Lee (2026-09-08): pista em PORTUGUÊS
+    ("condecorado pela realeza britânica") não bate em BM25 nem em embedding
+    contra uma bio em INGLÊS — zero sobreposição de palavra, e o embedding
+    sozinho não é preciso o bastante (mesmo problema do canal de objeto).
+    Pista em INGLÊS ("knighted by the Queen") acerta o termo literal
+    ("knight"/"Queen" aparecem na bio) que nenhum embedding pega tão bem.
+    Por isso `core.query_llm` pede `pistas_pessoa` em inglês, e
+    `_person_bio_matches` combina léxico+semântico por pista (o melhor dos
+    dois), não só semântico."""
+    from retrieval.bm25 import BM25Index
+
+    P = index_paths(index_dir)
+    if not os.path.exists(P["person_ids"]):
+        raise RuntimeError(f"person_ids.npy ausente em {index_dir}; rode build_person_chunks primeiro.")
+    person_ids = np.load(P["person_ids"])
+    placeholders = ",".join("?" * len(person_ids))
+    rows = db.query(
+        f"SELECT person_id, wikipedia_bio FROM people WHERE person_id IN ({placeholders})",
+        tuple(int(p) for p in person_ids.tolist()),
+    )
+    bio_map = {int(r["person_id"]): (r["wikipedia_bio"] or "") for r in rows}
+    docs = [bio_map.get(int(pid), "") for pid in person_ids.tolist()]
+
+    import unicodedata
+
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+    def _noacc(s: str) -> str:
+        return "".join(c for c in unicodedata.normalize("NFD", s)
+                       if unicodedata.category(c) != "Mn")
+
+    stop = sorted({_noacc(w) for w in list(ENGLISH_STOP_WORDS) + portuguese_stopwords()})
+    t0 = time.time()
+    bm25 = BM25Index.build(docs, stop_words=stop, strip_accents="unicode")
+    bm25.save(P["bm25_person_vectorizer"], P["bm25_person_counts"])
+
+    with open(P["meta"], encoding="utf-8") as f:
+        meta = json.load(f)
+    info = {
+        "has_person_bm25": True,
+        "n_person_bm25_docs": sum(1 for d in docs if d),
+        "person_bm25_vocab_size": int(bm25.vocab_size),
+        "person_bm25_build_secs": round(time.time() - t0, 1),
+    }
+    meta.update(info)
+    with open(P["meta"], "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    print(f"  bm25 de bio: {info['n_person_bm25_docs']} docs, vocab {bm25.vocab_size}")
+    return info
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -530,6 +657,10 @@ if __name__ == "__main__":
                    help="(Re)constroi so o BM25 do enredo (bm25_plot_*), sem reencodar nada.")
     p.add_argument("--plot-chunks-only", action="store_true",
                    help="(Re)constroi so os embeddings de TRECHO do enredo (plot_chunk_*).")
+    p.add_argument("--person-chunks-only", action="store_true",
+                   help="(Re)constroi so os embeddings de TRECHO de bio de pessoa (person_chunk_*).")
+    p.add_argument("--person-bm25-only", action="store_true",
+                   help="(Re)constroi so o BM25 de bio de pessoa (bm25_person_*); rode --person-chunks-only antes.")
     args = p.parse_args()
 
     if args.plot_bm25_only:
@@ -537,6 +668,11 @@ if __name__ == "__main__":
     elif args.plot_chunks_only:
         info = build_plot_chunks(args.index_dir, batch_size=args.batch_size,
                                  embed_model_name=args.model, limit=args.limit)
+    elif args.person_chunks_only:
+        info = build_person_chunks(args.index_dir, batch_size=args.batch_size,
+                                   embed_model_name=args.model, limit=args.limit)
+    elif args.person_bm25_only:
+        info = build_person_bio_bm25(args.index_dir)
     else:
         info = build_index(
             embed_model_name=args.model,

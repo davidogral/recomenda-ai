@@ -55,6 +55,16 @@ def test_plot_channels_default():
     assert {"plot", "plot_lexical", "plot_maxsim"} <= set(se.SIGNAL_LABELS)
 
 
+def test_person_match_channel_off_by_default():
+    """Canal de trivia de pessoa (bio de elenco/diretor, ver core.query_llm
+    tipo="pessoa") ainda não foi medido — índice novo, só ~500 pessoas. Fica
+    OFF até uma ablação real, mesmo padrão dos outros canais de enredo."""
+    from retrieval import search_engine as se
+
+    assert se.DEFAULT_PERSON_MATCH_WEIGHT == 0.0
+    assert "person_match" in se.SIGNAL_LABELS
+
+
 def test_chunk_words_windows_long_text():
     from retrieval.index_builder import _chunk_words
 
