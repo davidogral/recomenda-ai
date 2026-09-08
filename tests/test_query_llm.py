@@ -122,30 +122,57 @@ def test_rewrite_query_passthrough_without_llm(monkeypatch):
     from core import inference_client, query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "")
-    assert inference_client._rewrite_query("Nissan Skyline azul") == "Nissan Skyline azul"
+    q = "carro azul e prata dando arrancada numa corrida de rua a noite"
+    assert inference_client._rewrite_query(q) == q
     assert inference_client._rewrite_query("") == ""
 
 
-def test_rewrite_query_uses_pistas_objeto(monkeypatch):
+def test_rewrite_query_appends_pistas_objeto_never_replaces(monkeypatch):
+    """Achado 2026-09-08: SUBSTITUIR a consulta por só as pistas encolhe o
+    texto o bastante pra disparar por engano a heurística de 'consulta curta
+    = título' (uma consulta de musical virou só 'bar' e passou a casar com
+    qualquer título contendo essa substring). Corrigido pra só ACRESCENTAR."""
     from core import inference_client, query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
     payload = json.dumps({
         "tipo": "objeto",
-        "consulta_reescrita": "nao devia usar isso",
-        "pistas_objeto": ["Nissan Skyline", "azul e prata"],
+        "consulta_reescrita": "nao devia aparecer no resultado",
+        "pistas_objeto": ["Nissan Skyline GT-R"],
     })
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
-    out = inference_client._rewrite_query("Arrancada com skyline azul e prata")
-    assert out == "Nissan Skyline azul e prata"
+    q = "carro azul e prata dando arrancada numa corrida de rua a noite"
+    out = inference_client._rewrite_query(q)
+    assert out.startswith(q)  # original PRESERVADO, nunca substituído
+    assert "Nissan Skyline GT-R" in out
+    assert "nao devia aparecer" not in out  # consulta_reescrita não é usada
 
 
-def test_rewrite_query_uses_consulta_reescrita_for_generico(monkeypatch):
+def test_rewrite_query_short_query_never_calls_groq(monkeypatch):
+    """Consulta curta (<=7 palavras) nem chama o Groq — já é bem servida pelo
+    canal de nome/personagem tolerante a erro de grafia; "consertar" a
+    grafia (medido: 'Mcquen'->'McQueen') pode ATRAPALHAR esse canal."""
     from core import inference_client, query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
-    payload = json.dumps({"tipo": "generico", "consulta_reescrita": "consulta limpa"})
+    calls = {"n": 0}
+    monkeypatch.setattr(query_llm.requests, "post", lambda *a, **k: calls.__setitem__("n", calls["n"] + 1))
+
+    assert inference_client._rewrite_query("Mcquen") == "Mcquen"
+    assert inference_client._rewrite_query("Brian oconner") == "Brian oconner"
+    assert calls["n"] == 0
+
+
+def test_rewrite_query_generico_does_not_change_query(monkeypatch):
+    """tipo=generico ainda não tem uma forma segura validada de melhorar a
+    consulta (ver docstring de _rewrite_query) — por ora só loga/decompõe,
+    não altera o texto buscado."""
+    from core import inference_client, query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    payload = json.dumps({"tipo": "generico", "consulta_reescrita": "consulta limpa e curta"})
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
-    assert inference_client._rewrite_query("consulta bem barroca e cheia de enrolacao") == "consulta limpa"
+    q = "consulta bem barroca e cheia de enrolacao mas ainda assim descritiva"
+    assert inference_client._rewrite_query(q) == q

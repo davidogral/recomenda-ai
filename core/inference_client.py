@@ -41,28 +41,42 @@ def _post(path: str, payload: dict) -> Any:
     return r.json()
 
 
+# Consulta com até tantas palavras nem passa pelo Groq: é o mesmo limiar do
+# canal `entity` (ver _ENTITY_MAX_QUERY_TOKENS em search_engine.py) — nomes/
+# personagens curtos já são bem servidos pelo fuzzy-match tolerante a erro de
+# grafia, e "consertar" a grafia (ex.: "Mcquen"->"McQueen") pode ATRAPALHAR:
+# medido que isso faz "Mcquen" (Pixar) perder pra "Alexandre McQueen"
+# (documentário real) no canal de nome, porque a grafia corrigida casa melhor
+# com o título de verdade que o typo original não confundia.
+_REWRITE_MIN_WORDS = 7
+
+
 def _rewrite_query(query: str) -> str:
     """Passa a consulta pelo entendimento via LLM (Groq) antes da busca.
 
-    Só troca o texto quando o Groq responde com algo acionável — qualquer
-    falha (sem chave, rede, timeout) devolve a consulta original sem alterar
-    nada. `pistas_objeto` vira a própria consulta (termos concretos casam
-    melhor no léxico/embedding que a frase natural inteira); senão usa a
-    `consulta_reescrita` se vier preenchida. `pistas_pessoa` ainda não tem
-    canal de busca próprio (falta o índice de bio de elenco/diretor) — por
-    ora só a reescrita geral se aplica também ao tipo "pessoa"."""
+    NUNCA substitui o texto — só ACRESCENTA. Medido: substituir por uma
+    versão mais curta (`pistas_objeto` sozinho, ou `consulta_reescrita`)
+    encolhe a consulta o bastante pra disparar sem querer as heurísticas de
+    "consulta curta = provável título" (`_adaptive_name_weight`,
+    `_best_title_match`) — uma consulta de 16 palavras sobre um musical virou
+    só "bar" e passou a casar com qualquer título que contém essa substring
+    ("O Bar", "Barfuß"...). Mantendo a consulta original e só emendando
+    termo novo, o tamanho/contexto que já funciona bem não muda.
+
+    Qualquer falha (sem chave, rede, timeout, consulta curta) devolve a
+    consulta original sem alterar nada."""
     q = (query or "").strip()
-    if not q:
+    if not q or len(q.split()) <= _REWRITE_MIN_WORDS:
         return query
     from core import metrics, query_llm
 
     with metrics.stage_timer("query_llm"):
         plan = query_llm.understand(q)
-    if not plan.ok:
+    if not plan.ok or plan.tipo != "objeto" or not plan.pistas_objeto:
         return query
-    if plan.tipo == "objeto" and plan.pistas_objeto:
-        return " ".join(plan.pistas_objeto)
-    return plan.consulta_reescrita or query
+    ql = q.lower()
+    extra = [t for t in plan.pistas_objeto if t.lower() not in ql]
+    return f"{q} {' '.join(extra)}".strip() if extra else query
 
 
 # --------------------------------------------------------------- operações
