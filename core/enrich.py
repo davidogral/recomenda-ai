@@ -335,6 +335,7 @@ def fill_canon(conn: sqlite3.Connection) -> None:
 # ---------------------------------------------------------------------------
 _WIKI_UA = "Cinerd/1.0 (https://cinerd.davispecia.com.br; davi.specia@gmail.com) python-requests"
 _wiki_cache = tmdb._JsonCache(os.path.join(db._PROJECT_ROOT, "data", "tmdb_cache", "wikipedia.json"))
+_wiki_people_cache = tmdb._JsonCache(os.path.join(db._PROJECT_ROOT, "data", "tmdb_cache", "wikipedia_people.json"))
 _PLOT_HEADINGS = {"plot", "plot summary", "synopsis", "plot synopsis", "premise", "enredo", "sinopse"}
 
 
@@ -355,7 +356,7 @@ def _wiki_get(url: str, params: dict) -> Optional[dict]:
 _MAX_PLOT_CHARS = 20000
 
 
-def _clean_wikitext(wt: str) -> str:
+def _clean_wikitext(wt: str, max_chars: int = _MAX_PLOT_CHARS) -> str:
     """Wikitext -> texto simples o suficiente para embutir (não precisa ser bonito)."""
     import re
 
@@ -377,8 +378,8 @@ def _clean_wikitext(wt: str) -> str:
     s = s.replace("&nbsp;", " ").replace("&ndash;", "–").replace("&mdash;", "—").replace("&amp;", "&")
     s = re.sub(r"[ \t]+", " ", s)
     s = re.sub(r"\n{3,}", "\n\n", s).strip()
-    if len(s) > _MAX_PLOT_CHARS:
-        s = s[:_MAX_PLOT_CHARS].rsplit(" ", 1)[0]
+    if len(s) > max_chars:
+        s = s[:max_chars].rsplit(" ", 1)[0]
     return s
 
 
@@ -475,6 +476,154 @@ def fill_wikipedia_plot(conn: sqlite3.Connection, min_votes: int = 80, limit: Op
     print(f"  wikipédia: {got}/{len(rows)} com enredo.")
 
 
+# ---------------------------------------------------------------------------
+# Bio de ELENCO/DIRETOR — o enredo do filme não carrega trivia de PESSOA
+# ("ator condecorado pela rainha", "amigo pessoal do autor do livro", "tinha
+# banda de heavy metal"): isso mora na página da Wikipédia do ATOR, não na do
+# filme. Mesmo pipeline do enredo (Wikidata P345 -> Wikipedia), mas por
+# person_id, artigo INTEIRO (sem seção fixa — trivia espalha por "Early life",
+# "Career", "Personal life"...), e só para elenco de destaque (credit_order<10
+# ou diretor) — os 326 mil `people` do catálogo é gente demais pra crawlear.
+# ---------------------------------------------------------------------------
+_MAX_BIO_CHARS = 40000  # bio cobre carreira inteira; teto maior que o de plot
+
+
+def ensure_people_columns(conn: sqlite3.Connection) -> None:
+    """Cria as colunas de bio em `people` se ainda não existirem (idempotente)."""
+    have = {r["name"] for r in conn.execute("PRAGMA table_info(people)")}
+    cols = {
+        "imdb_id": "TEXT",
+        "wikipedia_bio": "TEXT",
+        "wikipedia_title": "TEXT",
+    }
+    for name, typ in cols.items():
+        if name not in have:
+            conn.execute(f"ALTER TABLE people ADD COLUMN {name} {typ}")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_people_imdb_id ON people(imdb_id)")
+    conn.commit()
+
+
+# Elenco de destaque de um filme (credit_order<10) ou diretor — mesmo critério
+# do canal `entity` (busca por personagem). Prominência = soma de vote_count
+# dos filmes onde a pessoa está nesse grupo; processa os mais relevantes 1º.
+_PROMINENT_PEOPLE_SQL = """
+    SELECT mp.person_id AS person_id, SUM(m.vote_count) AS prom
+    FROM movie_people mp
+    JOIN movies m ON m.tmdb_id = mp.tmdb_id
+    WHERE (mp.role = 'actor' AND mp.credit_order < 10) OR mp.role = 'director'
+    GROUP BY mp.person_id
+"""
+
+
+def fill_person_ids(conn: sqlite3.Connection, limit: Optional[int] = None) -> None:
+    """Preenche people.imdb_id via TMDB, para elenco/diretor de destaque ainda
+    sem imdb_id. Usa cache em disco (retomável)."""
+    if not tmdb.is_configured():
+        print("  ! TMDB não configurado — pulando imdb_id de pessoa.")
+        return
+    rows = conn.execute(
+        f"SELECT person_id FROM ({_PROMINENT_PEOPLE_SQL}) prom "
+        "JOIN people p USING (person_id) "
+        "WHERE p.imdb_id IS NULL OR p.imdb_id = '' "
+        "ORDER BY prom.prom DESC"
+    ).fetchall()
+    pids = [r["person_id"] for r in rows]
+    if limit:
+        pids = pids[:limit]
+    if not pids:
+        print("  imdb_id (pessoa): nada a fazer.")
+        return
+    print(f"  imdb_id (pessoa): buscando {len(pids)} pessoas na TMDB (threads)...")
+    tmdb.prefetch_person_imdb_ids(pids)
+    updates = [(tmdb.person_imdb_id(pid) or "", pid) for pid in pids]
+    conn.executemany("UPDATE people SET imdb_id = ? WHERE person_id = ?", updates)
+    conn.commit()
+    got = sum(1 for v, _ in updates if v)
+    print(f"  imdb_id (pessoa): {got}/{len(pids)} resolvidos.")
+
+
+def _wikipedia_person_bio(imdb_id: str) -> Optional[dict]:
+    """{'title': 'en:Christopher Lee', 'bio': '...'} ou None. Artigo INTEIRO
+    (sem seção fixa — trivia de pessoa espalha pelo artigo). Usa/alimenta cache."""
+    if imdb_id in _wiki_people_cache:
+        return _wiki_people_cache.get(imdb_id)
+
+    result = None
+    hit = _wiki_get("https://www.wikidata.org/w/api.php", {
+        "action": "query", "list": "search", "srsearch": f"haswbstatement:P345={imdb_id}", "srlimit": 1,
+    })
+    qid = None
+    try:
+        qid = hit["query"]["search"][0]["title"]
+    except (TypeError, KeyError, IndexError):
+        pass
+    if qid:
+        ent = _wiki_get("https://www.wikidata.org/w/api.php", {
+            "action": "wbgetentities", "ids": qid, "props": "sitelinks",
+        })
+        links = {}
+        try:
+            links = ent["entities"][qid]["sitelinks"]
+        except (TypeError, KeyError):
+            links = {}
+        for lang, site in (("en", "enwiki"), ("pt", "ptwiki")):
+            page = (links.get(site) or {}).get("title")
+            if not page:
+                continue
+            base = f"https://{lang}.wikipedia.org/w/api.php"
+            body = _wiki_get(base, {
+                "action": "parse", "page": page, "prop": "wikitext", "redirects": 1, "formatversion": 2,
+            })
+            try:
+                wt = body["parse"]["wikitext"]
+            except (TypeError, KeyError):
+                wt = ""
+            bio = _clean_wikitext(wt, max_chars=_MAX_BIO_CHARS) if wt else ""
+            if len(bio) >= 200:
+                result = {"title": f"{lang}:{page}", "bio": bio}
+                break
+
+    _wiki_people_cache.set(imdb_id, result)
+    return result
+
+
+def fill_person_bio(conn: sqlite3.Connection, limit: Optional[int] = None) -> None:
+    """Preenche people.wikipedia_bio/wikipedia_title para pessoas com imdb_id
+    ainda sem bio. Processa elenco/diretor mais proeminente primeiro. Retomável."""
+    rows = conn.execute(
+        f"SELECT p.person_id AS person_id, p.imdb_id AS imdb_id, COALESCE(prom.prom, 0) AS prom "
+        f"FROM people p LEFT JOIN ({_PROMINENT_PEOPLE_SQL}) prom USING (person_id) "
+        "WHERE p.imdb_id IS NOT NULL AND p.imdb_id <> '' "
+        "AND (p.wikipedia_bio IS NULL OR p.wikipedia_bio = '') "
+        "ORDER BY prom DESC"
+    ).fetchall()
+    if limit:
+        rows = rows[:limit]
+    if not rows:
+        print("  bio (pessoa): nada a fazer.")
+        return
+    print(f"  bio (pessoa): {len(rows)} pessoas. ~{len(rows) * 0.6 / 60:.0f} min...")
+    got = 0
+    for i, r in enumerate(rows, 1):
+        res = _wikipedia_person_bio(r["imdb_id"])
+        if res:
+            conn.execute(
+                "UPDATE people SET wikipedia_bio = ?, wikipedia_title = ? WHERE person_id = ?",
+                (res["bio"], res["title"], r["person_id"]),
+            )
+            got += 1
+        else:  # marca "tentado, sem bio" p/ não rebuscar
+            conn.execute("UPDATE people SET wikipedia_bio = '' WHERE person_id = ?", (r["person_id"],))
+        if i % 200 == 0:
+            conn.commit()
+            _wiki_people_cache.flush()
+            print(f"    {i}/{len(rows)} ({got} com bio)")
+        time.sleep(0.12)
+    conn.commit()
+    _wiki_people_cache.flush()
+    print(f"  bio (pessoa): {got}/{len(rows)} com bio.")
+
+
 def main(argv: Optional[list] = None) -> int:
     ap = argparse.ArgumentParser(description="Enriquece movies.db com sinais externos.")
     ap.add_argument("--min-votes", type=int, default=100,
@@ -494,6 +643,11 @@ def main(argv: Optional[list] = None) -> int:
                     help="votos na TMDB para buscar enredo na Wikipédia (padrão 80)")
     ap.add_argument("--wiki-limit", type=int, default=None,
                     help="limita a N filmes (teste)")
+    ap.add_argument("--wikipedia-people", action="store_true",
+                    help="baixa bio da Wikipédia do elenco/diretores de destaque "
+                         "(crawl longo, retomável — não roda por padrão)")
+    ap.add_argument("--people-limit", type=int, default=None,
+                    help="limita a N pessoas (teste)")
     args = ap.parse_args(argv)
 
     if not db.has_sqlite():
@@ -504,6 +658,7 @@ def main(argv: Optional[list] = None) -> int:
     try:
         print("→ garantindo colunas...")
         ensure_columns(conn)
+        ensure_people_columns(conn)
         if not args.skip_ids:
             print("→ imdb_id (TMDB)...")
             fill_imdb_ids(conn, args.min_votes)
@@ -519,6 +674,11 @@ def main(argv: Optional[list] = None) -> int:
         if args.wikipedia:
             print("→ enredo da Wikipédia (via Wikidata P345)...")
             fill_wikipedia_plot(conn, args.wiki_min_votes, args.wiki_limit)
+        if args.wikipedia_people:
+            print("→ imdb_id de elenco/diretores de destaque (TMDB)...")
+            fill_person_ids(conn, args.people_limit)
+            print("→ bio da Wikipédia de elenco/diretores (via Wikidata P345)...")
+            fill_person_bio(conn, args.people_limit)
         print("✓ enriquecimento concluído.")
     finally:
         conn.close()

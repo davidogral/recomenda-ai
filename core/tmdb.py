@@ -213,6 +213,8 @@ _details_cache = _JsonCache(os.path.join(_CACHE_DIR, "details.json"))
 _DETAILS_TTL = 3 * 24 * 3600
 # IDs externos (imdb_id) — imutáveis, cache permanente. "" = filme sem imdb_id.
 _extids_cache = _JsonCache(os.path.join(_CACHE_DIR, "external_ids.json"))
+# idem, para PESSOA (ator/diretor) — nm..., não tt..., por isso um cache à parte.
+_person_extids_cache = _JsonCache(os.path.join(_CACHE_DIR, "person_external_ids.json"))
 
 
 @atexit.register
@@ -223,6 +225,7 @@ def _flush_all() -> None:
     _provider_list_cache.flush()
     _details_cache.flush()
     _extids_cache.flush()
+    _person_extids_cache.flush()
 
 
 # --------------------------------------------------------------------------
@@ -279,6 +282,38 @@ def imdb_id(tmdb_id: int) -> Optional[str]:
     val = (data or {}).get("imdb_id") or ""
     _extids_cache.set(key, val)
     return val or None
+
+
+def person_imdb_id(person_id: int) -> Optional[str]:
+    """imdb_id da PESSOA (ex.: "nm0000158"), ou None. Cacheado em disco."""
+    key = str(int(person_id))
+    if key in _person_extids_cache:
+        return _person_extids_cache.get(key) or None
+    data = _get(f"/person/{int(person_id)}/external_ids")
+    val = (data or {}).get("imdb_id") or ""
+    _person_extids_cache.set(key, val)
+    return val or None
+
+
+def prefetch_person_imdb_ids(ids: Iterable[int], max_workers: int = 16) -> None:
+    """Aquece o cache de imdb_id de várias pessoas em paralelo (só as ausentes)."""
+    if not is_configured():
+        return
+    missing, seen = [], set()
+    for i in ids:
+        try:
+            pid = int(i)
+        except (TypeError, ValueError):
+            continue
+        if pid <= 0 or pid in seen or str(pid) in _person_extids_cache:
+            continue
+        seen.add(pid)
+        missing.append(pid)
+    if not missing:
+        return
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        list(ex.map(person_imdb_id, missing))
+    _person_extids_cache.flush()
 
 
 def prefetch_imdb_ids(ids: Iterable[int], max_workers: int = 16) -> None:
