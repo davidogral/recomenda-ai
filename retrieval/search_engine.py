@@ -720,6 +720,8 @@ class SearchEngine:
                             embed_weight: float = DEFAULT_EMBED_WEIGHT,
                             keyword_weight: float = DEFAULT_KEYWORD_WEIGHT,
                             pistas_pessoa: Optional[list[str]] = None,
+                            plot_lexical_weight: Optional[float] = None,
+                            entity_weight: Optional[float] = None,
                             ) -> dict[str, np.ndarray]:
         """Contribuições **já ponderadas** de cada sinal de sinopse (alinhadas a
         `self._movie_ids`): BM25 (lexical), embedding da sinopse e embedding
@@ -775,11 +777,13 @@ class SearchEngine:
                     z = zero.copy()
                     z[have] = _zscore(raw[have])
                     comps["person_match"] = DEFAULT_PERSON_MATCH_WEIGHT * relu(z)
-        if DEFAULT_PLOT_BM25_WEIGHT > 0 and self._bm25_plot is not None:
-            comps["plot_lexical"] = DEFAULT_PLOT_BM25_WEIGHT * relu(_zscore(self._bm25_plot.scores(query)))
-        ent = self._entity_scores(query)
+        plw = DEFAULT_PLOT_BM25_WEIGHT if plot_lexical_weight is None else plot_lexical_weight
+        if plw > 0 and self._bm25_plot is not None:
+            comps["plot_lexical"] = plw * relu(_zscore(self._bm25_plot.scores(query)))
+        ew = DEFAULT_ENTITY_WEIGHT if entity_weight is None else entity_weight
+        ent = self._entity_scores(query) if ew > 0 else None
         if ent is not None:
-            comps["entity"] = DEFAULT_ENTITY_WEIGHT * relu(_zscore(ent))
+            comps["entity"] = ew * relu(_zscore(ent))
         if self._embeddings is not None and (embed_weight > 0 or keyword_weight > 0):
             if q_emb is None:
                 q_emb = self._encode(query)
@@ -1121,7 +1125,9 @@ class SearchEngine:
     # ================================================================ dispatch
     def search(self, query: str, mode: str = "auto", n: int = 10,
                filters: Optional[dict] = None, role: Optional[str] = None,
-               explain: bool = True, pistas_pessoa: Optional[list[str]] = None) -> list[dict[str, Any]]:
+               explain: bool = True, pistas_pessoa: Optional[list[str]] = None,
+               plot_lexical_weight: Optional[float] = None,
+               entity_weight: Optional[float] = None) -> list[dict[str, Any]]:
         """Busca unificada.
 
         `mode`: 'name' | 'synopsis' | 'person' | 'keyword' | 'auto'.
@@ -1131,6 +1137,12 @@ class SearchEngine:
         `explain`: anexa um objeto `explanation` por resultado.
         `pistas_pessoa`: fatos biográficos (ver core.query_llm, tipo="pessoa")
         pro canal `person_match` — ignorado se RECOMENDAI_PERSON_MATCH_WEIGHT=0.
+        `plot_lexical_weight`/`entity_weight`: sobrepõem RECOMENDAI_PLOT_BM25_WEIGHT
+        / RECOMENDAI_ENTITY_WEIGHT só nesta busca — usado pelo
+        core.inference_client pra consulta tipo="objeto" (sobe o léxico de
+        enredo, desliga o de personagem — achado: os termos acrescentados,
+        tipo "Dodge Charger", davam falso-positivo no canal de personagem,
+        que é afinado pra consulta curta de NOME).
         """
         query = (query or "").strip()
         if not query:
@@ -1143,7 +1155,8 @@ class SearchEngine:
                 ctx = {"name_scores": dict(scored), "name_w": 1.0, "syn_w": 0.0,
                        "q_emb": self._encode(query) if self._embeddings is not None else None}
             elif mode == "synopsis":
-                scored, ctx = self._synopsis_ranked(query, n, blend_name=False, pistas_pessoa=pistas_pessoa)
+                scored, ctx = self._synopsis_ranked(query, n, blend_name=False, pistas_pessoa=pistas_pessoa,
+                                                    plot_lexical_weight=plot_lexical_weight, entity_weight=entity_weight)
             elif mode == "person":
                 scored = self.search_by_person(query, n, role=role)
             elif mode == "keyword":
@@ -1151,7 +1164,8 @@ class SearchEngine:
                 ctx = {"q_emb": self._encode(query) if self._embeddings is not None else None}
             elif mode == "auto":
                 if self.has_synopsis_index:
-                    scored, ctx = self._synopsis_ranked(query, n, blend_name=True, pistas_pessoa=pistas_pessoa)
+                    scored, ctx = self._synopsis_ranked(query, n, blend_name=True, pistas_pessoa=pistas_pessoa,
+                                                        plot_lexical_weight=plot_lexical_weight, entity_weight=entity_weight)
                 else:
                     scored = self.search_by_name(query, n)
                     ctx = {"name_scores": dict(scored), "name_w": 1.0, "syn_w": 0.0}
@@ -1213,7 +1227,9 @@ class SearchEngine:
         return base, "description"
 
     def _synopsis_ranked(self, query: str, n: int, blend_name: bool,
-                        pistas_pessoa: Optional[list[str]] = None
+                        pistas_pessoa: Optional[list[str]] = None,
+                        plot_lexical_weight: Optional[float] = None,
+                        entity_weight: Optional[float] = None,
                          ) -> tuple[list[tuple[int, float]], dict]:
         """Ranqueia por sinopse; em 'auto' (blend_name) funde também o nome.
         Devolve (scored, ctx) — ctx carrega os componentes p/ a explicação."""
@@ -1221,7 +1237,8 @@ class SearchEngine:
         # de _synopsis_components); o nome usa a query original (casa títulos).
         cq = clean_descriptive_query(query)
         q_emb = self._encode(cq) if self._embeddings is not None else None
-        comps = self._synopsis_components(cq, q_emb=q_emb, pistas_pessoa=pistas_pessoa)
+        comps = self._synopsis_components(cq, q_emb=q_emb, pistas_pessoa=pistas_pessoa,
+                                          plot_lexical_weight=plot_lexical_weight, entity_weight=entity_weight)
         fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["entity"] + comps["plot"] + comps["plot_lexical"] + comps["plot_maxsim"] + comps["person_match"] + comps["prior"]
         order = np.argsort(fused)[::-1]
 
@@ -1344,13 +1361,16 @@ class SearchEngine:
     def search_combined(self, query: Optional[str] = None, director: Optional[str] = None,
                         actor: Optional[str] = None, n: int = 10,
                         filters: Optional[dict] = None,
-                        pistas_pessoa: Optional[list[str]] = None) -> list[dict[str, Any]]:
+                        pistas_pessoa: Optional[list[str]] = None,
+                        plot_lexical_weight: Optional[float] = None,
+                        entity_weight: Optional[float] = None) -> list[dict[str, Any]]:
         """Busca facetada: diretor/ator **restringem** (o filme precisa tê-los) e
         a consulta livre (sinopse/nome) **ranqueia** dentro do conjunto. Sem
         consulta, ordena por popularidade. Sem diretor/ator, cai na busca normal.
 
-        `pistas_pessoa`: ver `search()` — só se aplica na busca de texto livre
-        (sem diretor/ator restringindo), que é o caminho real de trivia.
+        `pistas_pessoa`/`plot_lexical_weight`/`entity_weight`: ver `search()`
+        — só se aplicam na busca de texto livre (sem diretor/ator
+        restringindo), que é o caminho real de trivia/objeto.
         """
         query = (query or "").strip()
         director = (director or "").strip()
@@ -1358,7 +1378,8 @@ class SearchEngine:
 
         # Sem restrição de pessoa: busca de texto normal (auto).
         if not director and not actor:
-            return self.search(query, mode="auto", n=n, filters=filters, pistas_pessoa=pistas_pessoa) if query else []
+            return self.search(query, mode="auto", n=n, filters=filters, pistas_pessoa=pistas_pessoa,
+                               plot_lexical_weight=plot_lexical_weight, entity_weight=entity_weight) if query else []
 
         # Interseção das restrições de pessoa.
         constraint: Optional[set[int]] = None

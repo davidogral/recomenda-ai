@@ -123,15 +123,19 @@ def test_rewrite_query_passthrough_without_llm(monkeypatch):
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "")
     q = "carro azul e prata dando arrancada numa corrida de rua a noite"
-    assert inference_client._understand_and_rewrite(q) == (q, [])
-    assert inference_client._understand_and_rewrite("") == ("", [])
+    assert inference_client._understand_and_rewrite(q) == (q, [], None, None)
+    assert inference_client._understand_and_rewrite("") == ("", [], None, None)
 
 
 def test_rewrite_query_appends_pistas_objeto_never_replaces(monkeypatch):
     """Achado 2026-09-08: SUBSTITUIR a consulta por só as pistas encolhe o
     texto o bastante pra disparar por engano a heurística de 'consulta curta
     = título' (uma consulta de musical virou só 'bar' e passou a casar com
-    qualquer título contendo essa substring). Corrigido pra só ACRESCENTAR."""
+    qualquer título contendo essa substring). Corrigido pra só ACRESCENTAR.
+    tipo="objeto" também devolve o peso maior do canal léxico de enredo e
+    desliga o de personagem, só pra essa busca (achado: os termos
+    acrescentados tipo "Dodge Charger" davam falso-positivo no canal de
+    personagem, afinado pra consulta curta de nome de gente)."""
     from core import inference_client, query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
@@ -143,32 +147,38 @@ def test_rewrite_query_appends_pistas_objeto_never_replaces(monkeypatch):
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
     q = "carro azul e prata dando arrancada numa corrida de rua a noite"
-    out, pistas_pessoa = inference_client._understand_and_rewrite(q)
+    out, pistas_pessoa, plot_lexical_weight, entity_weight = inference_client._understand_and_rewrite(q)
     assert out.startswith(q)  # original PRESERVADO, nunca substituído
     assert "Nissan Skyline GT-R" in out
     assert "nao devia aparecer" not in out  # consulta_reescrita não é usada
     assert pistas_pessoa == []
+    assert plot_lexical_weight == inference_client.OBJECT_PLOT_LEXICAL_WEIGHT
+    assert entity_weight == 0.0
 
 
-def test_rewrite_query_short_query_never_calls_groq(monkeypatch):
-    """Consulta curta (<=7 palavras) nem chama o Groq — já é bem servida pelo
-    canal de nome/personagem tolerante a erro de grafia; "consertar" a
-    grafia (medido: 'Mcquen'->'McQueen') pode ATRAPALHAR esse canal."""
+def test_rewrite_query_short_query_still_calls_groq_but_stays_safe(monkeypatch):
+    """Achado 2026-09-08: o limiar de palavras só existia pra evitar a
+    substituição (já removida, ver teste acima) — sem ela, consulta curta de
+    NOME (typo tolerado pelo canal entity) classifica como "pessoa"/
+    "generico", nunca "objeto", então nunca dispara acréscimo nem peso maior.
+    Isso libera consulta curta de OBJETO real ("Dogde charger preto", 3
+    palavras) a se beneficiar — hoje nem chegava a passar pelo Groq."""
     from core import inference_client, query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
-    calls = {"n": 0}
-    monkeypatch.setattr(query_llm.requests, "post", lambda *a, **k: calls.__setitem__("n", calls["n"] + 1))
+    payload = json.dumps({"tipo": "pessoa", "pistas_pessoa": ["plays a character named McQueen"]})
+    monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
-    assert inference_client._understand_and_rewrite("Mcquen") == ("Mcquen", [])
-    assert inference_client._understand_and_rewrite("Brian oconner") == ("Brian oconner", [])
-    assert calls["n"] == 0
+    out, pistas_pessoa, plot_lexical_weight, entity_weight = inference_client._understand_and_rewrite("Mcquen")
+    assert out == "Mcquen"  # tipo != objeto -> texto não muda
+    assert plot_lexical_weight is None  # e não ganha o peso maior
+    assert entity_weight is None  # canal de personagem continua ligado
 
 
 def test_rewrite_query_generico_does_not_change_query(monkeypatch):
     """tipo=generico ainda não tem uma forma segura validada de melhorar a
     consulta (ver docstring de _understand_and_rewrite) — por ora só loga/
-    decompõe, não altera o texto buscado."""
+    decompõe, não altera o texto buscado nem os pesos."""
     from core import inference_client, query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
@@ -176,23 +186,26 @@ def test_rewrite_query_generico_does_not_change_query(monkeypatch):
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
     q = "consulta bem barroca e cheia de enrolacao mas ainda assim descritiva"
-    assert inference_client._understand_and_rewrite(q) == (q, [])
+    assert inference_client._understand_and_rewrite(q) == (q, [], None, None)
 
 
 def test_rewrite_query_returns_pistas_pessoa_for_tipo_pessoa(monkeypatch):
-    """tipo=pessoa não altera o texto buscado (mesma cautela do genérico),
-    mas devolve pistas_pessoa pro canal person_match do search_engine."""
+    """tipo=pessoa não altera o texto buscado nem os pesos (mesma cautela do
+    genérico), mas devolve pistas_pessoa pro canal person_match do
+    search_engine."""
     from core import inference_client, query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
     payload = json.dumps({
         "tipo": "pessoa",
         "consulta_reescrita": "nao devia importar aqui",
-        "pistas_pessoa": ["condecorado pela realeza britanica", "tinha uma banda de heavy metal"],
+        "pistas_pessoa": ["decorated by the Queen", "had a heavy metal band"],
     })
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
     q = "ator condecorado pela rainha da inglaterra que tinha uma banda de heavy metal"
-    out, pistas_pessoa = inference_client._understand_and_rewrite(q)
+    out, pistas_pessoa, plot_lexical_weight, entity_weight = inference_client._understand_and_rewrite(q)
     assert out == q  # texto da busca não muda
-    assert pistas_pessoa == ["condecorado pela realeza britanica", "tinha uma banda de heavy metal"]
+    assert plot_lexical_weight is None
+    assert entity_weight is None
+    assert pistas_pessoa == ["decorated by the Queen", "had a heavy metal band"]
