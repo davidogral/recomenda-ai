@@ -166,8 +166,17 @@ DEFAULT_PLOT_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_WEIGHT", "0.0"))
 # nomeia objeto/carro/lugar ("Nissan Skyline GT-R", "DeLorean", "green light") —
 # nome próprio sobrevive à tradução, então "skyline azul" casa pelo termo
 # distintivo mesmo com o texto em inglês. Sem truncamento de tokens. Só existe se
-# o índice tem `bm25_plot_*` (index_builder --plot-bm25-only). 0 desliga.
-DEFAULT_PLOT_BM25_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_BM25_WEIGHT", "0.0"))
+# o índice tem `bm25_plot_*` (index_builder --plot-bm25-only).
+#
+# Nasceu OFF (commit 8973818: "levemente negativo" em fusão pura) — a causa
+# era o MESMO outlier de termo raro que motivou o Z_SCORE_CLIP (ver _zscore):
+# sem teto, 1 filme citando um termo raro literalmente dominava a soma sozinho
+# e enterrava o resto. Com o clip em vigor, reablação 2026-09-08 (0.1→0.25):
+# 0.1 já sobe TODOS os splits juntos — object nDCG@10 0.276→0.325 (+0.049),
+# entity 0.772→0.778, test 0.789→0.829 (+0.040), hard 0.473→0.473 (MRR sobe);
+# dev cai 0.007 (ruído). Acima de 0.15 os ganhos travam e test/hard começam a
+# cair — não subir mais sem remedir. 0 desliga.
+DEFAULT_PLOT_BM25_WEIGHT = float(os.environ.get("RECOMENDAI_PLOT_BM25_WEIGHT", "0.1"))
 
 # Canal do ENREDO (trecho/MaxSim): o enredo é fatiado em janelas de ~380 palavras
 # e cada uma é um embedding; o score do filme é o MÁXIMO sobre os trechos. Assim

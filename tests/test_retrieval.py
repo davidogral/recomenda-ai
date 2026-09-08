@@ -39,16 +39,18 @@ def test_object_split_present_in_eval_set():
 
 
 def test_plot_channels_default():
-    """Três formas de usar o enredo da Wikipédia. Embedding do plot inteiro e BM25
-    sobre o texto seguem desligados (ablação 2026-09-04: negativo/marginal). MaxSim
-    sobre trechos vai LIGADO por padrão (peso 0.5) — ablação 2026-09-04 no split
-    `object`: nDCG@10 0.225→0.259, sem regressão em `entity`/`test`; inerte até o
-    índice ter `plot_chunk_*` (index_builder --plot-chunks-only), então é seguro
-    mesmo antes do build completo."""
+    """Três formas de usar o enredo da Wikipédia. Embedding do plot INTEIRO segue
+    desligado (ablação 2026-09-04: negativo, e5 trunca em 512 tokens). BM25 sobre o
+    texto (`plot_lexical`) e MaxSim sobre trechos (`plot_maxsim`) vão LIGADOS —
+    ambos medidos subindo object/entity/test juntos, sem regressão; inertes até o
+    índice ter os arquivos correspondentes, então seguros mesmo antes de um build
+    completo. `plot_lexical` nasceu OFF (levemente negativo em fusão pura) e só
+    virou positivo depois do Z_SCORE_CLIP (2026-09-08) — sem teto, o outlier de
+    termo raro que motivou o clip também enterrava esse canal."""
     from retrieval import search_engine as se
 
     assert se.DEFAULT_PLOT_WEIGHT == 0.0
-    assert se.DEFAULT_PLOT_BM25_WEIGHT == 0.0
+    assert se.DEFAULT_PLOT_BM25_WEIGHT == 0.1
     assert se.DEFAULT_PLOT_CHUNK_WEIGHT == 0.5
     assert {"plot", "plot_lexical", "plot_maxsim"} <= set(se.SIGNAL_LABELS)
 
