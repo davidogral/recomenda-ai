@@ -142,6 +142,79 @@ def _llm_rerank(query: str, results: list[dict]) -> list[dict]:
     return promoted + [r for r in results if r.get("tmdb_id") not in promoted_ids]
 
 
+# Achado real de uso (2026-09-09): pra "arrancada skyline azul e prata" a
+# fusão/reranking até acertam a franquia (Velozes e Furiosos aparece perto do
+# topo), mas erram a sequência exata (o carro é do 2º filme especificamente,
+# e a sinopse da TMDB não cita nem o carro nem a cor). Em vez de apostar em o
+# LLM adivinhar por conhecimento próprio qual sequência específica bate (a
+# mesma consulta tinha 4 filmes da franquia no pool: ele precisaria acertar
+# qual dos 4, não só reconhecer "é Velozes e Furiosos"), resolve pela
+# apresentação: se o #1 pertence a uma franquia (TMDB collection), traz os
+# outros filmes dela pra perto, em ordem de lançamento, mesmo que a fusão os
+# tenha ranqueado longe. O usuário reconhece visualmente qual é o certo.
+FRANCHISE_PULLUP_ENABLED = os.environ.get("RECOMENDAI_FRANCHISE_PULLUP", "1").strip().lower() not in (
+    "0", "false", "no",
+)
+# Sem teto de propósito (decisão do Davi: se a franquia toda ocupar a
+# página de resultados, não é problema — o objetivo é achar o filme certo,
+# não garantir variedade). O valor default é só uma trava de segurança
+# contra uma "collection" da TMDB anormalmente grande, não um teto de UX.
+FRANCHISE_PULLUP_MAX = int(os.environ.get("RECOMENDAI_FRANCHISE_PULLUP_MAX", "40"))
+
+
+def _pull_franchise_siblings(results: list[dict]) -> list[dict]:
+    """Se `results[0]` pertence a uma franquia (TMDB `belongs_to_collection`),
+    insere os outros filmes dela logo depois, em ordem de lançamento — tira
+    de onde já estavam em `results` se já apareciam mais abaixo, ou busca no
+    catálogo local se a fusão nem tinha ranqueado. Pior caso (sem TMDB
+    configurado, filme sem franquia, falha de rede): devolve `results`
+    inalterado."""
+    if not results:
+        return results
+    from core import catalog, tmdb
+
+    top = results[0]
+    details = tmdb.movie_details(top.get("tmdb_id"))
+    collection = (details or {}).get("collection")
+    if not collection:
+        return results
+
+    coll = tmdb.collection_movies(collection["id"])
+    parts = (coll or {}).get("parts") or []
+    if len(parts) < 2:
+        return results
+
+    by_id = {r.get("tmdb_id"): r for r in results}
+    siblings = []
+    for p in parts:
+        tid = p.get("tmdb_id")
+        if not tid or tid == top.get("tmdb_id"):
+            continue
+        card = by_id.get(tid)
+        if card is None:
+            mv = catalog.get_movie(tid)
+            if mv is None:
+                continue
+            card = {
+                "tmdb_id": tid,
+                "title": mv.get("title"),
+                "release_year": mv.get("release_year"),
+                "original_language": mv.get("original_language"),
+                "vote_average": mv.get("vote_average"),
+                "overview": catalog.truncate_overview(mv.get("overview") or ""),
+                "why": ["Mesma franquia"],
+            }
+        siblings.append(card)
+        if len(siblings) >= FRANCHISE_PULLUP_MAX:
+            break
+
+    if not siblings:
+        return results
+    sibling_ids = {s.get("tmdb_id") for s in siblings}
+    rest = [r for r in results[1:] if r.get("tmdb_id") not in sibling_ids]
+    return [top] + siblings + rest
+
+
 # --------------------------------------------------------------- operações
 def search_combined(
     query: str = "", director: str = "", actor: str = "", n: int = 12, filters: Optional[dict] = None
@@ -165,6 +238,8 @@ def search_combined(
         )
     if RERANK_LLM_ENABLED and query:
         results = _llm_rerank(query, results)
+    if FRANCHISE_PULLUP_ENABLED and query and results:
+        results = _pull_franchise_siblings(results)
     return results[:n]
 
 

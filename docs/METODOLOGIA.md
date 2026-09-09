@@ -30,6 +30,7 @@
   - [Busca facetada](#-busca-facetada)
   - [Re-ranking com cross-encoder](#-re-ranking-com-cross-encoder)
   - [Reranking via LLM (lê e julga)](#reranking-via-llm-lê-e-julga)
+  - [Reagrupamento por franquia](#reagrupamento-por-franquia)
   - [Busca multilíngue via TMDB](#-busca-multilíngue-via-tmdb)
   - [Explicabilidade](#-explicabilidade)
   - [Pipeline completo](#-pipeline-do-sri)
@@ -102,6 +103,7 @@ flowchart LR
 | **Busca facetada** | restringe por diretor/ator/ano/gênero | afunilar com o que se sabe | [`search_engine.py`](../retrieval/search_engine.py) |
 | **Cross-encoder** | re-pontua o topo lendo consulta+texto juntos (score) | precisão fina nas primeiras posições (*off* em produção) | [`reranker.py`](../retrieval/reranker.py) |
 | **Reranking via LLM (Groq)** | lê a sinopse do candidato e confere o fato citado | promove quem realmente bate, quando nenhum score de similaridade sabe dizer | [`query_llm.py`](../core/query_llm.py) |
+| **Reagrupamento por franquia** | traz os outros filmes da coleção TMDB do #1 pra perto, em ordem de lançamento | acerta a franquia mas erra a sequência exata, quando a sinopse não tem o detalhe | [`inference_client.py`](../core/inference_client.py) |
 | **Fallback TMDB** | resolve título em qualquer idioma | títulos estrangeiros | [`tmdb.py`](../core/tmdb.py) |
 
 ---
@@ -436,6 +438,34 @@ Decisão e trade-offs completos: [`docs/adr/0003-llm-in-the-loop.md`](adr/0003-l
 
 ---
 
+## Reagrupamento por franquia
+
+> **O que faz** — depois de todo o resto do pipeline (fusão, facetas, reranking), se o **#1** pertence a uma franquia (`belongs_to_collection` da TMDB), traz os outros filmes dela pra perto, em ordem de lançamento, mesmo que a fusão os tenha ranqueado longe do topo (`core/inference_client.py::_pull_franchise_siblings`, cache TMDB de 3 dias).
+> **O que resolve** — quando a consulta cita um detalhe específico de UMA sequência de uma franquia grande e nenhum canal de similaridade acha o texto exato, mas o algoritmo já acertou a franquia certa.
+
+Caso real: "Nissan Skyline azul e prata arrancada" tem como resposta certa *+ Velozes + Furiosos* (2003, o carro é daquele filme especificamente), mas a sinopse da TMDB desse filme não cita carro, cor nem franquia, e não há enredo da Wikipédia enriquecido pra ele. A fusão e o reranking até acertavam a franquia (havia 4 filmes de Velozes e Furiosos no pool de 20), mas erravam qual sequência específica: o certo ficava na posição #15.
+
+```mermaid
+flowchart LR
+    T[Resultado #1] --> C{Pertence a uma<br/>franquia na TMDB?}
+    C -->|não| OUT[Mantém como está]
+    C -->|sim| F[Busca os outros filmes<br/>da franquia, em ordem]
+    F --> M[Insere logo após o #1,<br/>tira duplicata de onde já estava]
+```
+
+<details>
+<summary><b>Por que reagrupar em vez de pedir pra LLM adivinhar a sequência certa</b></summary>
+
+A alternativa cogitada era deixar o reranking confirmar por conhecimento próprio do modelo, não só pela sinopse fornecida (já que o modelo provavelmente "sabe" que o Skyline azul é de um Velozes e Furiosos específico). Descartada porque o pool tinha 4 filmes da mesma franquia ao mesmo tempo: o modelo precisaria acertar especificamente **qual dos 4** tem aquele carro, não só reconhecer "isso é Velozes e Furiosos" (fácil, qualquer modelo sabe). É uma aposta bem mais específica no conhecimento de mundo do modelo do que parece à primeira vista, com risco real de confundir qual sequência exata.
+
+Reagrupar pela franquia ataca o mesmo problema por um caminho mais barato e confiável: não depende de o modelo acertar a sequência exata, só de ele (ou a fusão) acertar a franquia, o que já acontecia. O usuário reconhece visualmente qual filme é o certo assim que a franquia inteira aparece na tela.
+
+</details>
+
+Sem teto artificial de quantos filmes trazer: uma franquia grande (ex. James Bond, ~25 filmes) pode ocupar a página de resultados inteira. Decisão de produto: o objetivo é achar o filme certo, não garantir variedade na página.
+
+---
+
 ## 🧮 Encoder da consulta — precisão, tamanho e latência
 
 > **O que faz** — o mesmo modelo que gerou o índice codifica a consulta num vetor. É a etapa mais cara da busca quando a consulta não está no cache LRU.
@@ -516,7 +546,10 @@ flowchart TD
     SS --> BL
     BL --> RR[Cross-encoder<br/>off em produção]
     RR --> LR{Groq lê top-20<br/>e confirma o fato}
-    LR --> FT[Filtros<br/>ano/gênero/idioma/pessoa]
+    LR --> FR{#1 é de uma<br/>franquia TMDB?}
+    FR -->|sim| SIB[Traz o resto da<br/>franquia pra perto]
+    FR -->|não| FT
+    SIB --> FT[Filtros<br/>ano/gênero/idioma/pessoa]
     FT --> EX[Explicação por filme]
     EX --> OUT([Resultados])
 ```

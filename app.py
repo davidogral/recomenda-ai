@@ -1245,6 +1245,18 @@ def _engineering_payload() -> dict:
                 "para 0,468, entity 0,778 para 0,853.",
             },
             {
+                "title": "Reagrupamento por franquia, sem depender da LLM adivinhar a sequência",
+                "body": "Consulta real: \"Nissan Skyline azul e prata arrancada\" não subia nenhum filme de Velozes "
+                "e Furiosos ao #1; o certo (o carro é do 2º filme especificamente) ficava na posição #15, e a "
+                "sinopse da TMDB dele não cita carro, cor nem franquia. Ideia descartada: deixar a LLM confirmar "
+                "por conhecimento próprio, não só pela sinopse. O pool tinha 4 filmes da franquia ao mesmo tempo; "
+                "o modelo precisaria saber especificamente qual dos 4 tem aquele carro, não só reconhecer \"isso é "
+                "Velozes e Furiosos\", uma aposta bem mais arriscada do que parece. Resolvido de outro jeito: "
+                "quando o #1 pertence a uma franquia da TMDB, os outros filmes dela entram na lista, em ordem de "
+                "lançamento, mesmo que a fusão os tenha ranqueado longe. Sem teto de quantos trazer: se a franquia "
+                "ocupar a página inteira, essa é a decisão, dado que o objetivo é achar o filme certo.",
+            },
+            {
                 "title": "Cross-encoder segue desligado em produção",
                 "body": "O re-ranker de 2º estágio (mesma família de modelo do reranking por LLM, mas sem ler o "
                 "conteúdo, só re-pontua consulta+sinopse juntas) dá +0,001 nDCG@10 no teste (0,829→0,830) a 694ms "

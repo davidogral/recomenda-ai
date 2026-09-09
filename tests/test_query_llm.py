@@ -405,3 +405,101 @@ def test_llm_rerank_noop_without_query_or_with_single_result(monkeypatch):
     assert inference_client._llm_rerank("", _results_from_candidates()) == _results_from_candidates()
     assert inference_client._llm_rerank("descrição", _results_from_candidates()[:1]) == _results_from_candidates()[:1]
     assert called["n"] == 0
+
+
+# =================================================== _pull_franchise_siblings
+
+def test_pull_franchise_siblings_noop_without_collection(monkeypatch):
+    from core import inference_client, tmdb
+
+    monkeypatch.setattr(tmdb, "movie_details", lambda tid: {"collection": None})
+
+    original = _results_from_candidates()
+    out = inference_client._pull_franchise_siblings(list(original))
+    assert [r["tmdb_id"] for r in out] == [r["tmdb_id"] for r in original]
+
+
+def test_pull_franchise_siblings_noop_without_tmdb(monkeypatch):
+    from core import inference_client, tmdb
+
+    monkeypatch.setattr(tmdb, "movie_details", lambda tid: None)
+
+    original = _results_from_candidates()
+    out = inference_client._pull_franchise_siblings(list(original))
+    assert [r["tmdb_id"] for r in out] == [r["tmdb_id"] for r in original]
+
+
+def test_pull_franchise_siblings_noop_empty_results(monkeypatch):
+    from core import inference_client
+
+    assert inference_client._pull_franchise_siblings([]) == []
+
+
+def test_pull_franchise_siblings_inserts_missing_sibling_from_catalog(monkeypatch):
+    """O #1 é o 1º filme de uma franquia; o 2º (o que o usuário queria) não
+    estava em `results` (a fusão nunca o achou), mas existe no catálogo."""
+    from core import catalog, inference_client, tmdb
+
+    monkeypatch.setattr(tmdb, "movie_details", lambda tid: {"collection": {"id": 999, "name": "Franquia X"}})
+    monkeypatch.setattr(
+        tmdb, "collection_movies",
+        lambda cid: {"id": cid, "name": "Franquia X", "parts": [
+            {"tmdb_id": 101, "title": "Filme A", "release_year": 2001},
+            {"tmdb_id": 999101, "title": "Filme A 2", "release_year": 2003},
+        ]},
+    )
+    monkeypatch.setattr(
+        catalog, "get_movie",
+        lambda tid: {"title": "Filme A 2", "release_year": 2003, "original_language": "en",
+                     "vote_average": 6.5, "overview": "sinopse do segundo filme"} if tid == 999101 else None,
+    )
+
+    original = _results_from_candidates()  # tmdb_ids 101, 102, 103
+    out = inference_client._pull_franchise_siblings(list(original))
+    assert [r["tmdb_id"] for r in out] == [101, 999101, 102, 103]
+    assert out[1]["why"] == ["Mesma franquia"]
+
+
+def test_pull_franchise_siblings_moves_existing_sibling_up(monkeypatch):
+    """O sibling já estava em `results`, só que mais abaixo — deve subir pra
+    logo depois do #1, sem duplicar."""
+    from core import inference_client, tmdb
+
+    monkeypatch.setattr(tmdb, "movie_details", lambda tid: {"collection": {"id": 999, "name": "Franquia X"}})
+    monkeypatch.setattr(
+        tmdb, "collection_movies",
+        lambda cid: {"id": cid, "name": "Franquia X", "parts": [
+            {"tmdb_id": 101, "title": "Filme A", "release_year": 2001},
+            {"tmdb_id": 103, "title": "Filme A 3", "release_year": 2003},
+        ]},
+    )
+
+    original = _results_from_candidates()  # 101, 102, 103
+    out = inference_client._pull_franchise_siblings(list(original))
+    assert [r["tmdb_id"] for r in out] == [101, 103, 102]
+    assert "why" not in out[1]  # já vinha de `results`, mantém os campos originais
+
+
+def test_pull_franchise_siblings_respects_max_cap(monkeypatch):
+    from core import catalog, inference_client, tmdb
+
+    monkeypatch.setattr(inference_client, "FRANCHISE_PULLUP_MAX", 1)
+    monkeypatch.setattr(tmdb, "movie_details", lambda tid: {"collection": {"id": 999, "name": "Franquia X"}})
+    monkeypatch.setattr(
+        tmdb, "collection_movies",
+        lambda cid: {"id": cid, "name": "Franquia X", "parts": [
+            {"tmdb_id": 101, "title": "Filme A", "release_year": 2001},
+            {"tmdb_id": 201, "title": "Filme A 2", "release_year": 2003},
+            {"tmdb_id": 202, "title": "Filme A 3", "release_year": 2005},
+        ]},
+    )
+    monkeypatch.setattr(
+        catalog, "get_movie",
+        lambda tid: {"title": f"Filme {tid}", "release_year": 2000, "original_language": "en",
+                     "vote_average": 6.0, "overview": ""},
+    )
+
+    original = _results_from_candidates()
+    out = inference_client._pull_franchise_siblings(list(original))
+    # só 1 sibling novo (o cap), + o #1 + o resto original
+    assert [r["tmdb_id"] for r in out] == [101, 201, 102, 103]
