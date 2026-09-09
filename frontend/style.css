@@ -1743,13 +1743,16 @@ body {
 
 /* diagrama do pipeline (SVG inline, tema escuro) */
 .eng-diagram { margin-top: 14px; }
-.eng-svg { width: 100%; max-width: 760px; height: auto; }
+.eng-svg { width: 100%; max-width: 940px; height: auto; }
 .eng-svg-stroke { stroke: var(--border-strong); }
 .eng-svg-fill { fill: var(--border-strong); }
 .eng-svg-node rect { fill: var(--input-bg); stroke: var(--card-border); stroke-width: 1; }
 .eng-svg-node text { fill: var(--light); font-size: 12px; text-anchor: middle; }
 .eng-svg-node text.eng-svg-sub { fill: var(--gray); font-size: 10px; }
 .eng-svg-node rect.eng-svg-hot { fill: var(--accent-soft); stroke: var(--accent-border); }
+/* Passos que chamam a LLM (Groq) — traço tracejado na cor de destaque, pra
+   distinguir "julgamento externo" do cálculo interno (fusão, sinais). */
+.eng-svg-node rect.eng-svg-accent { fill: var(--input-bg); stroke: var(--accent-border); stroke-width: 1.5; stroke-dasharray: 5 3; }
 .eng-svg-ghost { fill: none; }
 .eng-svg-ghost path { fill: none; stroke: var(--input-border); }
 .eng-svg-ghost rect { fill: none; stroke: var(--input-border); stroke-dasharray: 4 3; }

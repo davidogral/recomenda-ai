@@ -1875,26 +1875,34 @@
         let engLoaded = false;
 
         const ENG_PIPE_SVG = `
-<svg viewBox="0 0 760 150" role="img" aria-label="Pipeline do motor de recuperação" class="eng-svg">
+<svg viewBox="0 0 980 190" role="img" aria-label="Pipeline do motor de recuperação" class="eng-svg">
   <defs><marker id="engArr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
     <path d="M0 0l6 3-6 3z" class="eng-svg-fill"/></marker></defs>
   <g class="eng-svg-stroke" fill="none" stroke-width="1.5" marker-end="url(#engArr)">
-    <path d="M120 75h48"/>
-    <path d="M300 40h60c8 0 8 0 8 8v16"/><path d="M300 75h68"/><path d="M300 110h60c8 0 8 0 8-8v-16"/>
-    <path d="M496 75h48"/>
-    <path d="M636 75h44"/>
+    <path d="M104 75h30"/>
+    <path d="M264 75h30"/>
+    <path d="M424 24h44c8 0 8 0 8 8v22"/><path d="M424 62h44c8 0 8 0 8 4v6"/>
+    <path d="M424 88h44c8 0 8 0 8-4v-6"/><path d="M424 126h44c8 0 8 0 8-8v-22"/>
+    <path d="M628 75h30"/>
+    <path d="M788 75h30"/>
   </g>
   <g class="eng-svg-node">
-    <rect x="6"   y="55" width="114" height="40" rx="8"/><text x="63"  y="79">consulta</text>
-    <rect x="176" y="22" width="124" height="34" rx="8"/><text x="238" y="43">BM25 · lexical</text>
-    <rect x="176" y="58" width="124" height="34" rx="8"/><text x="238" y="79">embedding · e5</text>
-    <rect x="176" y="94" width="124" height="34" rx="8"/><text x="238" y="115">temático · KW</text>
-    <rect x="376" y="52" width="120" height="46" rx="8" class="eng-svg-hot"/><text x="436" y="72">fusão z-score</text><text x="436" y="88" class="eng-svg-sub">+ prior pop.</text>
-    <rect x="552" y="55" width="84" height="40" rx="8"/><text x="594" y="79">resultados</text>
+    <rect x="4"   y="55" width="100" height="40" rx="8"/><text x="54"  y="79">consulta</text>
+    <rect x="134" y="52" width="130" height="46" rx="8" class="eng-svg-accent"/>
+    <text x="199" y="72">Groq · entende</text><text x="199" y="88" class="eng-svg-sub">objeto · pessoa · genérico</text>
+    <rect x="304" y="6"  width="120" height="30" rx="7"/><text x="364" y="25">BM25 · lexical</text>
+    <rect x="304" y="42" width="120" height="30" rx="7"/><text x="364" y="61">embedding · e5</text>
+    <rect x="304" y="78" width="120" height="30" rx="7"/><text x="364" y="97">temático · KW</text>
+    <rect x="304" y="114" width="120" height="30" rx="7"/><text x="364" y="133">personagem · fuzzy</text>
+    <rect x="304" y="150" width="120" height="30" rx="7"/><text x="364" y="169">enredo · Wikipédia</text>
+    <rect x="476" y="52" width="120" height="46" rx="8" class="eng-svg-hot"/><text x="536" y="72">fusão z-score</text><text x="536" y="88" class="eng-svg-sub">+ prior pop.</text>
+    <rect x="658" y="52" width="130" height="46" rx="8" class="eng-svg-accent"/>
+    <text x="723" y="72">Groq · confere</text><text x="723" y="88" class="eng-svg-sub">lê a sinopse, promove #1</text>
+    <rect x="818" y="55" width="84" height="40" rx="8"/><text x="860" y="79">resultados</text>
   </g>
   <g class="eng-svg-ghost" fill="none">
-    <path d="M436 98 V118 H492" stroke-dasharray="4 3"/>
-    <rect x="492" y="105" width="150" height="26" rx="7"/><text x="567" y="122">cross-encoder — OFF</text>
+    <path d="M536 98 V150 H600" stroke-dasharray="4 3"/>
+    <rect x="600" y="137" width="150" height="26" rx="7"/><text x="675" y="154">cross-encoder — OFF</text>
   </g>
 </svg>`;
 
