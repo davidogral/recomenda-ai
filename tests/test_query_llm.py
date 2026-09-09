@@ -11,7 +11,7 @@ import pytest
 def _isolated_cache(tmp_path, monkeypatch):
     """Cache em disco isolado por teste — não toca data/tmdb_cache/ real nem
     vaza estado entre testes (os caches são globais do módulo; vários testes
-    de rerank_pick reusam a MESMA consulta/candidatos, então sem isolar o
+    de rerank_confirm reusam a MESMA consulta/candidatos, então sem isolar o
     _rerank_cache um teste veria o resultado cacheado pelo anterior)."""
     from core import query_llm
 
@@ -215,7 +215,7 @@ def test_rewrite_query_returns_pistas_pessoa_for_tipo_pessoa(monkeypatch):
     assert pistas_pessoa == ["decorated by the Queen", "had a heavy metal band"]
 
 
-# ============================================================= rerank_pick
+# =========================================================== rerank_confirm
 
 _CANDIDATES = [
     {"tmdb_id": 101, "title": "Filme A", "year": 2001, "overview": "sinopse A"},
@@ -224,54 +224,78 @@ _CANDIDATES = [
 ]
 
 
-def test_rerank_pick_promotes_confident_choice(monkeypatch):
+def test_rerank_confirm_promotes_confident_choice(monkeypatch):
     from core import query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
-    payload = json.dumps({"escolha": 2, "confianca": "alta"})
+    payload = json.dumps({"confirmados": [{"n": 2, "confianca": "alta"}]})
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
-    assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) == 102
+    assert query_llm.rerank_confirm("descrição qualquer", _CANDIDATES) == [102]
+
+
+def test_rerank_confirm_returns_multiple_in_confidence_order(monkeypatch):
+    """Duas respostas plausíveis pra mesma consulta (ex.: "sonho dentro do
+    sonho" bate tanto com A Origem quanto com O Discreto Charme da
+    Burguesia) devem promover as duas, na ordem de confiança devolvida."""
+    from core import query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    payload = json.dumps({"confirmados": [{"n": 3, "confianca": "alta"}, {"n": 1, "confianca": "media"}]})
+    monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
+
+    assert query_llm.rerank_confirm("descrição qualquer", _CANDIDATES) == [103, 101]
 
 
 @pytest.mark.parametrize(
     "payload",
     [
-        json.dumps({"escolha": None, "confianca": None}),  # não achou
-        json.dumps({"escolha": 2, "confianca": "baixa"}),  # confiança baixa nunca promove
-        json.dumps({"escolha": 99, "confianca": "alta"}),  # índice fora da lista
+        json.dumps({"confirmados": []}),  # não achou nenhum
+        json.dumps({"confirmados": [{"n": 2, "confianca": "baixa"}]}),  # confiança baixa nunca promove
+        json.dumps({"confirmados": [{"n": 99, "confianca": "alta"}]}),  # índice fora da lista
+        json.dumps({"confirmados": "não é uma lista"}),  # formato inesperado
         "isso nao e json",
     ],
 )
-def test_rerank_pick_returns_none_without_confident_valid_choice(monkeypatch, payload):
+def test_rerank_confirm_returns_empty_without_confident_valid_choice(monkeypatch, payload):
     from core import query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
-    assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) is None
+    assert query_llm.rerank_confirm("descrição qualquer", _CANDIDATES) == []
 
 
-def test_rerank_pick_never_raises_on_failure(monkeypatch):
+def test_rerank_confirm_dedupes_repeated_index(monkeypatch):
+    from core import query_llm
+
+    monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
+    payload = json.dumps({"confirmados": [{"n": 2, "confianca": "alta"}, {"n": 2, "confianca": "media"}]})
+    monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
+
+    assert query_llm.rerank_confirm("descrição qualquer", _CANDIDATES) == [102]
+
+
+def test_rerank_confirm_never_raises_on_failure(monkeypatch):
     from core import query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(raise_exc=TimeoutError("timeout")))
 
-    assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) is None
+    assert query_llm.rerank_confirm("descrição qualquer", _CANDIDATES) == []
 
 
-def test_rerank_pick_empty_candidates_or_no_key(monkeypatch):
+def test_rerank_confirm_empty_candidates_or_no_key(monkeypatch):
     from core import query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
-    assert query_llm.rerank_pick("descrição qualquer", []) is None
+    assert query_llm.rerank_confirm("descrição qualquer", []) == []
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "")
-    assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) is None
+    assert query_llm.rerank_confirm("descrição qualquer", _CANDIDATES) == []
 
 
-def test_rerank_pick_caches_result_same_query_and_candidates(monkeypatch):
+def test_rerank_confirm_caches_result_same_query_and_candidates(monkeypatch):
     """Achado 2026-09-08: sem cache, a MESMA consulta com os MESMOS
     candidatos dava resposta diferente a cada chamada (8 chamadas idênticas
     -> 3 respostas distintas) — a Groq não é perfeitamente determinística
@@ -284,16 +308,16 @@ def test_rerank_pick_caches_result_same_query_and_candidates(monkeypatch):
 
     def _post(*args, **kwargs):
         calls["n"] += 1
-        return _fake_post(content=json.dumps({"escolha": 2, "confianca": "alta"}))()
+        return _fake_post(content=json.dumps({"confirmados": [{"n": 2, "confianca": "alta"}]}))()
 
     monkeypatch.setattr(query_llm.requests, "post", _post)
 
     for _ in range(5):
-        assert query_llm.rerank_pick("descrição qualquer", _CANDIDATES) == 102
+        assert query_llm.rerank_confirm("descrição qualquer", _CANDIDATES) == [102]
     assert calls["n"] == 1  # só a 1ª chamada bateu na rede
 
 
-def test_rerank_pick_cache_key_includes_candidate_ids(monkeypatch):
+def test_rerank_confirm_cache_key_includes_candidate_ids(monkeypatch):
     """Mesma consulta, candidatos DIFERENTES (ex.: índice mudou) não deve
     reusar o cache de outro conjunto de candidatos."""
     from core import query_llm
@@ -303,24 +327,24 @@ def test_rerank_pick_cache_key_includes_candidate_ids(monkeypatch):
 
     def _post(*args, **kwargs):
         calls["n"] += 1
-        return _fake_post(content=json.dumps({"escolha": 1, "confianca": "alta"}))()
+        return _fake_post(content=json.dumps({"confirmados": [{"n": 1, "confianca": "alta"}]}))()
 
     monkeypatch.setattr(query_llm.requests, "post", _post)
 
     outros_candidatos = [{"tmdb_id": 201, "title": "Filme D", "year": 2004, "overview": "sinopse D"}]
-    query_llm.rerank_pick("descrição qualquer", _CANDIDATES)
-    query_llm.rerank_pick("descrição qualquer", outros_candidatos)
+    query_llm.rerank_confirm("descrição qualquer", _CANDIDATES)
+    query_llm.rerank_confirm("descrição qualquer", outros_candidatos)
     assert calls["n"] == 2
 
 
-def test_rerank_pick_failure_is_not_cached(monkeypatch):
-    """Falha transiente de rede não deve virar 'sem palpite' permanente."""
+def test_rerank_confirm_failure_is_not_cached(monkeypatch):
+    """Falha transiente de rede não deve virar 'nenhum confirmado' permanente."""
     from core import query_llm
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "fake-key")
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(raise_exc=RuntimeError("down")))
 
-    query_llm.rerank_pick("descrição instável", _CANDIDATES)
+    query_llm.rerank_confirm("descrição instável", _CANDIDATES)
     key = query_llm._rerank_cache_key("descrição instável", _CANDIDATES)
     assert key not in query_llm._get_rerank_cache()
 
@@ -341,17 +365,30 @@ def test_llm_rerank_promotes_pick_to_front(monkeypatch):
     # _llm_rerank importa `query_llm` localmente a cada chamada — patchar o
     # módulo canônico (não um atributo de inference_client) é o que afeta essa
     # importação local.
-    monkeypatch.setattr(query_llm, "rerank_pick", lambda q, c: 103)
+    monkeypatch.setattr(query_llm, "rerank_confirm", lambda q, c: [103])
     monkeypatch.setattr("core.catalog.get_movie", lambda tid: {"overview": "sinopse completa"})
 
     out = inference_client._llm_rerank("descrição", _results_from_candidates())
     assert [r["tmdb_id"] for r in out] == [103, 101, 102]
 
 
-def test_llm_rerank_leaves_order_when_no_pick(monkeypatch):
+def test_llm_rerank_promotes_multiple_confirmed_in_order(monkeypatch):
+    """Duas respostas plausíveis (ex.: "sonho dentro do sonho") devem as
+    duas subir, na ordem de confiança devolvida pela LLM — não só a
+    primeira, deixando a outra onde a fusão a tivesse deixado."""
     from core import inference_client, query_llm
 
-    monkeypatch.setattr(query_llm, "rerank_pick", lambda q, c: None)
+    monkeypatch.setattr(query_llm, "rerank_confirm", lambda q, c: [103, 101])
+    monkeypatch.setattr("core.catalog.get_movie", lambda tid: {"overview": "sinopse completa"})
+
+    out = inference_client._llm_rerank("descrição", _results_from_candidates())
+    assert [r["tmdb_id"] for r in out] == [103, 101, 102]
+
+
+def test_llm_rerank_leaves_order_when_nothing_confirmed(monkeypatch):
+    from core import inference_client, query_llm
+
+    monkeypatch.setattr(query_llm, "rerank_confirm", lambda q, c: [])
     monkeypatch.setattr("core.catalog.get_movie", lambda tid: {"overview": "sinopse completa"})
 
     original = _results_from_candidates()
@@ -363,7 +400,7 @@ def test_llm_rerank_noop_without_query_or_with_single_result(monkeypatch):
     from core import inference_client, query_llm
 
     called = {"n": 0}
-    monkeypatch.setattr(query_llm, "rerank_pick", lambda q, c: called.__setitem__("n", called["n"] + 1))
+    monkeypatch.setattr(query_llm, "rerank_confirm", lambda q, c: called.__setitem__("n", called["n"] + 1))
 
     assert inference_client._llm_rerank("", _results_from_candidates()) == _results_from_candidates()
     assert inference_client._llm_rerank("descrição", _results_from_candidates()[:1]) == _results_from_candidates()[:1]

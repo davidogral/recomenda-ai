@@ -1897,7 +1897,7 @@
     <rect x="304" y="150" width="120" height="30" rx="7"/><text x="364" y="169">enredo · Wikipédia</text>
     <rect x="476" y="52" width="120" height="46" rx="8" class="eng-svg-hot"/><text x="536" y="72">fusão z-score</text><text x="536" y="88" class="eng-svg-sub">+ prior pop.</text>
     <rect x="658" y="52" width="130" height="46" rx="8" class="eng-svg-accent"/>
-    <text x="723" y="72">Groq · confere</text><text x="723" y="88" class="eng-svg-sub">lê a sinopse, promove #1</text>
+    <text x="723" y="72">Groq · confere</text><text x="723" y="88" class="eng-svg-sub">lê a sinopse, confirma 1+</text>
     <rect x="818" y="55" width="84" height="40" rx="8"/><text x="860" y="79">resultados</text>
   </g>
   <g class="eng-svg-ghost" fill="none">

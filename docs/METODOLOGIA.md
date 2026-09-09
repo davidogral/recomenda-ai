@@ -22,14 +22,14 @@
   - [BM25 — recuperação lexical](#-bm25--recuperação-lexical)
   - [Embeddings semânticos multilíngues](#-embeddings-semânticos-multilíngues)
   - [Sinal temático (keywords)](#-sinal-temático-keywords)
-  - [Sinal de personagem (fuzzy)](#-sinal-de-personagem-fuzzy)
-  - [Enredo via Wikipédia (léxico + MaxSim)](#-enredo-via-wikipédia-léxico--maxsim)
+  - [Sinal de personagem (fuzzy)](#sinal-de-personagem-fuzzy)
+  - [Enredo via Wikipédia (léxico + MaxSim)](#enredo-via-wikipédia-léxico--maxsim)
   - [Fusão de sinais](#-fusão-de-sinais)
   - [Detecção de intenção](#-detecção-de-intenção)
-  - [Entendimento de consulta via LLM (Groq)](#-entendimento-de-consulta-via-llm-groq)
+  - [Entendimento de consulta via LLM (Groq)](#entendimento-de-consulta-via-llm-groq)
   - [Busca facetada](#-busca-facetada)
   - [Re-ranking com cross-encoder](#-re-ranking-com-cross-encoder)
-  - [Reranking via LLM (lê e julga)](#-reranking-via-llm-lê-e-julga)
+  - [Reranking via LLM (lê e julga)](#reranking-via-llm-lê-e-julga)
   - [Busca multilíngue via TMDB](#-busca-multilíngue-via-tmdb)
   - [Explicabilidade](#-explicabilidade)
   - [Pipeline completo](#-pipeline-do-sri)
@@ -185,7 +185,7 @@ Como a comparação é multilíngue, uma consulta em português como "revivendo 
 
 ---
 
-## 🎭 Sinal de personagem (fuzzy)
+## Sinal de personagem (fuzzy)
 
 > **O que faz** — casa nome de personagem ou ator citado na consulta contra o **elenco de topo** do filme (`credit_order < 10` ou diretor), usando **similaridade Jaro-Winkler** em vez de igualdade exata.
 > **O que resolve** — nasceu direto do log do painel admin: consulta curta com nome de personagem quase sempre vem com **erro de grafia** ("Jonh wick", "Toreto"). Igualdade exata (ou até busca fuzzy de título) não acha nada, porque o erro está no nome da pessoa, não no título do filme.
@@ -211,7 +211,7 @@ Ativo só para consultas curtas (`RECOMENDAI_ENTITY_MAX_TOKENS`, default 6 palav
 
 ---
 
-## 📖 Enredo via Wikipédia (léxico + MaxSim)
+## Enredo via Wikipédia (léxico + MaxSim)
 
 > **O que faz** — busca o artigo da Wikipédia do filme (via `imdb_id` → Wikidata `P345`), extrai a seção "Plot"/"Enredo" e indexa esse texto por **dois canais**: BM25 léxico e embedding em **trechos** (janelas de ~380 palavras), tomando o **máximo** de similaridade entre os trechos, não a média do documento inteiro.
 > **O que resolve** — a sinopse da TMDB tem, em média, algumas frases; um objeto ou evento citado só no 3º ato do filme nunca aparece nela. O enredo da Wikipédia é ~4× mais longo e costuma citar esse detalhe.
@@ -305,7 +305,7 @@ O peso-base também varia com o tamanho da consulta: ≤ 3 palavras tende a ser 
 
 ---
 
-## 🤖 Entendimento de consulta via LLM (Groq)
+## Entendimento de consulta via LLM (Groq)
 
 > **O que faz** — antes da busca, um modelo pequeno e grátis (`openai/gpt-oss-20b`, via [Groq](https://groq.com)) classifica a consulta em **objeto**, **pessoa** ou **genérica**, e extrai pistas (termos literais de objeto; nome/fatos em inglês para trivia de pessoa).
 > **O que resolve** — a detecção de intenção acima (nome × descrição) é uma heurística de **tamanho de texto**; ela não sabe dizer se uma descrição curta é sobre um *objeto específico* que precisa de peso diferente na fusão, nem consegue extrair a pista certa para casar contra trivia de pessoa. O LLM lê a consulta e decide isso de verdade: o mesmo problema que motivou trocar a heurística de tamanho por julgamento, aplicado a um passo antes da busca.
@@ -377,35 +377,56 @@ O melhor pool (50) sobe o nDCG@10 em +0,02 no teste, mas **cai** 0,823 → 0,814
 
 ---
 
-## 🔍 Reranking via LLM (lê e julga)
+## Reranking via LLM (lê e julga)
 
-> **O que faz** — manda o **top-30** da fusão pro mesmo LLM (Groq) usado no entendimento de consulta, junto com a sinopse **completa** de cada candidato (não a versão truncada de 240 caracteres do card). O modelo devolve `{"escolha": N, "confianca": alta|media|baixa}`; só promove pro topo quando a confiança é alta, e **nunca reordena o resto da lista**.
+> **O que faz** — manda o **top-20** da fusão pro Groq (modelo `qwen/qwen3.8-27b`, diferente do usado no entendimento de consulta), junto com a sinopse **completa** de cada candidato (não a versão truncada de 240 caracteres do card). O modelo devolve `{"confirmados": [{"n": N, "confianca": "alta"|"media"}, ...]}`, uma lista, não um único palpite; todos os confirmados vão pro topo, na ordem de confiança, e **o resto da lista mantém a ordem original da fusão**.
 > **Em que é diferente do cross-encoder acima** — o cross-encoder também lê consulta+texto juntos, mas devolve um **score de similaridade** (não sabe *por que* casou). O reranking por LLM **julga um fato**: lê o candidato e decide se o que a consulta descreve está mesmo ali. É a única etapa do pipeline inteiro que faz isso.
 
 ```mermaid
 flowchart LR
-    F[Top-30 da fusão] --> C["Candidatos +<br/>sinopse completa"]
-    C --> G{Groq confere<br/>o fato citado}
-    G -->|confiança alta| P[Promove pro #1]
-    G -->|baixa/nenhum bate| N[Não mexe na ordem]
+    F[Top-20 da fusão] --> C["Candidatos +<br/>sinopse completa"]
+    C --> G{Groq confirma<br/>o fato citado}
+    G -->|confirma 1+| P[Promove todos os<br/>confirmados, em ordem]
+    G -->|nenhum bate| N[Não mexe na ordem]
 ```
 
 **Por que isso ajuda onde o cross-encoder não ajudou**: o cross-encoder erra pelo mesmo motivo que os sinais de similaridade, porque também mede "quão parecido", só que consulta+texto juntos em vez de separados. Numa consulta oblíqua (split `hard`), o candidato certo pode ser menos "parecido" textualmente do que um distrator popular. Ler o conteúdo e confirmar/negar o fato é uma categoria de decisão diferente.
 
 <details>
-<summary><b>📊 Ganho medido (split <code>hard</code>, 30 consultas oblíquas, medição ad hoc contra a Groq real)</b></summary>
+<summary><b>Por que confirmar uma lista, e não pedir pra reordenar os 20 inteiros</b></summary>
 
-| Pipeline | nDCG@10 |
-|---|---|
-| Fusão (sem reranking) | 0,473 |
-| **Fusão + reranking via LLM** | **0,506** |
+A primeira versão só pedia um palpite (`{"escolha": N}`), e promovia um único candidato. Isso tem um problema real: quando a descrição é genuinamente compatível com mais de um filme (ex.: "sonho dentro do sonho" bate tanto com *A Origem* quanto com *O Discreto Charme da Burguesia*, que cita a frase "sonhos dentro de sonhos" literalmente na sinopse), só um dos dois subia; o outro ficava onde a fusão o tivesse deixado, às vezes bem longe do topo.
 
-Não é medido dentro do `eval.run`: esse harness é determinístico e sem chamada de rede de propósito (reprodutibilidade em CI, sem custo/latência de API por PR). O ganho acima veio de um script ad hoc chamando a Groq de verdade.
+A alternativa óbvia seria pedir pro LLM reordenar os 20 candidatos inteiros, já que ele lê todas as sinopses mesmo. Descartada por dois motivos: reordenar uma lista inteira é um formato de saída bem mais frágil de validar (índice fora de ordem, duplicata, item faltando) do que uma lista curta de confirmações; e pede pro modelo discriminar entre candidatos onde ele não tem base real nenhuma, quando a maioria do pool não tem relação alguma com a consulta. Confirmar uma lista curta pede o mesmo julgamento binário de antes (esse candidato bate ou não), só que repetido por candidato, em vez de reordenar tudo.
 
 </details>
 
 <details>
-<summary><b>⚠️ Achado no caminho: a Groq não é perfeitamente determinística</b></summary>
+<summary><b>Ganho medido (splits <code>hard</code>, <code>object</code> e <code>entity</code>, medição ad hoc contra a Groq real)</b></summary>
+
+| Split | nDCG@10 antes | nDCG@10 depois | mediana antes | mediana depois |
+|---|---|---|---|---|
+| `hard` (30, consulta oblíqua) | 0,473 | **0,654** | #3 | **#1** |
+| `object` (42, objeto/veículo específico) | 0,325 | **0,468** | #13 | **#5** |
+| `entity` (20, nome com erro de grafia) | 0,778 | **0,853** | #1 | #1 |
+
+Não é medido dentro do `eval.run`: esse harness é determinístico e sem chamada de rede de propósito (reprodutibilidade em CI, sem custo/latência de API por PR). Os números acima vieram de um script ad hoc chamando a Groq de verdade. O ganho no `object` é bem maior que na primeira versão (que quase não ajudava ali): boa parte desse split é objeto/personagem de franquia (o mesmo carro, boneco ou vilão aparece em várias continuações), exatamente o caso que confirmar uma lista resolve.
+
+</details>
+
+<details>
+<summary><b>Achado no caminho: raciocínio oculto caro, e um modelo sem raciocínio oculto que examina a lista melhor</b></summary>
+
+Testando "sonho dentro do sonho" ao vivo: com o modelo de entendimento de consulta (`openai/gpt-oss-20b`, um modelo de "raciocínio") em `reasoning_effort="low"`, o reranking pulava o exame item a item da lista de 20 a 30 candidatos e respondia pela memória do modelo ("A Origem é filme de sonho dentro de sonho") em vez de checar o texto de cada um; a *reasoning trace* mostrava literalmente "Inception? None listed", e o modelo devolvia uma lista vazia mesmo com *O Discreto Charme da Burguesia* tendo a frase "sonhos dentro de sonhos" na própria sinopse.
+
+Subir pra `reasoning_effort="medium"` resolvia: o modelo varria a lista inteira e confirmava os dois candidatos certos. Mas o raciocínio oculto de um modelo de raciocínio em "medium" é caro, algo como 9 a 10 mil tokens por chamada, contra uma cota Groq grátis de 200 mil tokens por **dia** (não por minuto) para aquele modelo específico, cota essa **compartilhada** com o entendimento de consulta, que roda em toda busca. Em ~20 chamadas de teste a cota do dia acabou.
+
+Trocar o modelo do reranking para `qwen/qwen3.8-27b` (sem raciocínio oculto) resolveu os dois problemas de uma vez: examina a lista inteira corretamente e responde o JSON direto, sem gastar token "pensando", em torno de 1800 a 4000 tokens por chamada dependendo do tamanho do pool. Por ser um modelo diferente do usado no entendimento de consulta, também tem cota diária própria, então as duas etapas de LLM não competem mais pelo mesmo orçamento.
+
+</details>
+
+<details>
+<summary><b>Achado no caminho: a Groq não é perfeitamente determinística</b></summary>
 
 Mesmo com `temperature=0`, a mesma consulta repetida 8 vezes contra o mesmo conjunto de candidatos deu **3 respostas diferentes**, efeito de lote/roteamento na infraestrutura de inferência compartilhada da Groq, não um bug local. Corrigido com **cache de aplicação** por (consulta, IDs ordenados dos candidatos) em `data/tmdb_cache/rerank_llm.json`, cacheando só resposta bem-sucedida (nunca falha de rede/timeout). O cache resolve **consistência** (a mesma busca sempre dá a mesma resposta) mas não **correção**: trava na primeira resposta real, que pode não ser a "melhor" entre respostas plausíveis.
 
@@ -494,7 +515,7 @@ flowchart TD
     NS --> BL[Blend ponderado<br/>pela intenção]
     SS --> BL
     BL --> RR[Cross-encoder<br/>off em produção]
-    RR --> LR{Groq lê top-30<br/>e confere o fato}
+    RR --> LR{Groq lê top-20<br/>e confirma o fato}
     LR --> FT[Filtros<br/>ano/gênero/idioma/pessoa]
     FT --> EX[Explicação por filme]
     EX --> OUT([Resultados])

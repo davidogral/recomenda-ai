@@ -98,24 +98,24 @@ def _understand_and_rewrite(query: str) -> tuple[str, list, Optional[float], Opt
     return out, (plan.pistas_pessoa if plan.tipo == "pessoa" else []), plot_lexical_weight, entity_weight
 
 
-# Reranking via LLM (ver core.query_llm.rerank_pick): lê a sinopse do topo da
-# fusão e PROMOVE pro #1 só quando acha, com confiança, um candidato que bate
-# de verdade — nunca reordena o resto. Medido 2026-09-08 nos 5 splits formais
-# (script de ablação, sinopse da TMDB só). Pool=20: test nDCG@10 0.829→0.844
-# (+0.015), hard sem mudança. Pool=30 (padrão, ver RERANK_POOL): test volta
-# a 0.829 (perde o ganho de 20 — mais candidato pode confundir a escolha),
-# mas hard 0.473→0.506 (+0.033, ganho novo — exatamente o split de consulta
-# oblíqua que mais importa); dev -0.004 (ruído), entity/object idênticos.
-# No split object a LLM só arriscou palpite em 1 de 42 consultas (a sinopse
-# da TMDB não tem o fato específico na maioria; ela recusa em vez de
-# inventar) e acertou. Sem regressão medida em nenhum split.
+# Reranking via LLM (ver core.query_llm.rerank_confirm): lê a sinopse do topo
+# da fusão e PROMOVE os candidatos que confirma com confiança, pode ser mais
+# de um, na ordem de confiança devolvida; o resto mantém a ordem original da
+# fusão entre si. Versão original (2026-09-08, 1 palpite só, gpt-oss-20b,
+# pool=30): hard 0.473->0.506, sem mudança relevante nos outros 4 splits.
+# 2026-09-09: trocado pra "lista de confirmados" (motivo e achados em
+# core/query_llm.py junto do prompt), modelo de reranking trocado pra
+# qwen/qwen3.8-27b (sem raciocínio oculto, cota diária própria) e pool
+# reduzido pra 20 (RERANK_POOL). Remedido nos 3 splits mais sensíveis a
+# ambiguidade: hard 0.473->0.654, object 0.325->0.468, entity 0.778->0.853.
 RERANK_LLM_ENABLED = os.environ.get("RECOMENDAI_RERANK_LLM", "1").strip().lower() not in ("0", "false", "no")
 
 
 def _llm_rerank(query: str, results: list[dict]) -> list[dict]:
-    """Promove o candidato que a LLM confirma com confiança — nunca troca a
-    ordem do resto. Pior caso (sem chave, falha, sem candidato confiante):
-    devolve `results` inalterado, a fusão já ordenou razoável.
+    """Promove os candidatos que a LLM confirma com confiança (pode ser mais
+    de um) na ordem de confiança devolvida — o resto mantém a ordem original
+    da fusão entre si. Pior caso (sem chave, falha, nada confirmado): devolve
+    `results` inalterado, a fusão já ordenou razoável.
 
     Usa a sinopse INTEIRA do catálogo, não a `overview` de `results` (essa já
     vem cortada em 240 chars pra exibição — cortar antes de mandar pra LLM
@@ -131,17 +131,15 @@ def _llm_rerank(query: str, results: list[dict]) -> list[dict]:
         for r in results
     ]
     with metrics.stage_timer("rerank_llm"):
-        pick_id = query_llm.rerank_pick(query, candidates)
-    if pick_id is None:
+        picks = query_llm.rerank_confirm(query, candidates)
+    if not picks:
         return results
-    for i, r in enumerate(results):
-        if r.get("tmdb_id") == pick_id:
-            if i == 0:
-                return results
-            results = list(results)
-            results.insert(0, results.pop(i))
-            return results
-    return results
+    by_id = {r.get("tmdb_id"): r for r in results}
+    promoted = [by_id[tid] for tid in picks if tid in by_id]
+    if not promoted:
+        return results
+    promoted_ids = {r.get("tmdb_id") for r in promoted}
+    return promoted + [r for r in results if r.get("tmdb_id") not in promoted_ids]
 
 
 # --------------------------------------------------------------- operações
