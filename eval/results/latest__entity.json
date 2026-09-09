@@ -1,0 +1,1022 @@
+{
+  "run": {
+    "timestamp_utc": "2026-09-09T13:39:17Z",
+    "git_commit": "6e1665c",
+    "split": "entity",
+    "n_queries": 20,
+    "dataset_file": "eval/datasets/queries.jsonl",
+    "dataset_sha1": "cf6aaec67c77afd44b79e9fc7761db3bd59ce8af",
+    "split_counts": {
+      "total": 234,
+      "by_split": {
+        "dev": 95,
+        "test": 47,
+        "hard": 30,
+        "entity": 20,
+        "object": 42
+      },
+      "by_source": {
+        "v1-core": {
+          "dev": 11,
+          "test": 1
+        },
+        "v1-ext": {
+          "test": 16,
+          "dev": 24
+        },
+        "v2": {
+          "dev": 60,
+          "test": 30
+        },
+        "v3-hard": {
+          "hard": 30
+        },
+        "v3-entity": {
+          "entity": 20
+        },
+        "v3-object": {
+          "object": 42
+        }
+      }
+    },
+    "engine": {
+      "n_movies": 22029,
+      "embed_model": "intfloat/multilingual-e5-large",
+      "embed_dim": 1024,
+      "lexical": "bm25"
+    },
+    "config": {
+      "embed_weight": 0.6,
+      "keyword_weight": 0.5,
+      "lexical_weight": "adaptativo (0.20–0.30)",
+      "pop_prior": 0.35,
+      "rerank_pool": 50,
+      "rerank_blend": 0.5,
+      "intent_thresholds": [
+        0.92,
+        0.85
+      ],
+      "tmdb_name_fallback": false,
+      "query_slm": false
+    },
+    "pipelines": [
+      "bm25",
+      "embedding",
+      "thematic",
+      "fusion",
+      "fusion_prf"
+    ]
+  },
+  "results": {
+    "bm25": {
+      "metrics": {
+        "n": 20,
+        "found": 20,
+        "mrr": 0.4223,
+        "median_rank": 5,
+        "mean_rank": 3129.7,
+        "recall@1": 0.35,
+        "recall@3": 0.45,
+        "recall@5": 0.5,
+        "recall@10": 0.55,
+        "recall@20": 0.55,
+        "recall@50": 0.6,
+        "precision@1": 0.35,
+        "precision@5": 0.1,
+        "precision@10": 0.055,
+        "ndcg@10": 0.4513,
+        "hits@1": 7,
+        "hits@3": 9,
+        "hits@10": 11
+      },
+      "latency_ms": {
+        "mean_ms": 4.9,
+        "p50_ms": 3.9,
+        "p90_ms": 5.5,
+        "max_ms": 18.8
+      },
+      "per_query": [
+        {
+          "qid": "v3-entity-000",
+          "source": "v3-entity",
+          "title": "Velozes e Furiosos",
+          "relevant_id": 9799,
+          "rank": 10299,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-entity-001",
+          "source": "v3-entity",
+          "title": "+ Velozes + Furiosos",
+          "relevant_id": 584,
+          "rank": 7025,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-entity-002",
+          "source": "v3-entity",
+          "title": "Velozes e Furiosos 4",
+          "relevant_id": 13804,
+          "rank": 24,
+          "rr": 0.0417
+        },
+        {
+          "qid": "v3-entity-003",
+          "source": "v3-entity",
+          "title": "Velozes & Furiosos 5: Operação Rio",
+          "relevant_id": 51497,
+          "rank": 90,
+          "rr": 0.0111
+        },
+        {
+          "qid": "v3-entity-004",
+          "source": "v3-entity",
+          "title": "Velozes & Furiosos 7",
+          "relevant_id": 168259,
+          "rank": 16537,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-entity-005",
+          "source": "v3-entity",
+          "title": "John Wick - De Volta ao Jogo",
+          "relevant_id": 245891,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-006",
+          "source": "v3-entity",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-entity-007",
+          "source": "v3-entity",
+          "title": "Onde os Fracos Não Têm Vez",
+          "relevant_id": 6977,
+          "rank": 6666,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-entity-008",
+          "source": "v3-entity",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-009",
+          "source": "v3-entity",
+          "title": "Taxi Driver: Motorista de Táxi",
+          "relevant_id": 103,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v3-entity-010",
+          "source": "v3-entity",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-011",
+          "source": "v3-entity",
+          "title": "Psicopata Americano",
+          "relevant_id": 1359,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v3-entity-012",
+          "source": "v3-entity",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-013",
+          "source": "v3-entity",
+          "title": "Um Sonho de Liberdade",
+          "relevant_id": 278,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-014",
+          "source": "v3-entity",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-015",
+          "source": "v3-entity",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-entity-016",
+          "source": "v3-entity",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 7150,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-entity-017",
+          "source": "v3-entity",
+          "title": "Rambo: Programado Para Matar",
+          "relevant_id": 1368,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-018",
+          "source": "v3-entity",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 7450,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-entity-019",
+          "source": "v3-entity",
+          "title": "O Exterminador do Futuro",
+          "relevant_id": 218,
+          "rank": 7330,
+          "rr": 0.0001
+        }
+      ]
+    },
+    "embedding": {
+      "metrics": {
+        "n": 20,
+        "found": 20,
+        "mrr": 0.3671,
+        "median_rank": 113,
+        "mean_rank": 1929.8,
+        "recall@1": 0.35,
+        "recall@3": 0.35,
+        "recall@5": 0.4,
+        "recall@10": 0.4,
+        "recall@20": 0.45,
+        "recall@50": 0.5,
+        "precision@1": 0.35,
+        "precision@5": 0.08,
+        "precision@10": 0.04,
+        "ndcg@10": 0.3715,
+        "hits@1": 7,
+        "hits@3": 7,
+        "hits@10": 8
+      },
+      "latency_ms": {
+        "mean_ms": 9.6,
+        "p50_ms": 8.1,
+        "p90_ms": 11.1,
+        "max_ms": 33.8
+      },
+      "per_query": [
+        {
+          "qid": "v3-entity-000",
+          "source": "v3-entity",
+          "title": "Velozes e Furiosos",
+          "relevant_id": 9799,
+          "rank": 1148,
+          "rr": 0.0009
+        },
+        {
+          "qid": "v3-entity-001",
+          "source": "v3-entity",
+          "title": "+ Velozes + Furiosos",
+          "relevant_id": 584,
+          "rank": 3344,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v3-entity-002",
+          "source": "v3-entity",
+          "title": "Velozes e Furiosos 4",
+          "relevant_id": 13804,
+          "rank": 397,
+          "rr": 0.0025
+        },
+        {
+          "qid": "v3-entity-003",
+          "source": "v3-entity",
+          "title": "Velozes & Furiosos 5: Operação Rio",
+          "relevant_id": 51497,
+          "rank": 3870,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v3-entity-004",
+          "source": "v3-entity",
+          "title": "Velozes & Furiosos 7",
+          "relevant_id": 168259,
+          "rank": 8139,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-entity-005",
+          "source": "v3-entity",
+          "title": "John Wick - De Volta ao Jogo",
+          "relevant_id": 245891,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-006",
+          "source": "v3-entity",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-007",
+          "source": "v3-entity",
+          "title": "Onde os Fracos Não Têm Vez",
+          "relevant_id": 6977,
+          "rank": 3078,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v3-entity-008",
+          "source": "v3-entity",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 18,
+          "rr": 0.0556
+        },
+        {
+          "qid": "v3-entity-009",
+          "source": "v3-entity",
+          "title": "Taxi Driver: Motorista de Táxi",
+          "relevant_id": 103,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-010",
+          "source": "v3-entity",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-011",
+          "source": "v3-entity",
+          "title": "Psicopata Americano",
+          "relevant_id": 1359,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-012",
+          "source": "v3-entity",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-013",
+          "source": "v3-entity",
+          "title": "Um Sonho de Liberdade",
+          "relevant_id": 278,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-014",
+          "source": "v3-entity",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 38,
+          "rr": 0.0263
+        },
+        {
+          "qid": "v3-entity-015",
+          "source": "v3-entity",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v3-entity-016",
+          "source": "v3-entity",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 188,
+          "rr": 0.0053
+        },
+        {
+          "qid": "v3-entity-017",
+          "source": "v3-entity",
+          "title": "Rambo: Programado Para Matar",
+          "relevant_id": 1368,
+          "rank": 4326,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-entity-018",
+          "source": "v3-entity",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 5622,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-entity-019",
+          "source": "v3-entity",
+          "title": "O Exterminador do Futuro",
+          "relevant_id": 218,
+          "rank": 8418,
+          "rr": 0.0001
+        }
+      ]
+    },
+    "thematic": {
+      "metrics": {
+        "n": 20,
+        "found": 20,
+        "mrr": 0.5081,
+        "median_rank": 3,
+        "mean_rank": 1764.3,
+        "recall@1": 0.45,
+        "recall@3": 0.55,
+        "recall@5": 0.6,
+        "recall@10": 0.65,
+        "recall@20": 0.7,
+        "recall@50": 0.75,
+        "precision@1": 0.45,
+        "precision@5": 0.12,
+        "precision@10": 0.065,
+        "ndcg@10": 0.5373,
+        "hits@1": 9,
+        "hits@3": 11,
+        "hits@10": 13
+      },
+      "latency_ms": {
+        "mean_ms": 7.7,
+        "p50_ms": 6.3,
+        "p90_ms": 8.1,
+        "max_ms": 27.7
+      },
+      "per_query": [
+        {
+          "qid": "v3-entity-000",
+          "source": "v3-entity",
+          "title": "Velozes e Furiosos",
+          "relevant_id": 9799,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-entity-001",
+          "source": "v3-entity",
+          "title": "+ Velozes + Furiosos",
+          "relevant_id": 584,
+          "rank": 15473,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-entity-002",
+          "source": "v3-entity",
+          "title": "Velozes e Furiosos 4",
+          "relevant_id": 13804,
+          "rank": 2683,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v3-entity-003",
+          "source": "v3-entity",
+          "title": "Velozes & Furiosos 5: Operação Rio",
+          "relevant_id": 51497,
+          "rank": 760,
+          "rr": 0.0013
+        },
+        {
+          "qid": "v3-entity-004",
+          "source": "v3-entity",
+          "title": "Velozes & Furiosos 7",
+          "relevant_id": 168259,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-005",
+          "source": "v3-entity",
+          "title": "John Wick - De Volta ao Jogo",
+          "relevant_id": 245891,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-006",
+          "source": "v3-entity",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-007",
+          "source": "v3-entity",
+          "title": "Onde os Fracos Não Têm Vez",
+          "relevant_id": 6977,
+          "rank": 15,
+          "rr": 0.0667
+        },
+        {
+          "qid": "v3-entity-008",
+          "source": "v3-entity",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v3-entity-009",
+          "source": "v3-entity",
+          "title": "Taxi Driver: Motorista de Táxi",
+          "relevant_id": 103,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-010",
+          "source": "v3-entity",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 116,
+          "rr": 0.0086
+        },
+        {
+          "qid": "v3-entity-011",
+          "source": "v3-entity",
+          "title": "Psicopata Americano",
+          "relevant_id": 1359,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-012",
+          "source": "v3-entity",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-013",
+          "source": "v3-entity",
+          "title": "Um Sonho de Liberdade",
+          "relevant_id": 278,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-014",
+          "source": "v3-entity",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-015",
+          "source": "v3-entity",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-entity-016",
+          "source": "v3-entity",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-017",
+          "source": "v3-entity",
+          "title": "Rambo: Programado Para Matar",
+          "relevant_id": 1368,
+          "rank": 16190,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-entity-018",
+          "source": "v3-entity",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v3-entity-019",
+          "source": "v3-entity",
+          "title": "O Exterminador do Futuro",
+          "relevant_id": 218,
+          "rank": 23,
+          "rr": 0.0435
+        }
+      ]
+    },
+    "fusion": {
+      "metrics": {
+        "n": 20,
+        "found": 20,
+        "mrr": 0.7058,
+        "median_rank": 1,
+        "mean_rank": 2.0,
+        "recall@1": 0.55,
+        "recall@3": 0.85,
+        "recall@5": 0.95,
+        "recall@10": 1.0,
+        "recall@20": 1.0,
+        "recall@50": 1.0,
+        "precision@1": 0.55,
+        "precision@5": 0.19,
+        "precision@10": 0.1,
+        "ndcg@10": 0.7783,
+        "hits@1": 11,
+        "hits@3": 17,
+        "hits@10": 20
+      },
+      "latency_ms": {
+        "mean_ms": 90.4,
+        "p50_ms": 26.2,
+        "p90_ms": 32.1,
+        "max_ms": 1304.2
+      },
+      "per_query": [
+        {
+          "qid": "v3-entity-000",
+          "source": "v3-entity",
+          "title": "Velozes e Furiosos",
+          "relevant_id": 9799,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v3-entity-001",
+          "source": "v3-entity",
+          "title": "+ Velozes + Furiosos",
+          "relevant_id": 584,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-entity-002",
+          "source": "v3-entity",
+          "title": "Velozes e Furiosos 4",
+          "relevant_id": 13804,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-entity-003",
+          "source": "v3-entity",
+          "title": "Velozes & Furiosos 5: Operação Rio",
+          "relevant_id": 51497,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-004",
+          "source": "v3-entity",
+          "title": "Velozes & Furiosos 7",
+          "relevant_id": 168259,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-entity-005",
+          "source": "v3-entity",
+          "title": "John Wick - De Volta ao Jogo",
+          "relevant_id": 245891,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-006",
+          "source": "v3-entity",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-007",
+          "source": "v3-entity",
+          "title": "Onde os Fracos Não Têm Vez",
+          "relevant_id": 6977,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-008",
+          "source": "v3-entity",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-entity-009",
+          "source": "v3-entity",
+          "title": "Taxi Driver: Motorista de Táxi",
+          "relevant_id": 103,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-010",
+          "source": "v3-entity",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-011",
+          "source": "v3-entity",
+          "title": "Psicopata Americano",
+          "relevant_id": 1359,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-012",
+          "source": "v3-entity",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-013",
+          "source": "v3-entity",
+          "title": "Um Sonho de Liberdade",
+          "relevant_id": 278,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-014",
+          "source": "v3-entity",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-015",
+          "source": "v3-entity",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-entity-016",
+          "source": "v3-entity",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-017",
+          "source": "v3-entity",
+          "title": "Rambo: Programado Para Matar",
+          "relevant_id": 1368,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-entity-018",
+          "source": "v3-entity",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v3-entity-019",
+          "source": "v3-entity",
+          "title": "O Exterminador do Futuro",
+          "relevant_id": 218,
+          "rank": 5,
+          "rr": 0.2
+        }
+      ]
+    },
+    "fusion_prf": {
+      "metrics": {
+        "n": 20,
+        "found": 20,
+        "mrr": 0.4772,
+        "median_rank": 2,
+        "mean_rank": 198.8,
+        "recall@1": 0.35,
+        "recall@3": 0.55,
+        "recall@5": 0.65,
+        "recall@10": 0.65,
+        "recall@20": 0.8,
+        "recall@50": 0.85,
+        "precision@1": 0.35,
+        "precision@5": 0.13,
+        "precision@10": 0.065,
+        "ndcg@10": 0.5105,
+        "hits@1": 7,
+        "hits@3": 11,
+        "hits@10": 13
+      },
+      "latency_ms": {
+        "mean_ms": 75.9,
+        "p50_ms": 71.5,
+        "p90_ms": 127.7,
+        "max_ms": 150.2
+      },
+      "per_query": [
+        {
+          "qid": "v3-entity-000",
+          "source": "v3-entity",
+          "title": "Velozes e Furiosos",
+          "relevant_id": 9799,
+          "rank": 15,
+          "rr": 0.0667
+        },
+        {
+          "qid": "v3-entity-001",
+          "source": "v3-entity",
+          "title": "+ Velozes + Furiosos",
+          "relevant_id": 584,
+          "rank": 3728,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v3-entity-002",
+          "source": "v3-entity",
+          "title": "Velozes e Furiosos 4",
+          "relevant_id": 13804,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v3-entity-003",
+          "source": "v3-entity",
+          "title": "Velozes & Furiosos 5: Operação Rio",
+          "relevant_id": 51497,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-entity-004",
+          "source": "v3-entity",
+          "title": "Velozes & Furiosos 7",
+          "relevant_id": 168259,
+          "rank": 24,
+          "rr": 0.0417
+        },
+        {
+          "qid": "v3-entity-005",
+          "source": "v3-entity",
+          "title": "John Wick - De Volta ao Jogo",
+          "relevant_id": 245891,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-006",
+          "source": "v3-entity",
+          "title": "O Poderoso Chefão",
+          "relevant_id": 238,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-007",
+          "source": "v3-entity",
+          "title": "Onde os Fracos Não Têm Vez",
+          "relevant_id": 6977,
+          "rank": 63,
+          "rr": 0.0159
+        },
+        {
+          "qid": "v3-entity-008",
+          "source": "v3-entity",
+          "title": "Blade Runner: O Caçador de Andróides",
+          "relevant_id": 78,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-entity-009",
+          "source": "v3-entity",
+          "title": "Taxi Driver: Motorista de Táxi",
+          "relevant_id": 103,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-010",
+          "source": "v3-entity",
+          "title": "Clube da Luta",
+          "relevant_id": 550,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-entity-011",
+          "source": "v3-entity",
+          "title": "Psicopata Americano",
+          "relevant_id": 1359,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-012",
+          "source": "v3-entity",
+          "title": "O Silêncio dos Inocentes",
+          "relevant_id": 274,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-013",
+          "source": "v3-entity",
+          "title": "Um Sonho de Liberdade",
+          "relevant_id": 278,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-014",
+          "source": "v3-entity",
+          "title": "Gladiador",
+          "relevant_id": 98,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-entity-015",
+          "source": "v3-entity",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-entity-016",
+          "source": "v3-entity",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 14,
+          "rr": 0.0714
+        },
+        {
+          "qid": "v3-entity-017",
+          "source": "v3-entity",
+          "title": "Rambo: Programado Para Matar",
+          "relevant_id": 1368,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v3-entity-018",
+          "source": "v3-entity",
+          "title": "Alien: O Oitavo Passageiro",
+          "relevant_id": 348,
+          "rank": 19,
+          "rr": 0.0526
+        },
+        {
+          "qid": "v3-entity-019",
+          "source": "v3-entity",
+          "title": "O Exterminador do Futuro",
+          "relevant_id": 218,
+          "rank": 89,
+          "rr": 0.0112
+        }
+      ]
+    }
+  }
+}

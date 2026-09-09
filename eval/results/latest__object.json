@@ -1,0 +1,1902 @@
+{
+  "run": {
+    "timestamp_utc": "2026-09-09T13:39:36Z",
+    "git_commit": "6e1665c",
+    "split": "object",
+    "n_queries": 42,
+    "dataset_file": "eval/datasets/queries.jsonl",
+    "dataset_sha1": "cf6aaec67c77afd44b79e9fc7761db3bd59ce8af",
+    "split_counts": {
+      "total": 234,
+      "by_split": {
+        "dev": 95,
+        "test": 47,
+        "hard": 30,
+        "entity": 20,
+        "object": 42
+      },
+      "by_source": {
+        "v1-core": {
+          "dev": 11,
+          "test": 1
+        },
+        "v1-ext": {
+          "test": 16,
+          "dev": 24
+        },
+        "v2": {
+          "dev": 60,
+          "test": 30
+        },
+        "v3-hard": {
+          "hard": 30
+        },
+        "v3-entity": {
+          "entity": 20
+        },
+        "v3-object": {
+          "object": 42
+        }
+      }
+    },
+    "engine": {
+      "n_movies": 22029,
+      "embed_model": "intfloat/multilingual-e5-large",
+      "embed_dim": 1024,
+      "lexical": "bm25"
+    },
+    "config": {
+      "embed_weight": 0.6,
+      "keyword_weight": 0.5,
+      "lexical_weight": "adaptativo (0.20–0.30)",
+      "pop_prior": 0.35,
+      "rerank_pool": 50,
+      "rerank_blend": 0.5,
+      "intent_thresholds": [
+        0.92,
+        0.85
+      ],
+      "tmdb_name_fallback": false,
+      "query_slm": false
+    },
+    "pipelines": [
+      "bm25",
+      "embedding",
+      "thematic",
+      "fusion",
+      "fusion_prf"
+    ]
+  },
+  "results": {
+    "bm25": {
+      "metrics": {
+        "n": 42,
+        "found": 42,
+        "mrr": 0.1141,
+        "median_rank": 5761,
+        "mean_rank": 4857.4,
+        "recall@1": 0.0714,
+        "recall@3": 0.119,
+        "recall@5": 0.1429,
+        "recall@10": 0.2143,
+        "recall@20": 0.2381,
+        "recall@50": 0.3333,
+        "precision@1": 0.0714,
+        "precision@5": 0.0286,
+        "precision@10": 0.0214,
+        "ndcg@10": 0.1319,
+        "hits@1": 3,
+        "hits@3": 5,
+        "hits@10": 9
+      },
+      "latency_ms": {
+        "mean_ms": 6.4,
+        "p50_ms": 5.8,
+        "p90_ms": 9.4,
+        "max_ms": 15.6
+      },
+      "per_query": [
+        {
+          "qid": "v3-object-000",
+          "source": "v3-object",
+          "title": "+ Velozes + Furiosos",
+          "relevant_id": 584,
+          "rank": 7048,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-001",
+          "source": "v3-object",
+          "title": "Velozes e Furiosos",
+          "relevant_id": 9799,
+          "rank": 10319,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-002",
+          "source": "v3-object",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 22,
+          "rr": 0.0455
+        },
+        {
+          "qid": "v3-object-003",
+          "source": "v3-object",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 813,
+          "rr": 0.0012
+        },
+        {
+          "qid": "v3-object-004",
+          "source": "v3-object",
+          "title": "O Grande Gatsby",
+          "relevant_id": 64682,
+          "rank": 18087,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-005",
+          "source": "v3-object",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 23,
+          "rr": 0.0435
+        },
+        {
+          "qid": "v3-object-006",
+          "source": "v3-object",
+          "title": "Tubarão",
+          "relevant_id": 578,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v3-object-007",
+          "source": "v3-object",
+          "title": "Brinquedo Assassino",
+          "relevant_id": 10585,
+          "rank": 14,
+          "rr": 0.0714
+        },
+        {
+          "qid": "v3-object-008",
+          "source": "v3-object",
+          "title": "Janela Indiscreta",
+          "relevant_id": 567,
+          "rank": 90,
+          "rr": 0.0111
+        },
+        {
+          "qid": "v3-object-009",
+          "source": "v3-object",
+          "title": "E.T.: O Extraterrestre",
+          "relevant_id": 601,
+          "rank": 7133,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-010",
+          "source": "v3-object",
+          "title": "Cinderela",
+          "relevant_id": 11224,
+          "rank": 10425,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-011",
+          "source": "v3-object",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 7034,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-012",
+          "source": "v3-object",
+          "title": "Fome de Poder",
+          "relevant_id": 310307,
+          "rank": 21711,
+          "rr": 0.0
+        },
+        {
+          "qid": "v3-object-013",
+          "source": "v3-object",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 7419,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-014",
+          "source": "v3-object",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 7182,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-015",
+          "source": "v3-object",
+          "title": "Pulp Fiction: Tempo de Violência",
+          "relevant_id": 680,
+          "rank": 7077,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-016",
+          "source": "v3-object",
+          "title": "Aladdin",
+          "relevant_id": 812,
+          "rank": 7209,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-017",
+          "source": "v3-object",
+          "title": "007 Contra Goldfinger",
+          "relevant_id": 658,
+          "rank": 7105,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-018",
+          "source": "v3-object",
+          "title": "Guerra nas Estrelas",
+          "relevant_id": 11,
+          "rank": 4552,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-019",
+          "source": "v3-object",
+          "title": "O Mágico de Oz",
+          "relevant_id": 630,
+          "rank": 7610,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-020",
+          "source": "v3-object",
+          "title": "Náufrago",
+          "relevant_id": 8358,
+          "rank": 7004,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-021",
+          "source": "v3-object",
+          "title": "Curtindo a Vida Adoidado",
+          "relevant_id": 9377,
+          "rank": 56,
+          "rr": 0.0179
+        },
+        {
+          "qid": "v3-object-022",
+          "source": "v3-object",
+          "title": "As Crônicas de Nárnia: O Leão, a Feiticeira e o Guarda-Roupa",
+          "relevant_id": 411,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-object-023",
+          "source": "v3-object",
+          "title": "Piratas do Caribe: A Maldição do Pérola Negra",
+          "relevant_id": 22,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v3-object-024",
+          "source": "v3-object",
+          "title": "Indiana Jones e os Caçadores da Arca Perdida",
+          "relevant_id": 85,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-025",
+          "source": "v3-object",
+          "title": "Transformers",
+          "relevant_id": 1858,
+          "rank": 7843,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-026",
+          "source": "v3-object",
+          "title": "Capitão América: O Primeiro Vingador",
+          "relevant_id": 1771,
+          "rank": 8434,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-027",
+          "source": "v3-object",
+          "title": "Vingadores: Guerra Infinita",
+          "relevant_id": 299536,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-028",
+          "source": "v3-object",
+          "title": "Gran Torino",
+          "relevant_id": 13223,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-029",
+          "source": "v3-object",
+          "title": "De Volta para o Futuro II",
+          "relevant_id": 165,
+          "rank": 7261,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-030",
+          "source": "v3-object",
+          "title": "Harry Potter e a Câmara Secreta",
+          "relevant_id": 672,
+          "rank": 6971,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-031",
+          "source": "v3-object",
+          "title": "Velocidade Máxima",
+          "relevant_id": 1637,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v3-object-032",
+          "source": "v3-object",
+          "title": "Guardiões da Galáxia",
+          "relevant_id": 118340,
+          "rank": 17273,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-033",
+          "source": "v3-object",
+          "title": "Tron: O Legado",
+          "relevant_id": 20526,
+          "rank": 53,
+          "rr": 0.0189
+        },
+        {
+          "qid": "v3-object-034",
+          "source": "v3-object",
+          "title": "Os Vingadores: The Avengers",
+          "relevant_id": 24428,
+          "rank": 77,
+          "rr": 0.013
+        },
+        {
+          "qid": "v3-object-035",
+          "source": "v3-object",
+          "title": "A Ressaca",
+          "relevant_id": 23048,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-036",
+          "source": "v3-object",
+          "title": "Alice no País das Maravilhas",
+          "relevant_id": 12092,
+          "rank": 31,
+          "rr": 0.0323
+        },
+        {
+          "qid": "v3-object-037",
+          "source": "v3-object",
+          "title": "O Violino Vermelho",
+          "relevant_id": 14283,
+          "rank": 9826,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-038",
+          "source": "v3-object",
+          "title": "Uma História Real",
+          "relevant_id": 404,
+          "rank": 81,
+          "rr": 0.0123
+        },
+        {
+          "qid": "v3-object-039",
+          "source": "v3-object",
+          "title": "Gremlins",
+          "relevant_id": 927,
+          "rank": 8169,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-040",
+          "source": "v3-object",
+          "title": "Eles Vivem",
+          "relevant_id": 8337,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v3-object-041",
+          "source": "v3-object",
+          "title": "O Caçador de Pipas",
+          "relevant_id": 7979,
+          "rank": 26,
+          "rr": 0.0385
+        }
+      ]
+    },
+    "embedding": {
+      "metrics": {
+        "n": 42,
+        "found": 42,
+        "mrr": 0.0845,
+        "median_rank": 1954,
+        "mean_rank": 6027.6,
+        "recall@1": 0.0476,
+        "recall@3": 0.0952,
+        "recall@5": 0.119,
+        "recall@10": 0.1905,
+        "recall@20": 0.2143,
+        "recall@50": 0.2143,
+        "precision@1": 0.0476,
+        "precision@5": 0.0238,
+        "precision@10": 0.019,
+        "ndcg@10": 0.1077,
+        "hits@1": 2,
+        "hits@3": 4,
+        "hits@10": 8
+      },
+      "latency_ms": {
+        "mean_ms": 9.4,
+        "p50_ms": 8.1,
+        "p90_ms": 12.0,
+        "max_ms": 35.2
+      },
+      "per_query": [
+        {
+          "qid": "v3-object-000",
+          "source": "v3-object",
+          "title": "+ Velozes + Furiosos",
+          "relevant_id": 584,
+          "rank": 294,
+          "rr": 0.0034
+        },
+        {
+          "qid": "v3-object-001",
+          "source": "v3-object",
+          "title": "Velozes e Furiosos",
+          "relevant_id": 9799,
+          "rank": 864,
+          "rr": 0.0012
+        },
+        {
+          "qid": "v3-object-002",
+          "source": "v3-object",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v3-object-003",
+          "source": "v3-object",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 21891,
+          "rr": 0.0
+        },
+        {
+          "qid": "v3-object-004",
+          "source": "v3-object",
+          "title": "O Grande Gatsby",
+          "relevant_id": 64682,
+          "rank": 19395,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-005",
+          "source": "v3-object",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 974,
+          "rr": 0.001
+        },
+        {
+          "qid": "v3-object-006",
+          "source": "v3-object",
+          "title": "Tubarão",
+          "relevant_id": 578,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-007",
+          "source": "v3-object",
+          "title": "Brinquedo Assassino",
+          "relevant_id": 10585,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-object-008",
+          "source": "v3-object",
+          "title": "Janela Indiscreta",
+          "relevant_id": 567,
+          "rank": 1763,
+          "rr": 0.0006
+        },
+        {
+          "qid": "v3-object-009",
+          "source": "v3-object",
+          "title": "E.T.: O Extraterrestre",
+          "relevant_id": 601,
+          "rank": 6397,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-010",
+          "source": "v3-object",
+          "title": "Cinderela",
+          "relevant_id": 11224,
+          "rank": 16536,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-011",
+          "source": "v3-object",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 4013,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-012",
+          "source": "v3-object",
+          "title": "Fome de Poder",
+          "relevant_id": 310307,
+          "rank": 16943,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-013",
+          "source": "v3-object",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 13023,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-014",
+          "source": "v3-object",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 1896,
+          "rr": 0.0005
+        },
+        {
+          "qid": "v3-object-015",
+          "source": "v3-object",
+          "title": "Pulp Fiction: Tempo de Violência",
+          "relevant_id": 680,
+          "rank": 21400,
+          "rr": 0.0
+        },
+        {
+          "qid": "v3-object-016",
+          "source": "v3-object",
+          "title": "Aladdin",
+          "relevant_id": 812,
+          "rank": 10724,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-017",
+          "source": "v3-object",
+          "title": "007 Contra Goldfinger",
+          "relevant_id": 658,
+          "rank": 4281,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-018",
+          "source": "v3-object",
+          "title": "Guerra nas Estrelas",
+          "relevant_id": 11,
+          "rank": 4559,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-019",
+          "source": "v3-object",
+          "title": "O Mágico de Oz",
+          "relevant_id": 630,
+          "rank": 16267,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-020",
+          "source": "v3-object",
+          "title": "Náufrago",
+          "relevant_id": 8358,
+          "rank": 19783,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-021",
+          "source": "v3-object",
+          "title": "Curtindo a Vida Adoidado",
+          "relevant_id": 9377,
+          "rank": 2643,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v3-object-022",
+          "source": "v3-object",
+          "title": "As Crônicas de Nárnia: O Leão, a Feiticeira e o Guarda-Roupa",
+          "relevant_id": 411,
+          "rank": 6017,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-023",
+          "source": "v3-object",
+          "title": "Piratas do Caribe: A Maldição do Pérola Negra",
+          "relevant_id": 22,
+          "rank": 135,
+          "rr": 0.0074
+        },
+        {
+          "qid": "v3-object-024",
+          "source": "v3-object",
+          "title": "Indiana Jones e os Caçadores da Arca Perdida",
+          "relevant_id": 85,
+          "rank": 6441,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-025",
+          "source": "v3-object",
+          "title": "Transformers",
+          "relevant_id": 1858,
+          "rank": 18,
+          "rr": 0.0556
+        },
+        {
+          "qid": "v3-object-026",
+          "source": "v3-object",
+          "title": "Capitão América: O Primeiro Vingador",
+          "relevant_id": 1771,
+          "rank": 1514,
+          "rr": 0.0007
+        },
+        {
+          "qid": "v3-object-027",
+          "source": "v3-object",
+          "title": "Vingadores: Guerra Infinita",
+          "relevant_id": 299536,
+          "rank": 715,
+          "rr": 0.0014
+        },
+        {
+          "qid": "v3-object-028",
+          "source": "v3-object",
+          "title": "Gran Torino",
+          "relevant_id": 13223,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v3-object-029",
+          "source": "v3-object",
+          "title": "De Volta para o Futuro II",
+          "relevant_id": 165,
+          "rank": 17046,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-030",
+          "source": "v3-object",
+          "title": "Harry Potter e a Câmara Secreta",
+          "relevant_id": 672,
+          "rank": 4509,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-031",
+          "source": "v3-object",
+          "title": "Velocidade Máxima",
+          "relevant_id": 1637,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-032",
+          "source": "v3-object",
+          "title": "Guardiões da Galáxia",
+          "relevant_id": 118340,
+          "rank": 20558,
+          "rr": 0.0
+        },
+        {
+          "qid": "v3-object-033",
+          "source": "v3-object",
+          "title": "Tron: O Legado",
+          "relevant_id": 20526,
+          "rank": 531,
+          "rr": 0.0019
+        },
+        {
+          "qid": "v3-object-034",
+          "source": "v3-object",
+          "title": "Os Vingadores: The Avengers",
+          "relevant_id": 24428,
+          "rank": 2012,
+          "rr": 0.0005
+        },
+        {
+          "qid": "v3-object-035",
+          "source": "v3-object",
+          "title": "A Ressaca",
+          "relevant_id": 23048,
+          "rank": 1155,
+          "rr": 0.0009
+        },
+        {
+          "qid": "v3-object-036",
+          "source": "v3-object",
+          "title": "Alice no País das Maravilhas",
+          "relevant_id": 12092,
+          "rank": 7388,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-037",
+          "source": "v3-object",
+          "title": "O Violino Vermelho",
+          "relevant_id": 14283,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-038",
+          "source": "v3-object",
+          "title": "Uma História Real",
+          "relevant_id": 404,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v3-object-039",
+          "source": "v3-object",
+          "title": "Gremlins",
+          "relevant_id": 927,
+          "rank": 305,
+          "rr": 0.0033
+        },
+        {
+          "qid": "v3-object-040",
+          "source": "v3-object",
+          "title": "Eles Vivem",
+          "relevant_id": 8337,
+          "rank": 1135,
+          "rr": 0.0009
+        },
+        {
+          "qid": "v3-object-041",
+          "source": "v3-object",
+          "title": "O Caçador de Pipas",
+          "relevant_id": 7979,
+          "rank": 6,
+          "rr": 0.1667
+        }
+      ]
+    },
+    "thematic": {
+      "metrics": {
+        "n": 42,
+        "found": 42,
+        "mrr": 0.0775,
+        "median_rank": 1058,
+        "mean_rank": 4669.7,
+        "recall@1": 0.0476,
+        "recall@3": 0.0952,
+        "recall@5": 0.119,
+        "recall@10": 0.1429,
+        "recall@20": 0.1429,
+        "recall@50": 0.1667,
+        "precision@1": 0.0476,
+        "precision@5": 0.0238,
+        "precision@10": 0.0143,
+        "ndcg@10": 0.0913,
+        "hits@1": 2,
+        "hits@3": 4,
+        "hits@10": 6
+      },
+      "latency_ms": {
+        "mean_ms": 11.8,
+        "p50_ms": 10.9,
+        "p90_ms": 14.7,
+        "max_ms": 33.5
+      },
+      "per_query": [
+        {
+          "qid": "v3-object-000",
+          "source": "v3-object",
+          "title": "+ Velozes + Furiosos",
+          "relevant_id": 584,
+          "rank": 11833,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-001",
+          "source": "v3-object",
+          "title": "Velozes e Furiosos",
+          "relevant_id": 9799,
+          "rank": 11340,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-002",
+          "source": "v3-object",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 129,
+          "rr": 0.0078
+        },
+        {
+          "qid": "v3-object-003",
+          "source": "v3-object",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 7970,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-004",
+          "source": "v3-object",
+          "title": "O Grande Gatsby",
+          "relevant_id": 64682,
+          "rank": 354,
+          "rr": 0.0028
+        },
+        {
+          "qid": "v3-object-005",
+          "source": "v3-object",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 958,
+          "rr": 0.001
+        },
+        {
+          "qid": "v3-object-006",
+          "source": "v3-object",
+          "title": "Tubarão",
+          "relevant_id": 578,
+          "rank": 153,
+          "rr": 0.0065
+        },
+        {
+          "qid": "v3-object-007",
+          "source": "v3-object",
+          "title": "Brinquedo Assassino",
+          "relevant_id": 10585,
+          "rank": 2268,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v3-object-008",
+          "source": "v3-object",
+          "title": "Janela Indiscreta",
+          "relevant_id": 567,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-009",
+          "source": "v3-object",
+          "title": "E.T.: O Extraterrestre",
+          "relevant_id": 601,
+          "rank": 233,
+          "rr": 0.0043
+        },
+        {
+          "qid": "v3-object-010",
+          "source": "v3-object",
+          "title": "Cinderela",
+          "relevant_id": 11224,
+          "rank": 6900,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-011",
+          "source": "v3-object",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 74,
+          "rr": 0.0135
+        },
+        {
+          "qid": "v3-object-012",
+          "source": "v3-object",
+          "title": "Fome de Poder",
+          "relevant_id": 310307,
+          "rank": 8768,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-013",
+          "source": "v3-object",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 2650,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v3-object-014",
+          "source": "v3-object",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 32,
+          "rr": 0.0312
+        },
+        {
+          "qid": "v3-object-015",
+          "source": "v3-object",
+          "title": "Pulp Fiction: Tempo de Violência",
+          "relevant_id": 680,
+          "rank": 17047,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-016",
+          "source": "v3-object",
+          "title": "Aladdin",
+          "relevant_id": 812,
+          "rank": 317,
+          "rr": 0.0032
+        },
+        {
+          "qid": "v3-object-017",
+          "source": "v3-object",
+          "title": "007 Contra Goldfinger",
+          "relevant_id": 658,
+          "rank": 262,
+          "rr": 0.0038
+        },
+        {
+          "qid": "v3-object-018",
+          "source": "v3-object",
+          "title": "Guerra nas Estrelas",
+          "relevant_id": 11,
+          "rank": 8170,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-019",
+          "source": "v3-object",
+          "title": "O Mágico de Oz",
+          "relevant_id": 630,
+          "rank": 11647,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-020",
+          "source": "v3-object",
+          "title": "Náufrago",
+          "relevant_id": 8358,
+          "rank": 11815,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-021",
+          "source": "v3-object",
+          "title": "Curtindo a Vida Adoidado",
+          "relevant_id": 9377,
+          "rank": 1120,
+          "rr": 0.0009
+        },
+        {
+          "qid": "v3-object-022",
+          "source": "v3-object",
+          "title": "As Crônicas de Nárnia: O Leão, a Feiticeira e o Guarda-Roupa",
+          "relevant_id": 411,
+          "rank": 4026,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-023",
+          "source": "v3-object",
+          "title": "Piratas do Caribe: A Maldição do Pérola Negra",
+          "relevant_id": 22,
+          "rank": 225,
+          "rr": 0.0044
+        },
+        {
+          "qid": "v3-object-024",
+          "source": "v3-object",
+          "title": "Indiana Jones e os Caçadores da Arca Perdida",
+          "relevant_id": 85,
+          "rank": 831,
+          "rr": 0.0012
+        },
+        {
+          "qid": "v3-object-025",
+          "source": "v3-object",
+          "title": "Transformers",
+          "relevant_id": 1858,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-026",
+          "source": "v3-object",
+          "title": "Capitão América: O Primeiro Vingador",
+          "relevant_id": 1771,
+          "rank": 997,
+          "rr": 0.001
+        },
+        {
+          "qid": "v3-object-027",
+          "source": "v3-object",
+          "title": "Vingadores: Guerra Infinita",
+          "relevant_id": 299536,
+          "rank": 7313,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-028",
+          "source": "v3-object",
+          "title": "Gran Torino",
+          "relevant_id": 13223,
+          "rank": 416,
+          "rr": 0.0024
+        },
+        {
+          "qid": "v3-object-029",
+          "source": "v3-object",
+          "title": "De Volta para o Futuro II",
+          "relevant_id": 165,
+          "rank": 15584,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-030",
+          "source": "v3-object",
+          "title": "Harry Potter e a Câmara Secreta",
+          "relevant_id": 672,
+          "rank": 10208,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-031",
+          "source": "v3-object",
+          "title": "Velocidade Máxima",
+          "relevant_id": 1637,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-object-032",
+          "source": "v3-object",
+          "title": "Guardiões da Galáxia",
+          "relevant_id": 118340,
+          "rank": 12512,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-033",
+          "source": "v3-object",
+          "title": "Tron: O Legado",
+          "relevant_id": 20526,
+          "rank": 4723,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-034",
+          "source": "v3-object",
+          "title": "Os Vingadores: The Avengers",
+          "relevant_id": 24428,
+          "rank": 116,
+          "rr": 0.0086
+        },
+        {
+          "qid": "v3-object-035",
+          "source": "v3-object",
+          "title": "A Ressaca",
+          "relevant_id": 23048,
+          "rank": 738,
+          "rr": 0.0014
+        },
+        {
+          "qid": "v3-object-036",
+          "source": "v3-object",
+          "title": "Alice no País das Maravilhas",
+          "relevant_id": 12092,
+          "rank": 16037,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-037",
+          "source": "v3-object",
+          "title": "O Violino Vermelho",
+          "relevant_id": 14283,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v3-object-038",
+          "source": "v3-object",
+          "title": "Uma História Real",
+          "relevant_id": 404,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v3-object-039",
+          "source": "v3-object",
+          "title": "Gremlins",
+          "relevant_id": 927,
+          "rank": 3648,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v3-object-040",
+          "source": "v3-object",
+          "title": "Eles Vivem",
+          "relevant_id": 8337,
+          "rank": 14694,
+          "rr": 0.0001
+        },
+        {
+          "qid": "v3-object-041",
+          "source": "v3-object",
+          "title": "O Caçador de Pipas",
+          "relevant_id": 7979,
+          "rank": 1,
+          "rr": 1.0
+        }
+      ]
+    },
+    "fusion": {
+      "metrics": {
+        "n": 42,
+        "found": 42,
+        "mrr": 0.2874,
+        "median_rank": 13,
+        "mean_rank": 594.7,
+        "recall@1": 0.1905,
+        "recall@3": 0.3333,
+        "recall@5": 0.4048,
+        "recall@10": 0.4762,
+        "recall@20": 0.5952,
+        "recall@50": 0.619,
+        "precision@1": 0.1905,
+        "precision@5": 0.081,
+        "precision@10": 0.0476,
+        "ndcg@10": 0.3249,
+        "hits@1": 8,
+        "hits@3": 14,
+        "hits@10": 20
+      },
+      "latency_ms": {
+        "mean_ms": 45.5,
+        "p50_ms": 10.3,
+        "p90_ms": 22.7,
+        "max_ms": 1326.3
+      },
+      "per_query": [
+        {
+          "qid": "v3-object-000",
+          "source": "v3-object",
+          "title": "+ Velozes + Furiosos",
+          "relevant_id": 584,
+          "rank": 15,
+          "rr": 0.0667
+        },
+        {
+          "qid": "v3-object-001",
+          "source": "v3-object",
+          "title": "Velozes e Furiosos",
+          "relevant_id": 9799,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v3-object-002",
+          "source": "v3-object",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-003",
+          "source": "v3-object",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 441,
+          "rr": 0.0023
+        },
+        {
+          "qid": "v3-object-004",
+          "source": "v3-object",
+          "title": "O Grande Gatsby",
+          "relevant_id": 64682,
+          "rank": 521,
+          "rr": 0.0019
+        },
+        {
+          "qid": "v3-object-005",
+          "source": "v3-object",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v3-object-006",
+          "source": "v3-object",
+          "title": "Tubarão",
+          "relevant_id": 578,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-007",
+          "source": "v3-object",
+          "title": "Brinquedo Assassino",
+          "relevant_id": 10585,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-object-008",
+          "source": "v3-object",
+          "title": "Janela Indiscreta",
+          "relevant_id": 567,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-009",
+          "source": "v3-object",
+          "title": "E.T.: O Extraterrestre",
+          "relevant_id": 601,
+          "rank": 253,
+          "rr": 0.004
+        },
+        {
+          "qid": "v3-object-010",
+          "source": "v3-object",
+          "title": "Cinderela",
+          "relevant_id": 11224,
+          "rank": 845,
+          "rr": 0.0012
+        },
+        {
+          "qid": "v3-object-011",
+          "source": "v3-object",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 65,
+          "rr": 0.0154
+        },
+        {
+          "qid": "v3-object-012",
+          "source": "v3-object",
+          "title": "Fome de Poder",
+          "relevant_id": 310307,
+          "rank": 4789,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-013",
+          "source": "v3-object",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 366,
+          "rr": 0.0027
+        },
+        {
+          "qid": "v3-object-014",
+          "source": "v3-object",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 15,
+          "rr": 0.0667
+        },
+        {
+          "qid": "v3-object-015",
+          "source": "v3-object",
+          "title": "Pulp Fiction: Tempo de Violência",
+          "relevant_id": 680,
+          "rank": 2542,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v3-object-016",
+          "source": "v3-object",
+          "title": "Aladdin",
+          "relevant_id": 812,
+          "rank": 523,
+          "rr": 0.0019
+        },
+        {
+          "qid": "v3-object-017",
+          "source": "v3-object",
+          "title": "007 Contra Goldfinger",
+          "relevant_id": 658,
+          "rank": 43,
+          "rr": 0.0233
+        },
+        {
+          "qid": "v3-object-018",
+          "source": "v3-object",
+          "title": "Guerra nas Estrelas",
+          "relevant_id": 11,
+          "rank": 503,
+          "rr": 0.002
+        },
+        {
+          "qid": "v3-object-019",
+          "source": "v3-object",
+          "title": "O Mágico de Oz",
+          "relevant_id": 630,
+          "rank": 5614,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-020",
+          "source": "v3-object",
+          "title": "Náufrago",
+          "relevant_id": 8358,
+          "rank": 394,
+          "rr": 0.0025
+        },
+        {
+          "qid": "v3-object-021",
+          "source": "v3-object",
+          "title": "Curtindo a Vida Adoidado",
+          "relevant_id": 9377,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-object-022",
+          "source": "v3-object",
+          "title": "As Crônicas de Nárnia: O Leão, a Feiticeira e o Guarda-Roupa",
+          "relevant_id": 411,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v3-object-023",
+          "source": "v3-object",
+          "title": "Piratas do Caribe: A Maldição do Pérola Negra",
+          "relevant_id": 22,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-024",
+          "source": "v3-object",
+          "title": "Indiana Jones e os Caçadores da Arca Perdida",
+          "relevant_id": 85,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-025",
+          "source": "v3-object",
+          "title": "Transformers",
+          "relevant_id": 1858,
+          "rank": 13,
+          "rr": 0.0769
+        },
+        {
+          "qid": "v3-object-026",
+          "source": "v3-object",
+          "title": "Capitão América: O Primeiro Vingador",
+          "relevant_id": 1771,
+          "rank": 19,
+          "rr": 0.0526
+        },
+        {
+          "qid": "v3-object-027",
+          "source": "v3-object",
+          "title": "Vingadores: Guerra Infinita",
+          "relevant_id": 299536,
+          "rank": 5,
+          "rr": 0.2
+        },
+        {
+          "qid": "v3-object-028",
+          "source": "v3-object",
+          "title": "Gran Torino",
+          "relevant_id": 13223,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-029",
+          "source": "v3-object",
+          "title": "De Volta para o Futuro II",
+          "relevant_id": 165,
+          "rank": 3693,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v3-object-030",
+          "source": "v3-object",
+          "title": "Harry Potter e a Câmara Secreta",
+          "relevant_id": 672,
+          "rank": 1258,
+          "rr": 0.0008
+        },
+        {
+          "qid": "v3-object-031",
+          "source": "v3-object",
+          "title": "Velocidade Máxima",
+          "relevant_id": 1637,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-032",
+          "source": "v3-object",
+          "title": "Guardiões da Galáxia",
+          "relevant_id": 118340,
+          "rank": 2931,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v3-object-033",
+          "source": "v3-object",
+          "title": "Tron: O Legado",
+          "relevant_id": 20526,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-034",
+          "source": "v3-object",
+          "title": "Os Vingadores: The Avengers",
+          "relevant_id": 24428,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-035",
+          "source": "v3-object",
+          "title": "A Ressaca",
+          "relevant_id": 23048,
+          "rank": 14,
+          "rr": 0.0714
+        },
+        {
+          "qid": "v3-object-036",
+          "source": "v3-object",
+          "title": "Alice no País das Maravilhas",
+          "relevant_id": 12092,
+          "rank": 59,
+          "rr": 0.0169
+        },
+        {
+          "qid": "v3-object-037",
+          "source": "v3-object",
+          "title": "O Violino Vermelho",
+          "relevant_id": 14283,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v3-object-038",
+          "source": "v3-object",
+          "title": "Uma História Real",
+          "relevant_id": 404,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-039",
+          "source": "v3-object",
+          "title": "Gremlins",
+          "relevant_id": 927,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-040",
+          "source": "v3-object",
+          "title": "Eles Vivem",
+          "relevant_id": 8337,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v3-object-041",
+          "source": "v3-object",
+          "title": "O Caçador de Pipas",
+          "relevant_id": 7979,
+          "rank": 2,
+          "rr": 0.5
+        }
+      ]
+    },
+    "fusion_prf": {
+      "metrics": {
+        "n": 42,
+        "found": 42,
+        "mrr": 0.1892,
+        "median_rank": 51,
+        "mean_rank": 980.1,
+        "recall@1": 0.0952,
+        "recall@3": 0.2381,
+        "recall@5": 0.2619,
+        "recall@10": 0.3571,
+        "recall@20": 0.4048,
+        "recall@50": 0.4762,
+        "precision@1": 0.0952,
+        "precision@5": 0.0524,
+        "precision@10": 0.0357,
+        "ndcg@10": 0.2233,
+        "hits@1": 4,
+        "hits@3": 10,
+        "hits@10": 15
+      },
+      "latency_ms": {
+        "mean_ms": 39.9,
+        "p50_ms": 37.3,
+        "p90_ms": 73.5,
+        "max_ms": 122.2
+      },
+      "per_query": [
+        {
+          "qid": "v3-object-000",
+          "source": "v3-object",
+          "title": "+ Velozes + Furiosos",
+          "relevant_id": 584,
+          "rank": 103,
+          "rr": 0.0097
+        },
+        {
+          "qid": "v3-object-001",
+          "source": "v3-object",
+          "title": "Velozes e Furiosos",
+          "relevant_id": 9799,
+          "rank": 114,
+          "rr": 0.0088
+        },
+        {
+          "qid": "v3-object-002",
+          "source": "v3-object",
+          "title": "De Volta para o Futuro",
+          "relevant_id": 105,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-003",
+          "source": "v3-object",
+          "title": "A Origem",
+          "relevant_id": 27205,
+          "rank": 501,
+          "rr": 0.002
+        },
+        {
+          "qid": "v3-object-004",
+          "source": "v3-object",
+          "title": "O Grande Gatsby",
+          "relevant_id": 64682,
+          "rank": 1083,
+          "rr": 0.0009
+        },
+        {
+          "qid": "v3-object-005",
+          "source": "v3-object",
+          "title": "O Senhor dos Anéis: A Sociedade do Anel",
+          "relevant_id": 120,
+          "rank": 6,
+          "rr": 0.1667
+        },
+        {
+          "qid": "v3-object-006",
+          "source": "v3-object",
+          "title": "Tubarão",
+          "relevant_id": 578,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-007",
+          "source": "v3-object",
+          "title": "Brinquedo Assassino",
+          "relevant_id": 10585,
+          "rank": 3,
+          "rr": 0.3333
+        },
+        {
+          "qid": "v3-object-008",
+          "source": "v3-object",
+          "title": "Janela Indiscreta",
+          "relevant_id": 567,
+          "rank": 4,
+          "rr": 0.25
+        },
+        {
+          "qid": "v3-object-009",
+          "source": "v3-object",
+          "title": "E.T.: O Extraterrestre",
+          "relevant_id": 601,
+          "rank": 219,
+          "rr": 0.0046
+        },
+        {
+          "qid": "v3-object-010",
+          "source": "v3-object",
+          "title": "Cinderela",
+          "relevant_id": 11224,
+          "rank": 5418,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-011",
+          "source": "v3-object",
+          "title": "O Iluminado",
+          "relevant_id": 694,
+          "rank": 98,
+          "rr": 0.0102
+        },
+        {
+          "qid": "v3-object-012",
+          "source": "v3-object",
+          "title": "Fome de Poder",
+          "relevant_id": 310307,
+          "rank": 6307,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-013",
+          "source": "v3-object",
+          "title": "Forrest Gump: O Contador de Histórias",
+          "relevant_id": 13,
+          "rank": 1456,
+          "rr": 0.0007
+        },
+        {
+          "qid": "v3-object-014",
+          "source": "v3-object",
+          "title": "Titanic",
+          "relevant_id": 597,
+          "rank": 51,
+          "rr": 0.0196
+        },
+        {
+          "qid": "v3-object-015",
+          "source": "v3-object",
+          "title": "Pulp Fiction: Tempo de Violência",
+          "relevant_id": 680,
+          "rank": 2390,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v3-object-016",
+          "source": "v3-object",
+          "title": "Aladdin",
+          "relevant_id": 812,
+          "rank": 356,
+          "rr": 0.0028
+        },
+        {
+          "qid": "v3-object-017",
+          "source": "v3-object",
+          "title": "007 Contra Goldfinger",
+          "relevant_id": 658,
+          "rank": 1522,
+          "rr": 0.0007
+        },
+        {
+          "qid": "v3-object-018",
+          "source": "v3-object",
+          "title": "Guerra nas Estrelas",
+          "relevant_id": 11,
+          "rank": 1677,
+          "rr": 0.0006
+        },
+        {
+          "qid": "v3-object-019",
+          "source": "v3-object",
+          "title": "O Mágico de Oz",
+          "relevant_id": 630,
+          "rank": 6488,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-020",
+          "source": "v3-object",
+          "title": "Náufrago",
+          "relevant_id": 8358,
+          "rank": 4378,
+          "rr": 0.0002
+        },
+        {
+          "qid": "v3-object-021",
+          "source": "v3-object",
+          "title": "Curtindo a Vida Adoidado",
+          "relevant_id": 9377,
+          "rank": 52,
+          "rr": 0.0192
+        },
+        {
+          "qid": "v3-object-022",
+          "source": "v3-object",
+          "title": "As Crônicas de Nárnia: O Leão, a Feiticeira e o Guarda-Roupa",
+          "relevant_id": 411,
+          "rank": 30,
+          "rr": 0.0333
+        },
+        {
+          "qid": "v3-object-023",
+          "source": "v3-object",
+          "title": "Piratas do Caribe: A Maldição do Pérola Negra",
+          "relevant_id": 22,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-024",
+          "source": "v3-object",
+          "title": "Indiana Jones e os Caçadores da Arca Perdida",
+          "relevant_id": 85,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-025",
+          "source": "v3-object",
+          "title": "Transformers",
+          "relevant_id": 1858,
+          "rank": 38,
+          "rr": 0.0263
+        },
+        {
+          "qid": "v3-object-026",
+          "source": "v3-object",
+          "title": "Capitão América: O Primeiro Vingador",
+          "relevant_id": 1771,
+          "rank": 328,
+          "rr": 0.003
+        },
+        {
+          "qid": "v3-object-027",
+          "source": "v3-object",
+          "title": "Vingadores: Guerra Infinita",
+          "relevant_id": 299536,
+          "rank": 8,
+          "rr": 0.125
+        },
+        {
+          "qid": "v3-object-028",
+          "source": "v3-object",
+          "title": "Gran Torino",
+          "relevant_id": 13223,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-029",
+          "source": "v3-object",
+          "title": "De Volta para o Futuro II",
+          "relevant_id": 165,
+          "rank": 3590,
+          "rr": 0.0003
+        },
+        {
+          "qid": "v3-object-030",
+          "source": "v3-object",
+          "title": "Harry Potter e a Câmara Secreta",
+          "relevant_id": 672,
+          "rank": 2014,
+          "rr": 0.0005
+        },
+        {
+          "qid": "v3-object-031",
+          "source": "v3-object",
+          "title": "Velocidade Máxima",
+          "relevant_id": 1637,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-032",
+          "source": "v3-object",
+          "title": "Guardiões da Galáxia",
+          "relevant_id": 118340,
+          "rank": 2535,
+          "rr": 0.0004
+        },
+        {
+          "qid": "v3-object-033",
+          "source": "v3-object",
+          "title": "Tron: O Legado",
+          "relevant_id": 20526,
+          "rank": 15,
+          "rr": 0.0667
+        },
+        {
+          "qid": "v3-object-034",
+          "source": "v3-object",
+          "title": "Os Vingadores: The Avengers",
+          "relevant_id": 24428,
+          "rank": 2,
+          "rr": 0.5
+        },
+        {
+          "qid": "v3-object-035",
+          "source": "v3-object",
+          "title": "A Ressaca",
+          "relevant_id": 23048,
+          "rank": 10,
+          "rr": 0.1
+        },
+        {
+          "qid": "v3-object-036",
+          "source": "v3-object",
+          "title": "Alice no País das Maravilhas",
+          "relevant_id": 12092,
+          "rank": 43,
+          "rr": 0.0233
+        },
+        {
+          "qid": "v3-object-037",
+          "source": "v3-object",
+          "title": "O Violino Vermelho",
+          "relevant_id": 14283,
+          "rank": 7,
+          "rr": 0.1429
+        },
+        {
+          "qid": "v3-object-038",
+          "source": "v3-object",
+          "title": "Uma História Real",
+          "relevant_id": 404,
+          "rank": 1,
+          "rr": 1.0
+        },
+        {
+          "qid": "v3-object-039",
+          "source": "v3-object",
+          "title": "Gremlins",
+          "relevant_id": 927,
+          "rank": 296,
+          "rr": 0.0034
+        },
+        {
+          "qid": "v3-object-040",
+          "source": "v3-object",
+          "title": "Eles Vivem",
+          "relevant_id": 8337,
+          "rank": 11,
+          "rr": 0.0909
+        },
+        {
+          "qid": "v3-object-041",
+          "source": "v3-object",
+          "title": "O Caçador de Pipas",
+          "relevant_id": 7979,
+          "rank": 1,
+          "rr": 1.0
+        }
+      ]
+    }
+  }
+}
