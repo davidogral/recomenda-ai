@@ -29,7 +29,7 @@
   - [Entendimento de consulta via LLM (Groq)](#-entendimento-de-consulta-via-llm-groq)
   - [Busca facetada](#-busca-facetada)
   - [Re-ranking com cross-encoder](#-re-ranking-com-cross-encoder)
-  - [Reranking via LLM — lê e julga](#-reranking-via-llm--lê-e-julga)
+  - [Reranking via LLM (lê e julga)](#-reranking-via-llm-lê-e-julga)
   - [Busca multilíngue via TMDB](#-busca-multilíngue-via-tmdb)
   - [Explicabilidade](#-explicabilidade)
   - [Pipeline completo](#-pipeline-do-sri)
@@ -100,7 +100,7 @@ flowchart LR
 | **Detecção de intenção** | decide se a consulta é nome ou descrição | uma só caixa serve aos dois usos | [`search_engine.py`](../retrieval/search_engine.py) |
 | **Entendimento via LLM (Groq)** | classifica objeto/pessoa/genérica e extrai pistas | ajusta peso de canal só pro tipo certo de consulta | [`query_llm.py`](../core/query_llm.py) |
 | **Busca facetada** | restringe por diretor/ator/ano/gênero | afunilar com o que se sabe | [`search_engine.py`](../retrieval/search_engine.py) |
-| **Cross-encoder** | re-pontua o topo lendo consulta+texto juntos (score) | precisão fina nas primeiras posições — *off* em produção | [`reranker.py`](../retrieval/reranker.py) |
+| **Cross-encoder** | re-pontua o topo lendo consulta+texto juntos (score) | precisão fina nas primeiras posições (*off* em produção) | [`reranker.py`](../retrieval/reranker.py) |
 | **Reranking via LLM (Groq)** | lê a sinopse do candidato e confere o fato citado | promove quem realmente bate, quando nenhum score de similaridade sabe dizer | [`query_llm.py`](../core/query_llm.py) |
 | **Fallback TMDB** | resolve título em qualquer idioma | títulos estrangeiros | [`tmdb.py`](../core/tmdb.py) |
 
@@ -188,7 +188,7 @@ Como a comparação é multilíngue, uma consulta em português como "revivendo 
 ## 🎭 Sinal de personagem (fuzzy)
 
 > **O que faz** — casa nome de personagem ou ator citado na consulta contra o **elenco de topo** do filme (`credit_order < 10` ou diretor), usando **similaridade Jaro-Winkler** em vez de igualdade exata.
-> **O que resolve** — nasceu direto do log do painel admin: consulta curta com nome de personagem quase sempre vem com **erro de grafia** ("Jonh wick", "Toreto") — igualdade exata (ou até busca fuzzy de título) não acha nada, porque o erro está no nome da pessoa, não no título do filme.
+> **O que resolve** — nasceu direto do log do painel admin: consulta curta com nome de personagem quase sempre vem com **erro de grafia** ("Jonh wick", "Toreto"). Igualdade exata (ou até busca fuzzy de título) não acha nada, porque o erro está no nome da pessoa, não no título do filme.
 
 ```mermaid
 flowchart LR
@@ -197,7 +197,7 @@ flowchart LR
     M --> F["Velozes e Furiosos"]
 ```
 
-Ativo só para consultas curtas (`RECOMENDAI_ENTITY_MAX_TOKENS`, default 6 palavras) — em consulta longa de enredo, um nome property por acaso não deve dominar a fusão. Peso default `RECOMENDAI_ENTITY_WEIGHT=0.45`.
+Ativo só para consultas curtas (`RECOMENDAI_ENTITY_MAX_TOKENS`, default 6 palavras): em consulta longa de enredo, um nome próprio citado por acaso não deve dominar a fusão. Peso default `RECOMENDAI_ENTITY_WEIGHT=0.45`.
 
 <details>
 <summary><b>📊 Ganho medido (split <code>entity</code>, 20 consultas com nome mal-escrito)</b></summary>
@@ -213,7 +213,7 @@ Ativo só para consultas curtas (`RECOMENDAI_ENTITY_MAX_TOKENS`, default 6 palav
 
 ## 📖 Enredo via Wikipédia (léxico + MaxSim)
 
-> **O que faz** — busca o artigo da Wikipédia do filme (via `imdb_id` → Wikidata `P345`), extrai a seção "Plot"/"Enredo" e indexa esse texto por **dois canais**: BM25 léxico e embedding em **trechos** (janelas de ~380 palavras), tomando o **máximo** de similaridade entre os trechos — não a média do documento inteiro.
+> **O que faz** — busca o artigo da Wikipédia do filme (via `imdb_id` → Wikidata `P345`), extrai a seção "Plot"/"Enredo" e indexa esse texto por **dois canais**: BM25 léxico e embedding em **trechos** (janelas de ~380 palavras), tomando o **máximo** de similaridade entre os trechos, não a média do documento inteiro.
 > **O que resolve** — a sinopse da TMDB tem, em média, algumas frases; um objeto ou evento citado só no 3º ato do filme nunca aparece nela. O enredo da Wikipédia é ~4× mais longo e costuma citar esse detalhe.
 
 ```mermaid
@@ -228,12 +228,12 @@ flowchart TD
     MAX --> FU
 ```
 
-**Por que MaxSim e não a média do documento inteiro**: um filme de 2h só tem o objeto citado numa frase — calcular um embedding único do texto inteiro dilui esse sinal entre centenas de outras palavras. Tomar o **máximo entre trechos** deixa **um** trecho relevante decidir o score, mesmo cercado de texto irrelevante.
+**Por que MaxSim e não a média do documento inteiro**: um filme de 2h só tem o objeto citado numa frase, e calcular um embedding único do texto inteiro dilui esse sinal entre centenas de outras palavras. Tomar o **máximo entre trechos** deixa **um** trecho relevante decidir o score, mesmo cercado de texto irrelevante.
 
 <details>
 <summary><b>⚠️ Um bug real: truncar no meio da palavra</b></summary>
 
-A primeira versão cortava o texto da Wikipédia em 4000 caracteres com `texto[:4000]` — cortando **no meio de palavras e de frases**, às vezes antes do próprio clímax do enredo (o final de *A Origem* saiu cortado). Corrigido para cortar no **limite de palavra** e subir o teto para 20.000 caracteres (`core/enrich.py::_clean_wikitext`); os ~2.371 filmes afetados foram reprocessados.
+A primeira versão cortava o texto da Wikipédia em 4000 caracteres com `texto[:4000]`, cortando **no meio de palavras e de frases**, às vezes antes do próprio clímax do enredo (o final de *A Origem* saiu cortado). Corrigido para cortar no **limite de palavra** e subir o teto para 20.000 caracteres (`core/enrich.py::_clean_wikitext`); os ~2.371 filmes afetados foram reprocessados.
 
 </details>
 
@@ -245,7 +245,7 @@ A primeira versão cortava o texto da Wikipédia em 4000 caracteres com `texto[:
 | Sem canal léxico de enredo | 0,276 | — |
 | **Com canal léxico de enredo** (depois do teto de z-score) | **0,325** | 0,48 |
 
-O ganho só apareceu de forma estável **depois** do teto de z-score (ver seção seguinte) — antes disso, o canal léxico sobre um texto 4× mais longo produzia outliers que a fusão amplificava em vez de aproveitar.
+O ganho só apareceu de forma estável **depois** do teto de z-score (ver seção seguinte); antes disso, o canal léxico sobre um texto 4× mais longo produzia outliers que a fusão amplificava em vez de aproveitar.
 
 </details>
 
@@ -254,7 +254,7 @@ O ganho só apareceu de forma estável **depois** do teto de z-score (ver seçã
 ## ⚖️ Fusão de sinais
 
 > **O que faz** — combina **8 sinais** (BM25, embedding da sinopse, embedding temático, personagem, enredo em 2 formas, trivia de pessoa, nome) numa **escala comum** via padronização z-score **com teto**, aplica **ReLU** e soma com pesos + prior de popularidade.
-> **O que resolve** — junta evidências de naturezas diferentes de forma justa, sem que um sinal de escala maior — ou um **outlier de termo raro** — domine os demais.
+> **O que resolve** — junta evidências de naturezas diferentes de forma justa, sem que um sinal de escala maior (ou um **outlier de termo raro**) domine os demais.
 
 $$
 \text{score}(d) = \sum_i w_i \cdot \text{ReLU}\big(\text{clip}(z_i, \pm 8)\big) + w_{\text{pop}} \cdot \text{prior}
@@ -263,11 +263,11 @@ $$
 onde $z(x) = \dfrac{x - \mu}{\sigma}$ padroniza cada sinal e $\text{clip}(z, \pm 8)$ capa o z-score em 8 desvios-padrão antes de somar.
 
 <details>
-<summary><b>🧠 Por que z-score, ReLU — e por que o teto (clip)</b></summary>
+<summary><b>🧠 Por que z-score, ReLU e o teto (clip)</b></summary>
 
 - **z-score** (em vez de min-max): robusto a *outliers* (um filme com score altíssimo não achata os demais) e preserva *quanto* cada sinal separa o filme da média.
 - **ReLU($z$)**: cada sinal só **soma** evidência quando está **acima da média**; um filme nunca é penalizado por estar "na média" em algum sinal.
-- **O teto (`RECOMENDAI_ZSCORE_CLIP=8`) existe porque o z-score sozinho não é robusto o bastante contra termo raro.** Caso real: a consulta "filme que chove hambúrguer" não achava *Tá Chovendo Hambúrguer*. Um filme não relacionado citava a palavra rara "hambúrguer" **uma vez**; sobre 22 mil documentos onde quase todos têm score zero para esse termo, o desvio-padrão fica minúsculo e o z-score desse único filme **explode** (chegou a 75) — dominando a soma sozinho e afogando os outros sinais. Capar em 8 desvios-padrão resolveu isso e subiu **os 5 splits de avaliação ao mesmo tempo** (nenhum piorou) — evidência de que era mesmo instabilidade, não sinal real perdido.
+- **O teto (`RECOMENDAI_ZSCORE_CLIP=8`) existe porque o z-score sozinho não é robusto o bastante contra termo raro.** Caso real: a consulta "filme que chove hambúrguer" não achava *Tá Chovendo Hambúrguer*. Um filme não relacionado citava a palavra rara "hambúrguer" **uma vez**; sobre 22 mil documentos onde quase todos têm score zero para esse termo, o desvio-padrão fica minúsculo e o z-score desse único filme **explode** (chegou a 75), dominando a soma sozinho e afogando os outros sinais. Capar em 8 desvios-padrão resolveu isso e subiu **os 5 splits de avaliação ao mesmo tempo** (nenhum piorou): evidência de que era mesmo instabilidade, não sinal real perdido.
 - **Peso lexical adaptativo**: consulta curta valoriza mais o BM25 (~0.30); descrição longa o reduz (~0.20), pois paráfrases usam termos diferentes da sinopse.
 - **Prior de popularidade** ($w_{\text{pop}}=0.35$): z-score de $\log(\text{vote\\_count})$, desempata a favor do filme mais conhecido quando muitos casam de forma parecida.
 
@@ -277,9 +277,9 @@ onde $z(x) = \dfrac{x - \mu}{\sigma}$ padroniza cada sinal e $\text{clip}(z, \pm
 | Temático (keywords) | `0.50` | — |
 | Lexical (BM25) | `0.20–0.30` (adaptativo) | — |
 | Personagem (fuzzy) | `0.45` | `RECOMENDAI_ENTITY_WEIGHT` |
-| Enredo — léxico (Wikipédia) | `0.10` | `RECOMENDAI_PLOT_BM25_WEIGHT` |
-| Enredo — trechos/MaxSim (Wikipédia) | `0.50` | `RECOMENDAI_PLOT_CHUNK_WEIGHT` |
-| Trivia de pessoa (bio) | `0` — desligado, experimental | `RECOMENDAI_PERSON_MATCH_WEIGHT` |
+| Enredo, léxico (Wikipédia) | `0.10` | `RECOMENDAI_PLOT_BM25_WEIGHT` |
+| Enredo, trechos/MaxSim (Wikipédia) | `0.50` | `RECOMENDAI_PLOT_CHUNK_WEIGHT` |
+| Trivia de pessoa (bio) | `0` (desligado, experimental) | `RECOMENDAI_PERSON_MATCH_WEIGHT` |
 | Prior de popularidade | `0.35` | `RECOMENDAI_POP_PRIOR` |
 
 </details>
@@ -308,7 +308,7 @@ O peso-base também varia com o tamanho da consulta: ≤ 3 palavras tende a ser 
 ## 🤖 Entendimento de consulta via LLM (Groq)
 
 > **O que faz** — antes da busca, um modelo pequeno e grátis (`openai/gpt-oss-20b`, via [Groq](https://groq.com)) classifica a consulta em **objeto**, **pessoa** ou **genérica**, e extrai pistas (termos literais de objeto; nome/fatos em inglês para trivia de pessoa).
-> **O que resolve** — a detecção de intenção acima (nome × descrição) é uma heurística de **tamanho de texto**; ela não sabe dizer se uma descrição curta é sobre um *objeto específico* que precisa de peso diferente na fusão, nem consegue extrair a pista certa para casar contra trivia de pessoa. O LLM lê a consulta e decide isso de verdade — o mesmo problema que motivou trocar a heurística de tamanho por julgamento, aplicado a um passo antes da busca.
+> **O que resolve** — a detecção de intenção acima (nome × descrição) é uma heurística de **tamanho de texto**; ela não sabe dizer se uma descrição curta é sobre um *objeto específico* que precisa de peso diferente na fusão, nem consegue extrair a pista certa para casar contra trivia de pessoa. O LLM lê a consulta e decide isso de verdade: o mesmo problema que motivou trocar a heurística de tamanho por julgamento, aplicado a um passo antes da busca.
 
 ```mermaid
 flowchart LR
@@ -319,9 +319,9 @@ flowchart LR
     O & P & G --> S[Busca/fusão]
 ```
 
-**Regra de segurança: a reescrita só acrescenta termo, nunca substitui a consulta original.** Uma versão anterior tentava *reescrever* a consulta (corrigir ortografia, resumir) — quebrou casos que já funcionavam (uma consulta perdeu peso de nome porque ficou curta demais, outra virou uma substring genérica que casava qualquer título). Reescrever é arriscado porque a consulta original já alimenta heurísticas afinadas (peso de nome, canal de personagem); **acrescentar** pistas extraídas é seguro porque não tira informação que já funcionava.
+**Regra de segurança: a reescrita só acrescenta termo, nunca substitui a consulta original.** Uma versão anterior tentava *reescrever* a consulta (corrigir ortografia, resumir), e quebrou casos que já funcionavam (uma consulta perdeu peso de nome porque ficou curta demais, outra virou uma substring genérica que casava qualquer título). Reescrever é arriscado porque a consulta original já alimenta heurísticas afinadas (peso de nome, canal de personagem); **acrescentar** pistas extraídas é seguro porque não tira informação que já funcionava.
 
-Cada resultado é **cacheado por texto de consulta** (`data/tmdb_cache/query_llm.json`) — só a resposta bem-sucedida, nunca uma falha de rede/timeout. Sem `GROQ_API_KEY`, esse passo simplesmente não roda e a busca segue no comportamento anterior.
+Cada resultado é **cacheado por texto de consulta** (`data/tmdb_cache/query_llm.json`): só a resposta bem-sucedida, nunca uma falha de rede/timeout. Sem `GROQ_API_KEY`, esse passo simplesmente não roda e a busca segue no comportamento anterior.
 
 ---
 
@@ -355,18 +355,18 @@ Medido por `python -m eval.run` (ver [`eval/`](../eval/README.md)). Recuperaçã
 | Só temático (keywords) | 0,282 | 0,246 | 0,58 | #32 |
 | **Fusão** (8 sinais, produção) | **0,829** | **0,790** | **1,00** | **#1** |
 
-A fusão dispara acima de qualquer sinal isolado (complementares). No split de **calibração** (dev, 95 consultas) a fusão chega a **nDCG@10 0,88 / MRR 0,86** — a diferença dev→teste é o quanto o número "de casa" está otimista.
+A fusão dispara acima de qualquer sinal isolado (complementares). No split de **calibração** (dev, 95 consultas) a fusão chega a **nDCG@10 0,88 / MRR 0,86**; a diferença dev→teste é o quanto o número "de casa" está otimista.
 
 </details>
 
 <details>
 <summary><b>📊 Varredura do cross-encoder — por que fica desligado (split de teste)</b></summary>
 
-> Números abaixo medidos **antes** do teto de z-score e dos canais de personagem/enredo (baseline "off" era 0,733 — hoje a fusão está em 0,829). A leitura relativa não mudou: um datapoint fresco contra a fusão atual confirma **0,829 → 0,830** a 694 ms vs 18 ms — mesma margem dentro do ruído.
+> Números abaixo medidos **antes** do teto de z-score e dos canais de personagem/enredo (baseline "off" era 0,733; hoje a fusão está em 0,829). A leitura relativa não mudou: um datapoint fresco contra a fusão atual confirma **0,829 → 0,830** a 694 ms vs 18 ms, a mesma margem dentro do ruído.
 
 | pool | nDCG@10 | MRR | Recall@50 | latência p50 |
 |---|---|---|---|---|
-| **0 (off)** — produção, na época | 0,733 | 0,686 | 0,94 | **7 ms** |
+| **0 (off, produção na época)** | 0,733 | 0,686 | 0,94 | **7 ms** |
 | 20 | 0,750 | 0,699 | 0,94 | 124 ms |
 | 50 | 0,754 | 0,705 | 0,94 | 304 ms |
 | 300 (default antigo) | 0,740 | 0,694 | 0,92 | ~2,4 s |
@@ -377,10 +377,10 @@ O melhor pool (50) sobe o nDCG@10 em +0,02 no teste, mas **cai** 0,823 → 0,814
 
 ---
 
-## 🔍 Reranking via LLM — lê e julga
+## 🔍 Reranking via LLM (lê e julga)
 
-> **O que faz** — manda o **top-30** da fusão pro mesmo LLM (Groq) usado no entendimento de consulta, junto com a sinopse **completa** de cada candidato (não a versão truncada de 240 caracteres do card). O modelo devolve `{"escolha": N, "confianca": alta|media|baixa}`; só promove pro topo quando a confiança é alta — **nunca reordena o resto da lista**.
-> **Em que é diferente do cross-encoder acima** — o cross-encoder também lê consulta+texto juntos, mas devolve um **score de similaridade** (não sabe *por que* casou). O reranking por LLM **julga um fato**: lê o candidato e decide se o que a consulta descreve está mesmo ali — a única etapa do pipeline inteiro que faz isso.
+> **O que faz** — manda o **top-30** da fusão pro mesmo LLM (Groq) usado no entendimento de consulta, junto com a sinopse **completa** de cada candidato (não a versão truncada de 240 caracteres do card). O modelo devolve `{"escolha": N, "confianca": alta|media|baixa}`; só promove pro topo quando a confiança é alta, e **nunca reordena o resto da lista**.
+> **Em que é diferente do cross-encoder acima** — o cross-encoder também lê consulta+texto juntos, mas devolve um **score de similaridade** (não sabe *por que* casou). O reranking por LLM **julga um fato**: lê o candidato e decide se o que a consulta descreve está mesmo ali. É a única etapa do pipeline inteiro que faz isso.
 
 ```mermaid
 flowchart LR
@@ -390,24 +390,24 @@ flowchart LR
     G -->|baixa/nenhum bate| N[Não mexe na ordem]
 ```
 
-**Por que isso ajuda onde o cross-encoder não ajudou**: o cross-encoder erra pelo mesmo motivo que os sinais de similaridade — ele também mede "quão parecido", só que consulta+texto juntos em vez de separados. Numa consulta oblíqua (split `hard`), o candidato certo pode ser menos "parecido" textualmente do que um distrator popular. Ler o conteúdo e confirmar/negar o fato é uma categoria de decisão diferente.
+**Por que isso ajuda onde o cross-encoder não ajudou**: o cross-encoder erra pelo mesmo motivo que os sinais de similaridade, porque também mede "quão parecido", só que consulta+texto juntos em vez de separados. Numa consulta oblíqua (split `hard`), o candidato certo pode ser menos "parecido" textualmente do que um distrator popular. Ler o conteúdo e confirmar/negar o fato é uma categoria de decisão diferente.
 
 <details>
-<summary><b>📊 Ganho medido (split <code>hard</code>, 30 consultas oblíquas — medição ad hoc contra a Groq real)</b></summary>
+<summary><b>📊 Ganho medido (split <code>hard</code>, 30 consultas oblíquas, medição ad hoc contra a Groq real)</b></summary>
 
 | Pipeline | nDCG@10 |
 |---|---|
 | Fusão (sem reranking) | 0,473 |
 | **Fusão + reranking via LLM** | **0,506** |
 
-Não é medido dentro do `eval.run` — esse harness é determinístico e sem chamada de rede de propósito (reprodutibilidade em CI, sem custo/latência de API por PR). O ganho acima veio de um script ad hoc chamando a Groq de verdade.
+Não é medido dentro do `eval.run`: esse harness é determinístico e sem chamada de rede de propósito (reprodutibilidade em CI, sem custo/latência de API por PR). O ganho acima veio de um script ad hoc chamando a Groq de verdade.
 
 </details>
 
 <details>
 <summary><b>⚠️ Achado no caminho: a Groq não é perfeitamente determinística</b></summary>
 
-Mesmo com `temperature=0`, a mesma consulta repetida 8 vezes contra o mesmo conjunto de candidatos deu **3 respostas diferentes** — efeito de lote/roteamento na infraestrutura de inferência compartilhada da Groq, não um bug local. Corrigido com **cache de aplicação** por (consulta, IDs ordenados dos candidatos) em `data/tmdb_cache/rerank_llm.json`, cacheando só resposta bem-sucedida (nunca falha de rede/timeout). O cache resolve **consistência** (a mesma busca sempre dá a mesma resposta) mas não **correção** — trava na primeira resposta real, que pode não ser a "melhor" entre respostas plausíveis.
+Mesmo com `temperature=0`, a mesma consulta repetida 8 vezes contra o mesmo conjunto de candidatos deu **3 respostas diferentes**, efeito de lote/roteamento na infraestrutura de inferência compartilhada da Groq, não um bug local. Corrigido com **cache de aplicação** por (consulta, IDs ordenados dos candidatos) em `data/tmdb_cache/rerank_llm.json`, cacheando só resposta bem-sucedida (nunca falha de rede/timeout). O cache resolve **consistência** (a mesma busca sempre dá a mesma resposta) mas não **correção**: trava na primeira resposta real, que pode não ser a "melhor" entre respostas plausíveis.
 
 </details>
 
@@ -426,7 +426,7 @@ Otimizações aplicadas (ver [`eval/`](../eval/README.md)):
 2. **Preload no boot**: `SearchEngine.warmup()` no import do `app.py` — o modelo carrega no startup, nunca na 1ª requisição.
 3. **Benchmark de modelo/precisão** (`python -m eval.bench embed`, CPU, split de teste):
 
-> Medido antes do teto de z-score e dos canais de personagem/enredo (`nDCG@10` usa o baseline antigo, 0,733 — hoje a fusão está em 0,829); a leitura relativa entre as três configurações não depende disso.
+> Medido antes do teto de z-score e dos canais de personagem/enredo (`nDCG@10` usa o baseline antigo, 0,733; hoje a fusão está em 0,829). A leitura relativa entre as três configurações não depende disso.
 
 | config | dim | nDCG@10 | Recall@10 | `encode` p50 / p99 | RSS |
 |---|---|---|---|---|---|

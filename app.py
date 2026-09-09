@@ -1193,7 +1193,7 @@ def _engineering_payload() -> dict:
                 "title": "🧭 Vindo de consulta real, não do laboratório",
                 "body": "O painel admin loga toda busca (sem dado pessoal). Lendo o log em 2026-09, ~2/3 das "
                 "consultas difíceis citavam objeto/veículo específico (\"skyline azul e prata\", \"dodge charger "
-                "preto\") ou personagem com erro de grafia (\"Jonh wick\", \"Toreto\") — nenhum dos dois aparece "
+                "preto\") ou personagem com erro de grafia (\"Jonh wick\", \"Toreto\"); nenhum dos dois aparece "
                 "na sinopse curta da TMDB. Todas as mudanças abaixo nasceram dessas consultas reais, não de intuição.",
             },
             {
@@ -1204,51 +1204,51 @@ def _engineering_payload() -> dict:
             },
             {
                 "title": "🛡️ Teto no outlier de termo raro (Z_SCORE_CLIP=8)",
-                "body": "\"filme que chove hambúrguer\" não achava \"Tá Chovendo Hambúrguer\" — um filme não relacionado "
+                "body": "\"filme que chove hambúrguer\" não achava \"Tá Chovendo Hambúrguer\". Um filme não relacionado "
                 "citava a palavra rara \"hambúrguer\" uma vez e o z-score dele explodia (75, sobre 22 mil documentos "
                 "quase todos zero) e dominava a soma sozinho. Capar o z-score em 8 desvios-padrão resolveu isso e subiu "
                 "TODOS os 5 splits ao mesmo tempo (object nDCG@10 +0,017, entity +0,026, hard +0,013) sem piorar nenhum.",
             },
             {
-                "title": "📖 Enredo da Wikipédia — trechos (MaxSim) + léxico",
+                "title": "📖 Enredo da Wikipédia: trechos (MaxSim) + léxico",
                 "body": "A sinopse da TMDB é curta demais para citar objeto do 3º ato. O enredo da Wikipédia (~4× mais "
-                "longo) é fatiado em janelas de ~380 palavras; o score do filme é o MÁXIMO entre os trechos (MaxSim) — "
+                "longo) é fatiado em janelas de ~380 palavras, e o score do filme é o MÁXIMO entre os trechos (MaxSim): "
                 "objeto citado uma vez ainda casa. Um canal léxico (BM25) sobre o mesmo texto soma +0,049 de nDCG@10 "
                 "no split object (0,276→0,325) depois que o teto de z-score parou de deixá-lo instável.",
             },
             {
                 "title": "🎭 Canal de personagem (fuzzy, tolera erro de grafia)",
-                "body": "\"Toreto\", \"Jonh wick\" — consulta curta com nome de personagem quase sempre vem com erro de "
+                "body": "\"Toreto\", \"Jonh wick\": consulta curta com nome de personagem quase sempre vem com erro de "
                 "digitação. Jaro-Winkler casa o nome mesmo torto contra o elenco de topo do filme. Sobe o split entity "
                 "de nDCG@10 0,49 para 0,78, sem tocar em consulta de enredo longo.",
             },
             {
                 "title": "🤖 Entendimento de consulta via LLM (Groq, grátis)",
-                "body": "Um modelo pequeno (openai/gpt-oss-20b, via Groq) classifica a consulta — objeto, pessoa ou "
-                "genérica — antes da busca. Consulta de objeto ganha um peso maior no canal léxico de enredo (só "
+                "body": "Um modelo pequeno (openai/gpt-oss-20b, via Groq) classifica a consulta (objeto, pessoa ou "
+                "genérica) antes da busca. Consulta de objeto ganha um peso maior no canal léxico de enredo (só "
                 "nela, não no geral) e desliga o canal de personagem (achado: um termo acrescentado tipo \"Dodge "
-                "Charger\" gerava falso-positivo lá). Nunca substitui o texto da busca, só acrescenta — uma tentativa "
+                "Charger\" gerava falso-positivo lá). Nunca substitui o texto da busca, só acrescenta. Uma tentativa "
                 "de encolher a consulta chegou a quebrar um caso que já funcionava, revertida no mesmo dia.",
             },
             {
-                "title": "🔍 Reranking via LLM — lê a sinopse e julga",
-                "body": "Todo canal acima é score de similaridade (vetor ou termo) — nenhum lê o candidato e julga se "
+                "title": "🔍 Reranking via LLM: lê a sinopse e julga",
+                "body": "Todo canal acima é score de similaridade (vetor ou termo); nenhum lê o candidato e julga se "
                 "o fato citado aparece ali. O reranking manda o top-30 da fusão pro Groq, que promove pro #1 só quando "
-                "confirma o fato com confiança — nunca reordena o resto. Sobe o split hard (consulta oblíqua) de "
+                "confirma o fato com confiança, e nunca reordena o resto. Sobe o split hard (consulta oblíqua) de "
                 "nDCG@10 0,473 para 0,506; quando a sinopse genuinamente não tem o fato (testado em ~40 consultas), "
-                "recusa em vez de inventar. Achado no caminho: a mesma consulta repetida dava resposta diferente — a "
-                "Groq não é perfeitamente determinística mesmo com temperature=0 — corrigido com cache por consulta.",
+                "recusa em vez de inventar. Achado no caminho: a mesma consulta repetida dava resposta diferente, "
+                "porque a Groq não é perfeitamente determinística mesmo com temperature=0; corrigido com cache por consulta.",
             },
             {
                 "title": "🚫 Cross-encoder segue desligado em produção",
                 "body": "O re-ranker de 2º estágio (mesma família de modelo do reranking por LLM, mas sem ler o "
-                "conteúdo — só re-pontua consulta+sinopse juntas) dá +0,001 nDCG@10 no teste (0,829→0,830) a 694ms "
-                "vs 18ms da fusão sozinha — quase 40× a latência por um ganho que nem aparece na 3ª casa decimal.",
+                "conteúdo, só re-pontua consulta+sinopse juntas) dá +0,001 nDCG@10 no teste (0,829→0,830) a 694ms "
+                "vs 18ms da fusão sozinha: quase 40× a latência por um ganho que nem aparece na 3ª casa decimal.",
             },
             {
                 "title": "⚡ e5-large fp32 continua o encoder padrão",
                 "body": "INT8 dinâmico corta 28% de RAM mas não acelera o encode em CPU ARM (sem VNNI). e5-small é "
-                "7,7× mais rápido no encode e usa metade da RAM, ao custo de −0,04 nDCG@10 — a um env var de distância.",
+                "7,7× mais rápido no encode e usa metade da RAM, ao custo de −0,04 nDCG@10, a um env var de distância.",
             },
         ],
         "links": {

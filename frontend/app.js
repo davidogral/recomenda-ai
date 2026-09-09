@@ -1902,7 +1902,7 @@
   </g>
   <g class="eng-svg-ghost" fill="none">
     <path d="M536 98 V150 H600" stroke-dasharray="4 3"/>
-    <rect x="600" y="137" width="150" height="26" rx="7"/><text x="675" y="154">cross-encoder — OFF</text>
+    <rect x="600" y="137" width="150" height="26" rx="7"/><text x="675" y="154">cross-encoder (OFF)</text>
   </g>
 </svg>`;
 

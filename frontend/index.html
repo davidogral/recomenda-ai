@@ -304,13 +304,13 @@
             <div class="form-section eng-intro">
                 <h2>Como o motor funciona</h2>
                 <p class="hint">Busca por <strong>sinopse</strong> = recuperação híbrida: vários sinais independentes
-                    (léxico, semântico, temático, personagem, enredo da Wikipédia), fundidos e medidos — mais uma
+                    (léxico, semântico, temático, personagem, enredo da Wikipédia), fundidos e medidos, mais uma
                     dupla de passos que consulta uma <strong>LLM</strong> (Groq, grátis) pra entender a consulta antes
                     de buscar e conferir a sinopse antes de decidir. Recomendação = filtragem colaborativa (SVD) +
                     perfil de conteúdo. Os números abaixo vêm da <strong>avaliação executável</strong>
-                    (<code>python -m eval.run</code>) versionada no repo — não são chute.</p>
-                <p class="hint">Boa parte disso <strong>nasceu de busca real de gente usando o site</strong> — o
-                    painel administrativo loga toda consulta (sem dado pessoal); ler esse log revelou padrões de erro
+                    (<code>python -m eval.run</code>) versionada no repo, não são chute.</p>
+                <p class="hint">Boa parte disso <strong>nasceu de busca real de gente usando o site</strong>: o
+                    painel administrativo loga toda consulta (sem dado pessoal), e ler esse log revelou padrões de erro
                     (objeto citado uma vez, personagem com erro de grafia, fato composto) que motivaram cada técnica
                     abaixo, na ordem em que foram descobertas.</p>
                 <div class="eng-diagram" id="engDiagram"></div>
