@@ -3,7 +3,7 @@
 ![CI](https://github.com/davidogral/recomenda-ai/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![Machine Learning](https://img.shields.io/badge/ML-Híbrido-orange)
-![SRI](https://img.shields.io/badge/SRI-BM25%20%2B%20Embeddings-blueviolet)
+![SRI](https://img.shields.io/badge/SRI-8%20sinais%20%2B%20LLM-blueviolet)
 
 O **RecomendAI** é um ecossistema completo de recomendação de filmes que combina técnicas de **Recuperação de Informação (SRI)** e **Machine Learning (ML)** para entregar sugestões personalizadas — e para ajudar você a achar aquele filme que está na ponta da língua.
 
@@ -16,11 +16,14 @@ O **RecomendAI** é um ecossistema completo de recomendação de filmes que comb
 O sistema opera com um motor híbrido de duas camadas que trabalham de forma independente e complementar:
 
 ### 1. Sistema de Recuperação de Informação (SRI) — *achar um filme*
-A camada de **busca** recupera filmes a partir do que o usuário descreve, mesmo sem lembrar o nome:
+A camada de **busca** recupera filmes a partir do que o usuário descreve, mesmo sem lembrar o nome. Oito sinais entram na fusão, cada um resolvendo um jeito diferente de a memória do usuário falhar:
 *   **Sinal lexical (BM25):** indexamos as sinopses com um `CountVectorizer` (stopwords em PT) e ranqueamos por BM25 — ótimo para casar termos exatos.
-*   **Sinal semântico (Embeddings multilíngues):** as sinopses, gêneros e *keywords* são convertidos em vetores densos com `sentence-transformers`. A busca usa **similaridade de cosseno**, entendendo o tema mesmo quando as palavras não batem.
-*   **Fusão de sinais:** os três scores são padronizados (z-score) e somados com um prior de popularidade; o resultado é explicado no card (tema, sinopse, termos, nome). A [tabela de ablação](#-tabela-de-ablação-por-sinal) mostra o ganho da fusão sobre cada sinal isolado.
-*   **Re-ranker cross-encoder (2º estágio):** existe, mas fica **desligado em produção** — a [ablação](#cross-encoder-2º-estágio-desligado-em-produção) mostra ganho dentro do ruído a ~250× de latência (`RECOMENDAI_RERANK=1` para experimentar).
+*   **Sinal semântico (Embeddings multilíngues):** sinopse e *keywords*/gêneros viram vetores densos com `sentence-transformers` (dois espaços separados: sentido da sinopse e tema) — entende o filme mesmo quando as palavras não batem.
+*   **Sinal de personagem (fuzzy, Jaro-Winkler):** casa nome de personagem/ator citado na consulta contra o elenco de topo do filme, tolerando erro de grafia ("Jonh wick", "Toreto") — nasceu de consulta real do painel admin.
+*   **Sinal de enredo via Wikipédia (2 formas):** a sinopse da TMDB é curta demais pra citar um detalhe do 3º ato; o enredo completo da Wikipédia entra por dois canais — léxico (BM25) e semântico em **trechos com MaxSim** (fatia o texto em janelas de ~380 palavras e usa o **máximo** de similaridade entre elas, não a média do documento inteiro).
+*   **Entendimento e reranking de consulta via LLM (Groq, grátis):** um modelo pequeno classifica a consulta (objeto/pessoa/genérica) e ajusta pesos *só* para esse tipo; depois de fundir os sinais, o top-30 candidato vai pro mesmo LLM **ler a sinopse de verdade** e promover quem bate o fato citado — a única etapa do pipeline que julga conteúdo em vez de calcular similaridade. Detalhes: [seção abaixo](#-como-o-uso-real-evoluiu-o-algoritmo).
+*   **Fusão com teto de outlier:** os sinais são padronizados (z-score, capado em ±8 desvios-padrão — sem isso, um termo raríssimo citado uma vez em documento errado dominava a soma) e somados com ReLU + prior de popularidade; o resultado é explicado no card (tema, sinopse, termos, nome). A [tabela de ablação](#-tabela-de-ablação-por-sinal) mostra o ganho da fusão sobre cada sinal isolado.
+*   **Re-ranker cross-encoder (2º estágio):** existe, mas fica **desligado em produção** — a [ablação](#cross-encoder-2º-estágio-desligado-em-produção) mostra ganho dentro do ruído a ~40× de latência (`RECOMENDAI_RERANK=1` para experimentar).
 *   **Busca facetada:** título *fuzzy* (`rapidfuzz`), filtros de diretor/ator, gênero, idioma e faixa de anos.
 
 ### 2. Machine Learning (ML) — *o que assistir a seguir*
@@ -109,14 +112,21 @@ python app.py
 ```
 Acesse: `http://localhost:5001` — o motor de busca é **pré-carregado no boot** (`RECOMENDAI_NO_WARMUP=1` desliga). Na 1ª vez, o modelo de embeddings do `sentence-transformers` é baixado uma vez.
 
+### 5. (Opcional) Chave da Groq — entendimento e reranking de consulta via LLM
+`core/query_llm.py` usa a **[Groq](https://console.groq.com)** (camada grátis, `openai/gpt-oss-20b`) para classificar a consulta e, depois, reler o top-30 da fusão e promover quem bate o fato citado. **Sem `GROQ_API_KEY` no ambiente, o sistema funciona normalmente** — a busca cai só no retrieval por similaridade, sem os dois passos de LLM (a mesma degradação graciosa dos pôsteres sem token TMDB). Nunca cole a chave em código versionado; ela vai em `.env`/`.dvc/config.local`-style, fora do git:
+```bash
+export GROQ_API_KEY=...                     # ativa entendimento + reranking de consulta
+export RECOMENDAI_RERANK_LLM=0              # desliga só o reranking (entendimento continua)
+```
+
 ### 6. (Opcional) Reconstruir os modelos
 Alternativa ao `dvc pull` — regenerar do zero:
 ```bash
 python -m core.enrich --wikipedia   # (opcional) baixa o enredo da Wikipédia p/ o catálogo — crawl longo, retomável
-python -m retrieval.index_builder   # reconstrói retrieval/index/ (BM25 + 4 espaços de embedding: sinopse, tema, enredo)
+python -m retrieval.index_builder   # reconstrói retrieval/index/ (BM25 + espaços de embedding: sinopse, tema, enredo em trechos/MaxSim, bio de pessoa)
 python -m recommender.train         # retreina o SVD em recommender/weights/
 ```
-> O canal **enredo (Wikipédia)** e as **contribuições de personagem** no doc temático só valem depois de reconstruir o índice. `core.enrich --wikipedia` resolve o artigo pelo `imdb_id` (via Wikidata `P345`), extrai a seção "Plot/Enredo" e grava em `movies.wikipedia_plot`; `--wiki-min-votes` limita aos filmes com relevância. Pesos: `RECOMENDAI_ENTITY_WEIGHT` (personagem, 0.45), `RECOMENDAI_PLOT_WEIGHT` (enredo, 0.4).
+> Os canais **enredo (Wikipédia, léxico + MaxSim)**, **personagem** (fuzzy no elenco) e **trivia de pessoa** só valem depois de reconstruir o índice. `core.enrich --wikipedia` resolve o artigo pelo `imdb_id` (via Wikidata `P345`), extrai a seção "Plot/Enredo" e grava em `movies.wikipedia_plot`; `--wiki-min-votes` limita aos filmes com relevância; `--wikipedia-people` faz o mesmo para bios do elenco/direção. Pesos default: `RECOMENDAI_ENTITY_WEIGHT` (personagem, **0,45**, ligado), `RECOMENDAI_PLOT_BM25_WEIGHT` (enredo léxico, **0,1**, ligado), `RECOMENDAI_PLOT_CHUNK_WEIGHT` (enredo MaxSim, **0,5**, ligado), `RECOMENDAI_PERSON_MATCH_WEIGHT` (trivia de pessoa, **0**, desligado/experimental), `RECOMENDAI_ZSCORE_CLIP` (teto do z-score na fusão, **8**).
 
 ### 7. Avaliação do SRI
 A avaliação é **executável** e a saída é **JSON versionado** em `eval/results/` — não vive mais num notebook.
@@ -127,7 +137,24 @@ python -m eval.run --fast         # sem o cross-encoder (segundos, não minutos)
 python -m eval.run --split dev    # conjunto de calibração
 ```
 
-Cada consulta é uma **paráfrase de enredo** e existe **um único** filme relevante (recuperação *known-item* sobre os ≈22 mil títulos). Conjunto: **142 consultas** — as 52 originais (35 dev / 17 teste) + **90 novas nunca usadas na calibração** (60 dev / 30 teste). Só o **split de teste (47)** é reportado. Detalhes e protocolo em [`eval/README.md`](eval/README.md).
+Cada consulta é uma **paráfrase de enredo** e existe **um único** filme relevante (recuperação *known-item* sobre os ≈22 mil títulos). Protocolo de calibração/reporte: **142 consultas** — as 52 originais (35 dev / 17 teste) + **90 novas nunca usadas na calibração** (60 dev / 30 teste). Só o **split de teste (47)** é reportado. Além desse par dev/teste, o dataset tem **3 splits diagnósticos** (não usados para reportar, usados para achar buraco): `hard` (30, consulta deliberadamente oblíqua), `entity` (20, nome de personagem com erro de grafia) e `object` (42, objeto/veículo específico) — nasceram das consultas reais do painel admin, ver [seção abaixo](#-como-o-uso-real-evoluiu-o-algoritmo). Detalhes e protocolo em [`eval/README.md`](eval/README.md).
+
+> **Por que o LLM (Groq) não entra nesses números.** O `eval.run` é determinístico e não faz chamada de rede de propósito — precisa ser reproduzível e rodar em CI sem custo/latência de API. O entendimento e o reranking via LLM são medidos à parte, com scripts ad hoc contra o Groq real, e vivem só na produção. As tabelas abaixo são o **piso** do retrieval puro; a seção seguinte mostra o que o LLM soma em cima disso.
+
+---
+
+## 🌱 Como o uso real evoluiu o algoritmo
+
+Nada abaixo saiu de intuição — o [painel admin](#contas--segurança) loga toda busca (sem dado pessoal), e ler esse log é o que decidiu o que construir. Ordem em que aconteceu:
+
+1. **Consulta real revelou o padrão.** Lendo o log em 2026-09, ~2/3 das consultas difíceis citavam **objeto/veículo específico** ("skyline azul e prata", "dodge charger preto") ou **personagem com erro de grafia** ("Jonh wick", "Toreto") — nenhum dos dois aparece na sinopse curta da TMDB.
+2. **Teto no outlier de termo raro (`RECOMENDAI_ZSCORE_CLIP=8`).** "filme que chove hambúrguer" não achava *Tá Chovendo Hambúrguer*: um filme não relacionado citava a palavra rara "hambúrguer" uma vez e o z-score dele explodia (75, sobre 22 mil documentos quase todos zero) e dominava a soma sozinho. Capar o z-score em 8 desvios-padrão subiu **os 5 splits ao mesmo tempo** (object nDCG@10 +0,017, entity +0,026, hard +0,013) sem piorar nenhum — o tipo de correção que só aparece testando contra consulta real, não sintética.
+3. **Canal de personagem, fuzzy (Jaro-Winkler).** Nome de personagem quase sempre vem com erro de digitação numa busca real. Casar o nome mesmo torto contra o elenco de topo do filme subiu o split `entity` de nDCG@10 **0,49 → 0,78**.
+4. **Enredo da Wikipédia, léxico + trechos (MaxSim).** A sinopse da TMDB some antes de citar o objeto do 3º ato. O enredo da Wikipédia entra fatiado em janelas de ~380 palavras, com o score do filme sendo o **máximo** entre os trechos (MaxSim) — objeto citado uma vez ainda casa. O canal léxico (BM25) sobre o mesmo texto somou **+0,049** de nDCG@10 no split `object` (0,276 → 0,325), depois que o teto de z-score parou de deixá-lo instável.
+5. **Entendimento de consulta via LLM (Groq, grátis).** Um modelo pequeno (`openai/gpt-oss-20b`, via Groq) classifica a consulta — objeto, pessoa ou genérica — antes da busca. Consulta de objeto ganha peso maior no canal léxico de enredo (só nela) e desliga o canal de personagem (achado: um termo acrescentado tipo "Dodge Charger" virava falso-positivo lá). **Nunca substitui** o texto da busca, só acrescenta termo — uma tentativa de encolher a consulta chegou a quebrar um caso que já funcionava, revertida no mesmo dia.
+6. **Reranking via LLM — lê a sinopse e julga.** Todo canal acima é *similaridade* (vetor ou termo) — nenhum lê o candidato e confere se o fato citado está mesmo ali. O reranking manda o top-30 da fusão pro Groq, que promove pro #1 só quando confirma o fato com confiança, nunca reordena o resto. Subiu o split `hard` de nDCG@10 **0,473 → 0,506**; quando a sinopse genuinamente não tem o fato, recusa em vez de inventar. Achado no caminho: a mesma consulta repetida dava resposta diferente — a Groq **não é perfeitamente determinística mesmo com `temperature=0`** — corrigido com cache por consulta (`data/tmdb_cache/rerank_llm.json`).
+
+Essa mesma narrativa (com os números ao vivo, lidos de `eval/results/` a cada deploy) está na aba **Engenharia** do site: [`GET /engineering`](https://cinerd.davispecia.com.br/engineering). Decisão e trade-offs de colocar um LLM externo no caminho crítico da busca: [`docs/adr/0003-llm-in-the-loop.md`](docs/adr/0003-llm-in-the-loop.md).
 
 ---
 
@@ -135,26 +162,26 @@ Cada consulta é uma **paráfrase de enredo** e existe **um único** filme relev
 
 > 🌐 **Ao vivo no site:** a aba **Engenharia** (`GET /engineering`) renderiza esta tabela, o orçamento de latência do encoder, o protocolo de avaliação e a **latência por etapa do tráfego real** — lendo os JSON de `eval/results/` a cada deploy, sem número copiado à mão.
 
-Cada sinal **isolado** vs. a **fusão** — split de teste, 47 consultas *held-out*:
+Cada sinal **isolado** vs. a **fusão** (8 sinais: lexical, sinopse, tema, personagem, enredo em 2 formas, trivia de pessoa, nome + prior) — split de teste, 47 consultas *held-out*:
 
-| Pipeline | nDCG@10 | MRR | Recall@10 | Recall@50 | Precision@10 | mediana | latência p50 |
-|---|---|---|---|---|---|---|---|
-| BM25 puro *(lexical)* | 0,360 | 0,316 | 0,53 | 0,66 | 0,053 | #7 | 2 ms |
-| Só embedding *(semântico)* | 0,299 | 0,260 | 0,45 | 0,53 | 0,045 | #25 | 5 ms |
-| Só temático *(keywords)* | 0,310 | 0,256 | 0,51 | 0,64 | 0,051 | #10 | 5 ms |
-| **Fusão** *(produção)* | **0,733** | **0,686** | **0,89** | **0,94** | 0,089 | **#1** | 7 ms |
+| Pipeline | nDCG@10 | MRR | Recall@10 | Recall@50 | mediana |
+|---|---|---|---|---|---|
+| BM25 puro *(lexical)* | 0,360 | 0,316 | 0,53 | 0,66 | #7 |
+| Só embedding *(semântico)* | 0,299 | 0,260 | 0,45 | 0,53 | #25 |
+| Só temático *(keywords)* | 0,282 | 0,246 | 0,43 | 0,58 | #32 |
+| **Fusão** *(produção)* | **0,829** | **0,790** | **0,96** | **1,00** | **#1** |
 
-> `Precision@10` tem teto de `0,1` — só há um relevante por consulta; está aqui por continuidade com a métrica antiga.
-
-**Os sinais são complementares.** Nenhum sozinho passa de nDCG@10 ≈ 0,36; a fusão z-score dos três + prior de popularidade salta para **0,73** e leva a mediana da posição para **#1**. O lexical resgata enredos com termo próprio, o semântico entende paráfrase, o temático pega conceito ("time loop", "memory loss") — juntos cobrem os buracos uns dos outros.
+**Os sinais são complementares.** Nenhum sozinho passa de nDCG@10 ≈ 0,36; a fusão z-score (com teto de outlier) + prior de popularidade salta para **0,83** e leva a mediana da posição para **#1**. O lexical resgata enredos com termo próprio, o semântico entende paráfrase, o temático pega conceito ("time loop", "memory loss"), o personagem tolera erro de grafia, o enredo da Wikipédia resgata detalhe fora da sinopse curta — juntos cobrem os buracos uns dos outros. O reranking via LLM (Groq) entra **depois** dessa fusão, só em produção — não está nesta tabela porque o `eval.run` é determinístico/sem rede de propósito; ver [seção anterior](#-como-o-uso-real-evoluiu-o-algoritmo).
 
 ### Cross-encoder (2º estágio): **desligado em produção**
 
 O re-ranker cross-encoder era o default. A varredura do tamanho do pool (`python -m eval.run --sweep-rerank`) mostra que ele **não compensa** — split de teste:
 
+> Tabela abaixo medida **antes** do teto de z-score e dos canais de enredo/personagem (baseline "0 — desligado" era 0,733 nDCG@10, hoje 0,829 com a fusão atual) — a conclusão relativa não mudou: medição fresca contra a fusão atual dá **0,829 → 0,830** a 694 ms vs 18 ms (~40×), a mesma margem-dentro-do-ruído. Regenerar com `python -m eval.run --sweep-rerank` fica pendente para revalidar os números absolutos.
+
 | pool cross-encoder | nDCG@10 | MRR | Recall@10 | Recall@50 | latência p50 | p90 |
 |---|---|---|---|---|---|---|
-| **0 — desligado** *(produção)* | 0,733 | 0,686 | 0,89 | 0,94 | **7 ms** | 8 ms |
+| **0 — desligado** *(produção, na época)* | 0,733 | 0,686 | 0,89 | 0,94 | **7 ms** | 8 ms |
 | 10 | 0,743 | 0,698 | 0,89 | 0,94 | 76 ms | 94 ms |
 | 20 | 0,750 | 0,699 | 0,92 | 0,94 | 124 ms | 156 ms |
 | 50 | 0,754 | 0,705 | 0,92 | 0,94 | 304 ms | 378 ms |
@@ -186,6 +213,8 @@ Regerar: `python -m eval.run --sweep-rerank` (varredura de pool) · `python -m e
 
 Medido em **CPU** (o servidor de produção não tem GPU/MPS), split de teste, `python -m eval.bench embed`. `encode` = *forward* do transformer numa consulta fora do cache (a etapa que domina a busca); `search` = pipeline inteiro com o cache LRU quente; RSS = memória residente do processo depois de carregar o modelo.
 
+> Medido **antes** do teto de z-score e dos canais de enredo/personagem (a coluna `nDCG@10` usa o baseline antigo, 0,733 — hoje a fusão está em 0,829); a leitura relativa entre `e5-large`/INT8/`e5-small` (latência, RSS, custo de qualidade) não depende disso e segue valendo. Regenerar para números absolutos atualizados.
+
 | config | dim | nDCG@10 | MRR | Recall@10 | Recall@50 | `encode` p50 / p99 | `search` p99 | RSS |
 |---|---|---|---|---|---|---|---|---|
 | **e5-large fp32** *(padrão)* | 1024 | **0,733** | **0,686** | **0,89** | 0,94 | 169 / 352 ms | 36 ms | 2 318 MB |
@@ -210,21 +239,40 @@ Regerar: `python -m eval.bench embed` → `eval/results/latest__bench-embed.json
 
 ## 🧩 Consultas difíceis — onde o retrieval tem teto
 
+### `hard` — descrição deliberadamente oblíqua
+
 O split **`hard`** (`eval/datasets/queries.jsonl`, `source = v3-hard`) tem **30 descrições deliberadamente oblíquas** de filmes famosos: sem título, sem nome próprio, **sem o termo que define o filme** (nada de "anel", "hobbit", "dinossauro", "replicante"). É o pior caso — consulta genérica cujo vocabulário não bate com a sinopse.
 
 | Pipeline | nDCG@10 | MRR | Recall@10 | Recall@50 | mediana |
 |---|---|---|---|---|---|
 | BM25 puro | 0,165 | 0,144 | 0,27 | 0,40 | #246 |
-| **Fusão** *(produção)* | **0,480** | **0,437** | **0,63** | **0,77** | **#4** |
-| Fusão + PRF (Rocchio) | 0,410 | 0,366 | 0,57 | 0,63 | #5 |
+| **Fusão** *(produção)* | **0,473** | **0,454** | **0,57** | **0,77** | **#3** |
+| Fusão + PRF (Rocchio) | 0,447 | 0,413 | 0,57 | 0,63 | #3 |
 
 **Leitura honesta:**
-- A fusão **não é ruim mesmo aqui**: o filme certo fica no **top-3 em 14/30**, no top-10 em 19/30, no top-50 em **23/30**, mediana **#4**. O caso do usuário ("grupo destrói objeto poderoso, guardião minúsculo" → *Senhor dos Anéis* fora do top-18) é real mas **pontual** — um punhado de consultas onde a descrição é toda de palavras genéricas que caem num bairro semântico lotado: *Blade Runner* (#2299), *Matrix* (#1117), *O Poderoso Chefão* (#426). As outras 22 a fusão acha bem.
-- **Nenhuma alavanca "mais esperta" ajuda**: o cross-encoder ([acima](#cross-encoder-2º-estágio-desligado-em-produção)) não melhora de forma confiável; o **PRF/Rocchio** (`fusion_prf`, realimenta o centroide do top-K na consulta — só numpy, sem LLM) **piora** (0,48 → 0,41): em consulta genérica o top-K inicial está errado, e realimentá-lo puxa a consulta pro cluster errado (*query drift*).
-- **A régua já mostra o caminho barato**: adicionar **um** detalhe à consulta resolve. *"...joga um anel num vulcão"* → LOTR #3; *"...hobbit... terra-média"* → #1. Nas consultas de fraseado normal (`test`/`dev`) a fusão faz nDCG@10 **0,73–0,82**.
-- **Conclusão de produto**: o retrieval tem um teto medido em entrada maximamente oblíqua — documentado, não escondido. O ganho está na **UI pedir um detalhe** ("sabe o gênero? um ator? a época?"), não em bolar um 2º estágio que a medição já reprovou.
+- A fusão **não é ruim mesmo aqui**: o filme certo fica no **top-3 em 16/30**, no top-10 em 17/30, no top-50 em **23/30**. O caso do usuário ("grupo destrói objeto poderoso, guardião minúsculo" → *Senhor dos Anéis*, #18) é real mas **pontual** — um punhado de consultas onde a descrição é toda de palavras genéricas que caem num bairro semântico lotado: *Matrix* (#891), *Toy Story* (#476), *Coringa* (#173). As outras 27 a fusão acha bem.
+- **Nenhuma alavanca de similaridade "mais esperta" ajuda**: o cross-encoder ([acima](#cross-encoder-2º-estágio-desligado-em-produção)) não melhora de forma confiável; o **PRF/Rocchio** (`fusion_prf`, realimenta o centroide do top-K na consulta — só numpy, sem LLM) **piora** um pouco: em consulta genérica o top-K inicial já está errado, e realimentá-lo puxa a consulta pro cluster errado (*query drift*).
+- **O que ajuda é ler, não comparar vetor.** O reranking via LLM (Groq lê a sinopse do top-30 e confere o fato) é a única técnica que sobe esse split de forma real: 0,473 → 0,506. Não está na tabela como linha completa porque é medido fora do `eval.run` (chamada real de rede) — ver [seção de evolução](#-como-o-uso-real-evoluiu-o-algoritmo).
+- **A régua também mostra o caminho barato de produto**: adicionar **um** detalhe à consulta resolve. *"...joga um anel num vulcão"* → LOTR #3; *"...hobbit... terra-média"* → #1. Nas consultas de fraseado normal (`test`/`dev`) a fusão faz nDCG@10 **0,83–0,88**.
 
 Rodar: `python -m eval.run --split hard --pipelines bm25,fusion,fusion_prf`.
+
+### `object` — objeto/veículo específico citado
+
+O split **`object`** (42 consultas, `source = v3-object`) veio direto do log do admin: descrição que cita **objeto ou veículo específico** ("dodge charger preto", "skyline azul e prata") em vez de tema/enredo — o pior tipo de consulta pro retrieval baseado em sinopse, porque a sinopse da TMDB quase nunca menciona objeto.
+
+| Pipeline | nDCG@10 | MRR | Recall@10 | Recall@50 | mediana |
+|---|---|---|---|---|---|
+| BM25 puro | 0,132 | 0,114 | 0,21 | 0,33 | #5761 |
+| Só embedding | 0,108 | 0,085 | 0,19 | 0,21 | #1954 |
+| **Fusão** *(produção, canal de enredo Wikipédia ligado)* | **0,325** | **0,287** | **0,48** | **0,62** | **#13** |
+| Fusão + PRF (Rocchio) | 0,223 | 0,189 | 0,36 | 0,48 | #51 |
+
+- **Sem o enredo da Wikipédia isso era pior ainda**: antes do canal léxico sobre o texto da Wikipédia, a fusão neste split ficava em nDCG@10 0,276; o canal somou **+0,049**. É o split que mais empurrou a construção dos canais de enredo.
+- **Ainda é o teto mais baixo de todos os splits.** Mediana **#13** (contra #1 no `test`/`dev`) e top-3 em só **14/42**. A sinopse curta simplesmente não cita objeto na maioria dos filmes — não tem sinal pra recuperar, por mais que se fundam canais.
+- **É aqui que o LLM entra como paliativo, não solução**: classificar a consulta como "objeto" e dar peso maior ao canal léxico de enredo (e desligar o canal de personagem, que gerava falso-positivo com o termo do objeto) ajuda pontualmente, mas não fecha a lacuna — o gargalo é a **cobertura de dado** (a Wikipédia às vezes também não cita o objeto), não o algoritmo de fusão.
+
+Rodar: `python -m eval.run --split object --pipelines bm25,embedding,fusion,fusion_prf`.
 
 ---
 
