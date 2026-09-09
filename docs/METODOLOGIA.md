@@ -440,16 +440,18 @@ Decisão e trade-offs completos: [`docs/adr/0003-llm-in-the-loop.md`](adr/0003-l
 
 ## Reagrupamento por franquia
 
-> **O que faz** — depois de todo o resto do pipeline (fusão, facetas, reranking), se o **#1** pertence a uma franquia (`belongs_to_collection` da TMDB), traz os outros filmes dela pra perto, em ordem de lançamento, mesmo que a fusão os tenha ranqueado longe do topo (`core/inference_client.py::_pull_franchise_siblings`, cache TMDB de 3 dias).
+> **O que faz** — depois de todo o resto do pipeline (fusão, facetas, reranking), se o **#1** pertence a uma franquia (`belongs_to_collection` da TMDB) **e** o entendimento de consulta classificou a busca como objeto ou pessoa, traz os outros filmes dela pra perto, mesmo que a fusão os tenha ranqueado longe do topo (`core/inference_client.py::_pull_franchise_siblings`, cache TMDB de 3 dias).
 > **O que resolve** — quando a consulta cita um detalhe específico de UMA sequência de uma franquia grande e nenhum canal de similaridade acha o texto exato, mas o algoritmo já acertou a franquia certa.
 
 Caso real: "Nissan Skyline azul e prata arrancada" tem como resposta certa *+ Velozes + Furiosos* (2003, o carro é daquele filme especificamente), mas a sinopse da TMDB desse filme não cita carro, cor nem franquia, e não há enredo da Wikipédia enriquecido pra ele. A fusão e o reranking até acertavam a franquia (havia 4 filmes de Velozes e Furiosos no pool de 20), mas erravam qual sequência específica: o certo ficava na posição #15.
 
 ```mermaid
 flowchart LR
-    T[Resultado #1] --> C{Pertence a uma<br/>franquia na TMDB?}
-    C -->|não| OUT[Mantém como está]
-    C -->|sim| F[Busca os outros filmes<br/>da franquia, em ordem]
+    T[Resultado #1] --> Q{Consulta é<br/>objeto ou pessoa?}
+    Q -->|não| OUT[Mantém como está]
+    Q -->|sim| C{#1 pertence a uma<br/>franquia na TMDB?}
+    C -->|não| OUT
+    C -->|sim| F["Busca os outros filmes<br/>da franquia (known mantém<br/>ordem da fusão, unknown por lançamento)"]
     F --> M[Insere logo após o #1,<br/>tira duplicata de onde já estava]
 ```
 
@@ -459,6 +461,22 @@ flowchart LR
 A alternativa cogitada era deixar o reranking confirmar por conhecimento próprio do modelo, não só pela sinopse fornecida (já que o modelo provavelmente "sabe" que o Skyline azul é de um Velozes e Furiosos específico). Descartada porque o pool tinha 4 filmes da mesma franquia ao mesmo tempo: o modelo precisaria acertar especificamente **qual dos 4** tem aquele carro, não só reconhecer "isso é Velozes e Furiosos" (fácil, qualquer modelo sabe). É uma aposta bem mais específica no conhecimento de mundo do modelo do que parece à primeira vista, com risco real de confundir qual sequência exata.
 
 Reagrupar pela franquia ataca o mesmo problema por um caminho mais barato e confiável: não depende de o modelo acertar a sequência exata, só de ele (ou a fusão) acertar a franquia, o que já acontecia. O usuário reconhece visualmente qual filme é o certo assim que a franquia inteira aparece na tela.
+
+</details>
+
+<details>
+<summary><b>Achado no caminho: subiu pra produção só com 2 exemplos escolhidos a dedo, sem medir o impacto agregado; corrigido no mesmo dia</b></summary>
+
+A 1ª versão inseria os filmes da franquia sempre (qualquer tipo de consulta) e só em ordem de lançamento. Validada com 2 exemplos reais (Velozes e Furiosos, James Bond) e subida sem medir o efeito no dataset inteiro. Medindo depois nos 5 splits formais (essa etapa não usa LLM, então dá pra medir sem custo de Groq): `test` piorou (nDCG@10 -0,006) e, pior que a média agregada, **toda consulta onde o #1 já estava certo e pertencia a alguma franquia** tinha risco real de regressão. O exemplo mais claro foi "Hobbs e Toreto" (split `entity`): *Velozes & Furiosos 7* já estava certo em #3, e caiu pra #7 porque um filme mais antigo da mesma franquia (irrelevante pra aquela consulta específica) entrou na frente só por ter saído antes nos cinemas.
+
+Dois ajustes, remedidos antes de religar em produção:
+
+| Ajuste | Por quê |
+|---|---|
+| Só ativa quando o entendimento de consulta classifica como objeto ou pessoa | Descrição genérica de enredo (a maioria de `dev`/`test`/`hard`) raramente tem a ver com a franquia do #1; zerar a ativação ali eliminou o risco por completo (medido: 0 disparos, 0 mudança nesses 3 splits) |
+| Filmes que já apareciam nos resultados ("known") mantêm a ordem relativa que a fusão/reranking já tinham decidido entre eles; só os de fora do pool ("unknown", sem sinal de relevância nenhum) usam ordem de lançamento | Resolve o caso "Hobbs e Toreto": o filme já bem ranqueado não é mais ultrapassado por um sibling mais antigo mas irrelevante |
+
+Remedido: `entity` nDCG@10 0,778 → 0,780 (zero regressões, antes tinha 3), `object` 0,325 → 0,340 (mediana #13 → #11, melhor que a 1ª tentativa, que só ia a 0,328).
 
 </details>
 

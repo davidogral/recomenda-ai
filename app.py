@@ -1247,14 +1247,18 @@ def _engineering_payload() -> dict:
             {
                 "title": "Reagrupamento por franquia, sem depender da LLM adivinhar a sequência",
                 "body": "Consulta real: \"Nissan Skyline azul e prata arrancada\" não subia nenhum filme de Velozes "
-                "e Furiosos ao #1; o certo (o carro é do 2º filme especificamente) ficava na posição #15, e a "
-                "sinopse da TMDB dele não cita carro, cor nem franquia. Ideia descartada: deixar a LLM confirmar "
-                "por conhecimento próprio, não só pela sinopse. O pool tinha 4 filmes da franquia ao mesmo tempo; "
-                "o modelo precisaria saber especificamente qual dos 4 tem aquele carro, não só reconhecer \"isso é "
-                "Velozes e Furiosos\", uma aposta bem mais arriscada do que parece. Resolvido de outro jeito: "
-                "quando o #1 pertence a uma franquia da TMDB, os outros filmes dela entram na lista, em ordem de "
-                "lançamento, mesmo que a fusão os tenha ranqueado longe. Sem teto de quantos trazer: se a franquia "
-                "ocupar a página inteira, essa é a decisão, dado que o objetivo é achar o filme certo.",
+                "e Furiosos ao #1; o certo (o carro é do 2º filme especificamente) ficava na posição #15. Ideia "
+                "descartada: deixar a LLM confirmar por conhecimento próprio, não só pela sinopse; o pool tinha 4 "
+                "filmes da franquia ao mesmo tempo, então o modelo precisaria saber qual dos 4 tem aquele carro, "
+                "não só reconhecer a franquia. Resolvido de outro jeito: quando o #1 pertence a uma franquia da "
+                "TMDB, os outros filmes dela entram na lista. Subiu pra produção validado só com 2 exemplos "
+                "escolhidos a dedo, sem medir o impacto agregado antes; medido depois nos 5 splits formais, achou "
+                "regressão real (test -0,006, e toda consulta onde o #1 já estava certo e pertencia a uma franquia "
+                "corria risco, porque a inserção era só por ordem de lançamento sem olhar relevância). Corrigido no "
+                "mesmo dia: só ativa pra consulta de objeto ou pessoa (zera o risco em enredo genérico), e filme "
+                "que já aparecia nos resultados mantém a posição relativa que a fusão já tinha decidido, só o que "
+                "vinha de fora do pool usa ordem de lançamento. Remedido: entity 0,778 para 0,780 (zero "
+                "regressões, antes tinha 3), object 0,325 para 0,340.",
             },
             {
                 "title": "Cross-encoder segue desligado em produção",
