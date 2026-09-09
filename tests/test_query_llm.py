@@ -127,8 +127,8 @@ def test_rewrite_query_passthrough_without_llm(monkeypatch):
 
     monkeypatch.setattr(query_llm, "GROQ_API_KEY", "")
     q = "carro azul e prata dando arrancada numa corrida de rua a noite"
-    assert inference_client._understand_and_rewrite(q) == (q, [], None, None)
-    assert inference_client._understand_and_rewrite("") == ("", [], None, None)
+    assert inference_client._understand_and_rewrite(q) == (q, [], None, None, "generico")
+    assert inference_client._understand_and_rewrite("") == ("", [], None, None, "generico")
 
 
 def test_rewrite_query_appends_pistas_objeto_never_replaces(monkeypatch):
@@ -151,13 +151,14 @@ def test_rewrite_query_appends_pistas_objeto_never_replaces(monkeypatch):
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
     q = "carro azul e prata dando arrancada numa corrida de rua a noite"
-    out, pistas_pessoa, plot_lexical_weight, entity_weight = inference_client._understand_and_rewrite(q)
+    out, pistas_pessoa, plot_lexical_weight, entity_weight, tipo = inference_client._understand_and_rewrite(q)
     assert out.startswith(q)  # original PRESERVADO, nunca substituído
     assert "Nissan Skyline GT-R" in out
     assert "nao devia aparecer" not in out  # consulta_reescrita não é usada
     assert pistas_pessoa == []
     assert plot_lexical_weight == inference_client.OBJECT_PLOT_LEXICAL_WEIGHT
     assert entity_weight == 0.0
+    assert tipo == "objeto"
 
 
 def test_rewrite_query_short_query_still_calls_groq_but_stays_safe(monkeypatch):
@@ -173,10 +174,11 @@ def test_rewrite_query_short_query_still_calls_groq_but_stays_safe(monkeypatch):
     payload = json.dumps({"tipo": "pessoa", "pistas_pessoa": ["plays a character named McQueen"]})
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
-    out, pistas_pessoa, plot_lexical_weight, entity_weight = inference_client._understand_and_rewrite("Mcquen")
+    out, pistas_pessoa, plot_lexical_weight, entity_weight, tipo = inference_client._understand_and_rewrite("Mcquen")
     assert out == "Mcquen"  # tipo != objeto -> texto não muda
     assert plot_lexical_weight is None  # e não ganha o peso maior
     assert entity_weight is None  # canal de personagem continua ligado
+    assert tipo == "pessoa"
 
 
 def test_rewrite_query_generico_does_not_change_query(monkeypatch):
@@ -190,7 +192,7 @@ def test_rewrite_query_generico_does_not_change_query(monkeypatch):
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
     q = "consulta bem barroca e cheia de enrolacao mas ainda assim descritiva"
-    assert inference_client._understand_and_rewrite(q) == (q, [], None, None)
+    assert inference_client._understand_and_rewrite(q) == (q, [], None, None, "generico")
 
 
 def test_rewrite_query_returns_pistas_pessoa_for_tipo_pessoa(monkeypatch):
@@ -208,11 +210,12 @@ def test_rewrite_query_returns_pistas_pessoa_for_tipo_pessoa(monkeypatch):
     monkeypatch.setattr(query_llm.requests, "post", _fake_post(content=payload))
 
     q = "ator condecorado pela rainha da inglaterra que tinha uma banda de heavy metal"
-    out, pistas_pessoa, plot_lexical_weight, entity_weight = inference_client._understand_and_rewrite(q)
+    out, pistas_pessoa, plot_lexical_weight, entity_weight, tipo = inference_client._understand_and_rewrite(q)
     assert out == q  # texto da busca não muda
     assert plot_lexical_weight is None
     assert entity_weight is None
     assert pistas_pessoa == ["decorated by the Queen", "had a heavy metal band"]
+    assert tipo == "pessoa"
 
 
 # =========================================================== rerank_confirm
@@ -478,6 +481,43 @@ def test_pull_franchise_siblings_moves_existing_sibling_up(monkeypatch):
     out = inference_client._pull_franchise_siblings(list(original))
     assert [r["tmdb_id"] for r in out] == [101, 103, 102]
     assert "why" not in out[1]  # já vinha de `results`, mantém os campos originais
+
+
+def test_pull_franchise_siblings_keeps_known_order_over_release_date(monkeypatch):
+    """Achado 2026-09-09 (regressão medida em produção): a 1ª versão ordenava
+    TUDO por lançamento, então um sibling mais antigo mas irrelevante pra
+    aquela consulta passava na frente de um sibling que a fusão/reranking já
+    tinham ranqueado bem (ex.: "Hobbs e Toreto" tinha o filme certo em #3 e
+    caiu pra #7). Aqui: 103 (2003) já vinha ANTES de 102 (2002) em
+    `results` (ou seja, a fusão já preferia 103), mas 102 tem lançamento
+    mais antigo. O "known" (103) deve manter sua posição relativa acima do
+    "unknown" (999, fora de `results`, sem sinal nenhum), mesmo que a
+    ordem de lançamento diga o contrário."""
+    from core import catalog, inference_client, tmdb
+
+    monkeypatch.setattr(tmdb, "movie_details", lambda tid: {"collection": {"id": 999, "name": "Franquia X"}})
+    monkeypatch.setattr(
+        tmdb, "collection_movies",
+        lambda cid: {"id": cid, "name": "Franquia X", "parts": [
+            {"tmdb_id": 999001, "title": "Filme A 0 (mais antigo)", "release_year": 1999},
+            {"tmdb_id": 103, "title": "Filme A 3", "release_year": 2003},
+        ]},
+    )
+    monkeypatch.setattr(
+        catalog, "get_movie",
+        lambda tid: {"title": "Filme A 0 (mais antigo)", "release_year": 1999, "original_language": "en",
+                     "vote_average": 5.0, "overview": ""} if tid == 999001 else None,
+    )
+
+    original = [
+        {"tmdb_id": 101, "title": "Filme A", "release_year": 2001},
+        {"tmdb_id": 103, "title": "Filme A 3", "release_year": 2003},  # já ranqueado acima na fusão
+        {"tmdb_id": 102, "title": "Filme A 2", "release_year": 2002},
+    ]
+    out = inference_client._pull_franchise_siblings(list(original))
+    # 103 (known, já vinha bem ranqueado) fica ANTES de 999001 (unknown,
+    # mais antigo mas sem sinal de relevância nenhum) mesmo sendo mais novo.
+    assert [r["tmdb_id"] for r in out] == [101, 103, 999001, 102]
 
 
 def test_pull_franchise_siblings_respects_max_cap(monkeypatch):

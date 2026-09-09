@@ -62,9 +62,10 @@ def _post(path: str, payload: dict) -> Any:
 OBJECT_PLOT_LEXICAL_WEIGHT = float(os.environ.get("RECOMENDAI_OBJECT_PLOT_LEXICAL_WEIGHT", "0.3"))
 
 
-def _understand_and_rewrite(query: str) -> tuple[str, list, Optional[float], Optional[float]]:
+def _understand_and_rewrite(query: str) -> tuple[str, list, Optional[float], Optional[float], str]:
     """Passa a consulta pelo entendimento via LLM (Groq) antes da busca.
-    Devolve (consulta_pra_buscar, pistas_pessoa, plot_lexical_weight, entity_weight).
+    Devolve (consulta_pra_buscar, pistas_pessoa, plot_lexical_weight,
+    entity_weight, tipo).
 
     NUNCA substitui o texto — só ACRESCENTA (ver nota acima sobre por que).
     `pistas_pessoa` (fatos biográficos, tipo="pessoa") vão pro canal
@@ -74,19 +75,21 @@ def _understand_and_rewrite(query: str) -> tuple[str, list, Optional[float], Opt
     de personagem — achado testando "Dogde charger preto": o termo
     acrescentado ("Dodge Charger") dava falso-positivo no canal de
     personagem (afinado pra consulta curta de NOME, não filtra "isso não é
-    nome de gente").
+    nome de gente"). `tipo` (objeto/pessoa/generico) é usado pra decidir se
+    o reagrupamento por franquia entra (ver FRANCHISE_PULLUP_ENABLED).
 
     Qualquer falha (sem chave, rede, timeout, consulta vazia) devolve a
-    consulta original sem alterar nada e os dois pesos em None."""
+    consulta original sem alterar nada, os dois pesos em None e
+    tipo="generico"."""
     q = (query or "").strip()
     if not q:
-        return query, [], None, None
+        return query, [], None, None, "generico"
     from core import metrics, query_llm
 
     with metrics.stage_timer("query_llm"):
         plan = query_llm.understand(q)
     if not plan.ok:
-        return query, [], None, None
+        return query, [], None, None, "generico"
     out = query
     plot_lexical_weight = entity_weight = None
     if plan.tipo == "objeto" and plan.pistas_objeto:
@@ -95,7 +98,7 @@ def _understand_and_rewrite(query: str) -> tuple[str, list, Optional[float], Opt
         out = f"{q} {' '.join(extra)}".strip() if extra else query
         plot_lexical_weight = OBJECT_PLOT_LEXICAL_WEIGHT
         entity_weight = 0.0
-    return out, (plan.pistas_pessoa if plan.tipo == "pessoa" else []), plot_lexical_weight, entity_weight
+    return out, (plan.pistas_pessoa if plan.tipo == "pessoa" else []), plot_lexical_weight, entity_weight, plan.tipo
 
 
 # Reranking via LLM (ver core.query_llm.rerank_confirm): lê a sinopse do topo
@@ -152,6 +155,21 @@ def _llm_rerank(query: str, results: list[dict]) -> list[dict]:
 # apresentação: se o #1 pertence a uma franquia (TMDB collection), traz os
 # outros filmes dela pra perto, em ordem de lançamento, mesmo que a fusão os
 # tenha ranqueado longe. O usuário reconhece visualmente qual é o certo.
+#
+# Medido nos 5 splits formais 2026-09-09 (1ª versão, subida sem medir antes):
+# resultado misto, com regressão real em `test` (-0.006) e regressão
+# per-query em toda consulta onde o #1 já estava certo e pertencia a uma
+# franquia, porque a inserção era só por ordem de lançamento, sem olhar
+# relevância (ex. "Hobbs e Toreto" tinha Velozes & Furiosos 7 certo em #3,
+# caiu pra #7). Corrigido com dois ajustes, medidos de novo antes de religar:
+# (1) só ativa quando `tipo` (do entendimento de consulta) é "objeto" ou
+# "pessoa" — dev/test/hard são descrição genérica de enredo, onde a franquia
+# do #1 raramente tem relação com o que a consulta pede; zera o risco ali
+# (0 disparos, 0 mudança). (2) siblings que já apareciam em `results` mantêm
+# a ordem relativa que a fusão/reranking já tinham decidido; só os que
+# vinham de fora do pool (sem sinal de relevância nenhum) usam ordem de
+# lançamento. Remedido: entity 0.778->0.780 (0 regressões, antes tinha 3),
+# object 0.325->0.340 (melhor que a 1ª versão, que só ia a 0.328).
 FRANCHISE_PULLUP_ENABLED = os.environ.get("RECOMENDAI_FRANCHISE_PULLUP", "1").strip().lower() not in (
     "0", "false", "no",
 )
@@ -164,11 +182,20 @@ FRANCHISE_PULLUP_MAX = int(os.environ.get("RECOMENDAI_FRANCHISE_PULLUP_MAX", "40
 
 def _pull_franchise_siblings(results: list[dict]) -> list[dict]:
     """Se `results[0]` pertence a uma franquia (TMDB `belongs_to_collection`),
-    insere os outros filmes dela logo depois, em ordem de lançamento — tira
-    de onde já estavam em `results` se já apareciam mais abaixo, ou busca no
-    catálogo local se a fusão nem tinha ranqueado. Pior caso (sem TMDB
+    insere os outros filmes dela logo depois. Pior caso (sem TMDB
     configurado, filme sem franquia, falha de rede): devolve `results`
-    inalterado."""
+    inalterado.
+
+    Achado 2026-09-09 (medido nos 5 splits DEPOIS de já ter subido — deveria
+    ter sido antes): a 1ª versão ordenava todo mundo por lançamento, sem
+    olhar relevância, e regredia consulta onde o #1 já estava certo. Ex.:
+    "Hobbs e Toreto" tinha Velozes & Furiosos 7 certo em #3; a versão antiga
+    inseria um filme mais antigo (e menos relevante pra aquela consulta) na
+    frente dele, derrubando pra #7. Corrigido: os "known" (já apareciam em
+    `results`, então a fusão/reranking já tinha uma opinião sobre eles)
+    mantêm a ordem relativa que já tinham; só os "unknown" (fora do pool,
+    sem sinal de relevância nenhum) usam ordem de lançamento como critério,
+    e vêm depois dos known."""
     if not results:
         return results
     from core import catalog, tmdb
@@ -184,33 +211,34 @@ def _pull_franchise_siblings(results: list[dict]) -> list[dict]:
     if len(parts) < 2:
         return results
 
-    by_id = {r.get("tmdb_id"): r for r in results}
-    siblings = []
+    part_ids = {p.get("tmdb_id") for p in parts if p.get("tmdb_id")}
+    known = [r for r in results[1:] if r.get("tmdb_id") in part_ids]
+    known_ids = {r.get("tmdb_id") for r in known}
+
+    unknown = []
     for p in parts:
         tid = p.get("tmdb_id")
-        if not tid or tid == top.get("tmdb_id"):
+        if not tid or tid == top.get("tmdb_id") or tid in known_ids:
             continue
-        card = by_id.get(tid)
-        if card is None:
-            mv = catalog.get_movie(tid)
-            if mv is None:
-                continue
-            card = {
-                "tmdb_id": tid,
-                "title": mv.get("title"),
-                "release_year": mv.get("release_year"),
-                "original_language": mv.get("original_language"),
-                "vote_average": mv.get("vote_average"),
-                "overview": catalog.truncate_overview(mv.get("overview") or ""),
-                "why": ["Mesma franquia"],
-            }
-        siblings.append(card)
-        if len(siblings) >= FRANCHISE_PULLUP_MAX:
+        mv = catalog.get_movie(tid)
+        if mv is None:
+            continue
+        unknown.append({
+            "tmdb_id": tid,
+            "title": mv.get("title"),
+            "release_year": mv.get("release_year"),
+            "original_language": mv.get("original_language"),
+            "vote_average": mv.get("vote_average"),
+            "overview": catalog.truncate_overview(mv.get("overview") or ""),
+            "why": ["Mesma franquia"],
+        })
+        if len(known) + len(unknown) >= FRANCHISE_PULLUP_MAX:
             break
 
+    siblings = known + unknown
     if not siblings:
         return results
-    sibling_ids = {s.get("tmdb_id") for s in siblings}
+    sibling_ids = known_ids | {s.get("tmdb_id") for s in unknown}
     rest = [r for r in results[1:] if r.get("tmdb_id") not in sibling_ids]
     return [top] + siblings + rest
 
@@ -219,7 +247,7 @@ def _pull_franchise_siblings(results: list[dict]) -> list[dict]:
 def search_combined(
     query: str = "", director: str = "", actor: str = "", n: int = 12, filters: Optional[dict] = None
 ) -> list[dict]:
-    query, pistas_pessoa, plot_lexical_weight, entity_weight = _understand_and_rewrite(query)
+    query, pistas_pessoa, plot_lexical_weight, entity_weight, tipo = _understand_and_rewrite(query)
     from core import query_llm
 
     fetch_n = max(n, query_llm.RERANK_POOL) if RERANK_LLM_ENABLED else n
@@ -238,7 +266,7 @@ def search_combined(
         )
     if RERANK_LLM_ENABLED and query:
         results = _llm_rerank(query, results)
-    if FRANCHISE_PULLUP_ENABLED and query and results:
+    if FRANCHISE_PULLUP_ENABLED and query and results and tipo in ("objeto", "pessoa"):
         results = _pull_franchise_siblings(results)
     return results[:n]
 
