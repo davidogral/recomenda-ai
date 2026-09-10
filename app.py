@@ -1282,7 +1282,17 @@ def _engineering_payload() -> dict:
 
 
 @app.route("/engineering")
-def engineering():
+def engineering_page():
+    """Link direto/compartilhável pra aba Engenharia — mesma página (SPA), o
+    JS (`goTo`) seleciona a aba certa lendo `location.pathname` no boot.
+    Antes esse path só existia como o endpoint de dados abaixo, então
+    visitar o link direto (fora da SPA) baixava o JSON cru em vez da
+    página — pessoas pedindo o link pra compartilhar esbarravam nisso."""
+    return render_template("index.html")
+
+
+@app.route("/engineering/data")
+def engineering_data():
     """Números do motor (ablação, encoder, protocolo, latência ao vivo) para a aba Engenharia."""
     return jsonify(_engineering_payload())
 

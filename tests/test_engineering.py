@@ -1,10 +1,22 @@
 # -*- coding: utf-8 -*-
-"""GET /engineering — payload da aba Engenharia (ablação, encoder, protocolo,
-latência ao vivo). Lê os JSON versionados de eval/results/ com fallback."""
+"""GET /engineering/data — payload da aba Engenharia (ablação, encoder,
+protocolo, latência ao vivo). Lê os JSON versionados de eval/results/ com
+fallback. GET /engineering (sem "/data") é a página em si — link direto/
+compartilhável, mesma SPA de "/", o JS seleciona a aba lendo a URL."""
+
+
+def test_engineering_page_serves_html_not_json(client):
+    """Achado real de uso: visitar /engineering direto (fora da SPA, ex. um
+    link compartilhado) baixava o JSON cru — a rota só existia como
+    endpoint de dados. Agora /engineering serve a página; os dados saem
+    por /engineering/data."""
+    r = client.get("/engineering")
+    assert r.status_code == 200
+    assert "text/html" in r.content_type
 
 
 def test_engineering_payload_shape(client):
-    d = client.get("/engineering").get_json()
+    d = client.get("/engineering/data").get_json()
 
     assert set(d) >= {"ablation", "encoder", "protocol", "live_latency", "decisions", "links"}
 

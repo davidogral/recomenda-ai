@@ -163,7 +163,7 @@ Essa mesma narrativa (com os números ao vivo, lidos de `eval/results/` a cada d
 
 ## 📊 Tabela de ablação por sinal
 
-> 🌐 **Ao vivo no site:** a aba **Engenharia** (`GET /engineering`) renderiza esta tabela, o orçamento de latência do encoder, o protocolo de avaliação e a **latência por etapa do tráfego real** — lendo os JSON de `eval/results/` a cada deploy, sem número copiado à mão.
+> 🌐 **Ao vivo no site:** a aba **Engenharia** ([`cinerd.davispecia.com.br/engineering`](https://cinerd.davispecia.com.br/engineering), dados em `GET /engineering/data`) renderiza esta tabela, o orçamento de latência do encoder, o protocolo de avaliação e a **latência por etapa do tráfego real** — lendo os JSON de `eval/results/` a cada deploy, sem número copiado à mão.
 
 Cada sinal **isolado** vs. a **fusão** (8 sinais: lexical, sinopse, tema, personagem, enredo em 2 formas, trivia de pessoa, nome + prior), split de teste, 47 consultas *held-out*:
 
@@ -319,7 +319,7 @@ A `api` chama a `inference` por HTTP quando `RECOMENDAI_INFERENCE_URL` está set
 | `recomendaai_tmdb_calls_total{result}` | `ok` / `error` / `capped` |
 | `recomendaai_process_rss_bytes` | memória residente |
 
-Além do histograma, `metrics.stage_percentiles()` mantém um reservatório dos últimos ~1000 tempos por etapa → p50/p95/p99 exatos do tráfego real, servidos em `GET /engineering` e renderizados na aba **Engenharia** do site (não precisa de scrape do Prometheus para a vitrine).
+Além do histograma, `metrics.stage_percentiles()` mantém um reservatório dos últimos ~1000 tempos por etapa → p50/p95/p99 exatos do tráfego real, servidos em `GET /engineering/data` e renderizados na aba **Engenharia** do site (não precisa de scrape do Prometheus para a vitrine).
 
 ### Contas & segurança
 

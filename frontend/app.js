@@ -234,11 +234,28 @@
             if (tab === 'explore' && !exploreLoaded) { exploreLoaded = true; loadExploreOptions(); }
             if (tab === 'engenharia' && !engLoaded) { engLoaded = true; loadEngineering(); }
 
+            // Link direto/compartilhável só pra Engenharia (pessoas pedindo
+            // pra mandar o link) — as outras abas continuam sem URL própria,
+            // igual sempre foi.
+            if (!opts.skipUrl) {
+                const wantsEngUrl = tab === 'engenharia';
+                const atEngUrl = location.pathname === '/engineering';
+                if (wantsEngUrl && !atEngUrl) history.pushState({ tab }, '', '/engineering');
+                else if (!wantsEngUrl && atEngUrl) history.pushState({ tab }, '', '/');
+            }
+
             if (!opts.noScroll && !opts.silent) {
                 NAV.scrollIntoView({ block: 'start', behavior: 'smooth' });
             }
         }
         window.goTo = goTo;
+
+        window.addEventListener('popstate', () => {
+            goTo(location.pathname === '/engineering' ? 'engenharia' : 'find', { silent: true, noScroll: true, skipUrl: true });
+        });
+        if (location.pathname === '/engineering') {
+            goTo('engenharia', { silent: true, noScroll: true, skipUrl: true });
+        }
 
         NAV.querySelectorAll('[data-tab]').forEach(btn => {
             btn.addEventListener('click', () => goTo(btn.dataset.tab));
@@ -1995,7 +2012,7 @@
             document.getElementById('engDiagram').innerHTML = ENG_PIPE_SVG;
             if (!quiet) { status.textContent = 'Carregando números da avaliação…'; status.hidden = false; body.hidden = true; }
             try {
-                const d = await (await fetch('/engineering')).json();
+                const d = await (await fetch('/engineering/data')).json();
                 engRenderAblation(d.ablation);
                 engRenderEncoder(d.encoder);
                 engRenderLive(d.live_latency, d.offline_latency);
