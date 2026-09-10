@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Métricas Prometheus do RecomendAI.
+"""Métricas Prometheus do Cinerd.
 
 Expõe, em `/metrics` (tanto na API Flask quanto no serviço de inferência):
 
-  recomendaai_requests_total{endpoint,method,status}   contador de requisições
-  recomendaai_errors_total{endpoint}                   erros não tratados
-  recomendaai_request_seconds{endpoint}                histograma ponta-a-ponta
-  recomendaai_stage_seconds{stage}                     histograma por etapa
-                                                       (retrieval | rerank | encode | total)
-  recomendaai_query_cache_events_total{result}         hit | miss do cache de embedding
-  recomendaai_tmdb_calls_total{result}                 ok | error | capped
-  recomendaai_process_rss_bytes                        memória residente do processo
+  cinerd_requests_total{endpoint,method,status}   contador de requisições
+  cinerd_errors_total{endpoint}                   erros não tratados
+  cinerd_request_seconds{endpoint}                histograma ponta-a-ponta
+  cinerd_stage_seconds{stage}                     histograma por etapa
+                                                  (retrieval | rerank | encode | total)
+  cinerd_query_cache_events_total{result}         hit | miss do cache de embedding
+  cinerd_tmdb_calls_total{result}                 ok | error | capped
+  cinerd_process_rss_bytes                        memória residente do processo
 
 Se `prometheus_client` não estiver instalado, tudo vira no-op — o app roda igual.
 
@@ -109,19 +109,19 @@ class _Noop:
 
 if _ENABLED:
     _LAT_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
-    REQUESTS = Counter("recomendaai_requests_total", "Requisições HTTP", ["endpoint", "method", "status"])
-    ERRORS = Counter("recomendaai_errors_total", "Erros não tratados numa requisição", ["endpoint"])
+    REQUESTS = Counter("cinerd_requests_total", "Requisições HTTP", ["endpoint", "method", "status"])
+    ERRORS = Counter("cinerd_errors_total", "Erros não tratados numa requisição", ["endpoint"])
     REQUEST_SECONDS = Histogram(
-        "recomendaai_request_seconds", "Latência ponta-a-ponta", ["endpoint"], buckets=_LAT_BUCKETS
+        "cinerd_request_seconds", "Latência ponta-a-ponta", ["endpoint"], buckets=_LAT_BUCKETS
     )
     STAGE_SECONDS = Histogram(
-        "recomendaai_stage_seconds", "Latência por etapa do pipeline", ["stage"], buckets=_LAT_BUCKETS
+        "cinerd_stage_seconds", "Latência por etapa do pipeline", ["stage"], buckets=_LAT_BUCKETS
     )
     QUERY_CACHE = Counter(
-        "recomendaai_query_cache_events_total", "Eventos do cache de embedding da consulta", ["result"]
+        "cinerd_query_cache_events_total", "Eventos do cache de embedding da consulta", ["result"]
     )
-    TMDB_CALLS = Counter("recomendaai_tmdb_calls_total", "Chamadas à API da TMDB", ["result"])
-    RSS_BYTES = Gauge("recomendaai_process_rss_bytes", "Memória residente do processo")
+    TMDB_CALLS = Counter("cinerd_tmdb_calls_total", "Chamadas à API da TMDB", ["result"])
+    RSS_BYTES = Gauge("cinerd_process_rss_bytes", "Memória residente do processo")
     try:
         import psutil
 
@@ -135,7 +135,7 @@ else:  # pragma: no cover
 
 @contextmanager
 def stage_timer(stage: str):
-    """`with stage_timer("retrieval"): ...` → observa em recomendaai_stage_seconds."""
+    """`with stage_timer("retrieval"): ...` → observa em cinerd_stage_seconds."""
     t0 = time.perf_counter()
     try:
         yield

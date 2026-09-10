@@ -1,11 +1,11 @@
-# 🎬 RecomendAI — Inteligência Artificial e Recuperação de Informação
+# 🎬 Cinerd — Inteligência Artificial e Recuperação de Informação
 
-![CI](https://github.com/davidogral/recomenda-ai/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/davidogral/cinerd/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![Machine Learning](https://img.shields.io/badge/ML-Híbrido-orange)
 ![SRI](https://img.shields.io/badge/SRI-8%20sinais%20%2B%20LLM-blueviolet)
 
-O **RecomendAI** é um ecossistema completo de recomendação de filmes que combina técnicas de **Recuperação de Informação (SRI)** e **Machine Learning (ML)** para entregar sugestões personalizadas — e para ajudar você a achar aquele filme que está na ponta da língua.
+O **Cinerd** é um ecossistema completo de recomendação de filmes que combina técnicas de **Recuperação de Informação (SRI)** e **Machine Learning (ML)** para entregar sugestões personalizadas — e para ajudar você a achar aquele filme que está na ponta da língua.
 
 > 📄 **Quer entender os algoritmos a fundo?** Veja [`docs/METODOLOGIA.md`](docs/METODOLOGIA.md) — cada técnica do SRI e da recomendação explicada (o que faz e o que resolve), com diagramas e fórmulas.
 
@@ -48,7 +48,7 @@ A camada de **recomendação** prevê o que o usuário vai gostar:
 ## 📂 Estrutura do Projeto
 
 ```
-RecomendaAI/
+Cinerd/
 ├── app.py                  # API (Flask) — rotas, validação, rate limit, /metrics
 ├── inference/              # Serviço de inferência (FastAPI) — camada de ML
 │   └── main.py             # /v1/search_combined, /v1/similar, /v1/recommend_*
@@ -303,7 +303,7 @@ docker compose up --build
 | **api** | Flask — rotas HTTP, validação, pôsteres, rate limit | `8000` |
 | **inference** | FastAPI — a camada de ML (busca por sinopse + recomendação), contrato tipado Pydantic + OpenAPI | `9000` → `/docs` |
 | **prometheus** | coleta as métricas dos dois | `9090` |
-| **grafana** | dashboard "RecomendAI" (4 painéis), login anônimo | `3000` |
+| **grafana** | dashboard "Cinerd" (4 painéis), login anônimo | `3000` |
 
 A `api` chama a `inference` por HTTP quando `RECOMENDAI_INFERENCE_URL` está setado (`core/inference_client.py`); sem isso, roda tudo no mesmo processo (modo dev). **Essa costura é o ponto de corte** para reimplementar a `inference` em outra linguagem (ex.: Rust) medindo só a diferença — o contrato JSON não muda. Migração da `api` para FastAPI: [`docs/adr/0001-migracao-fastapi.md`](docs/adr/0001-migracao-fastapi.md) (adiada, com plano).
 
@@ -313,11 +313,11 @@ A `api` chama a `inference` por HTTP quando `RECOMENDAI_INFERENCE_URL` está set
 
 | métrica | o quê |
 |---|---|
-| `recomendaai_stage_seconds{stage}` | latência por etapa — `retrieval`, `rerank`, `total` |
-| `recomendaai_request_seconds{endpoint}` · `recomendaai_requests_total{status}` · `recomendaai_errors_total` | latência ponta-a-ponta, throughput, taxa de erro |
-| `recomendaai_query_cache_events_total{result}` | hit/miss do cache de embedding da consulta |
-| `recomendaai_tmdb_calls_total{result}` | `ok` / `error` / `capped` |
-| `recomendaai_process_rss_bytes` | memória residente |
+| `cinerd_stage_seconds{stage}` | latência por etapa — `retrieval`, `rerank`, `total` |
+| `cinerd_request_seconds{endpoint}` · `cinerd_requests_total{status}` · `cinerd_errors_total` | latência ponta-a-ponta, throughput, taxa de erro |
+| `cinerd_query_cache_events_total{result}` | hit/miss do cache de embedding da consulta |
+| `cinerd_tmdb_calls_total{result}` | `ok` / `error` / `capped` |
+| `cinerd_process_rss_bytes` | memória residente |
 
 Além do histograma, `metrics.stage_percentiles()` mantém um reservatório dos últimos ~1000 tempos por etapa → p50/p95/p99 exatos do tráfego real, servidos em `GET /engineering/data` e renderizados na aba **Engenharia** do site (não precisa de scrape do Prometheus para a vitrine).
 

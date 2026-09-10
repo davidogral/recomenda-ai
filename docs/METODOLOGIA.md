@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎬 RecomendAI — Metodologia, Algoritmos e Técnicas
+# 🎬 Cinerd — Metodologia, Algoritmos e Técnicas
 
 **Como o sistema encontra um filme a partir de uma lembrança vaga e descobre o que você vai gostar de assistir.**
 
@@ -54,7 +54,7 @@
 
 ## 🔭 Visão geral
 
-O RecomendAI tem **dois motores independentes** que resolvem problemas diferentes:
+O Cinerd tem **dois motores independentes** que resolvem problemas diferentes:
 
 ```mermaid
 flowchart LR
@@ -864,7 +864,7 @@ flowchart TD
 ## 🗂️ Mapa de arquivos
 
 ```
-RecomendaAI/
+Cinerd/
 ├── retrieval/                    🔎 SRI
 │   ├── search_engine.py          fusão (8 sinais), intenção, facetas, fallback TMDB, explicação
 │   ├── bm25.py                   sinal lexical (BM25)
@@ -890,6 +890,6 @@ RecomendaAI/
 
 ---
 
-**RecomendAI** — dois motores, uma experiência. 🎬
+**Cinerd** — dois motores, uma experiência. 🎬
 
 </div>

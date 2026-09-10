@@ -59,7 +59,7 @@ def _serializer(salt: str):
 
     from core.security import resolve_secret_key
 
-    return URLSafeTimedSerializer(resolve_secret_key(), salt=f"recomendaai-{salt}")
+    return URLSafeTimedSerializer(resolve_secret_key(), salt=f"cinerd-{salt}")
 
 
 _DUMMY_HASH: Optional[str] = None

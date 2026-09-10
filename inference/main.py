@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Serviço de **inferência** (FastAPI) — a camada de ML do RecomendAI isolada
+"""Serviço de **inferência** (FastAPI) — a camada de ML do Cinerd isolada
 atrás de um contrato HTTP tipado (Pydantic) + OpenAPI automático em `/docs`.
 
 Rotas:
@@ -47,7 +47,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="RecomendAI Inference", version="1", lifespan=lifespan)
+app = FastAPI(title="Cinerd Inference", version="1", lifespan=lifespan)
 
 try:  # /metrics compartilha o registry default com core.metrics
     from prometheus_client import make_asgi_app

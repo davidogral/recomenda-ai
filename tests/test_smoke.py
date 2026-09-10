@@ -13,7 +13,7 @@ def test_app_boots_and_exposes_health_and_metrics():
     c = app.app.test_client()
     assert c.get("/health").get_json()["status"] == "ok"
     m = c.get("/metrics")
-    assert m.status_code == 200 and b"recomendaai_" in m.data
+    assert m.status_code == 200 and b"cinerd_" in m.data
 
 
 def test_inference_client_defaults_to_local():

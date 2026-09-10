@@ -3,12 +3,12 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: recomendaai-api
+  - job_name: cinerd-api
     static_configs:
       - targets: ["api:8000"]
         labels: { service: api }
 
-  - job_name: recomendaai-inference
+  - job_name: cinerd-inference
     static_configs:
       - targets: ["inference:9000"]
         labels: { service: inference }

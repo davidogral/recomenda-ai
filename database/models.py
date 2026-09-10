@@ -17,7 +17,7 @@ class UserRating(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     movie_title = Column(String, nullable=True)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./recomendai.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./cinerd.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

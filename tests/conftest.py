@@ -7,7 +7,7 @@ import tempfile
 
 import pytest
 
-_TMP = tempfile.mkdtemp(prefix="recomendaai-tests-")
+_TMP = tempfile.mkdtemp(prefix="cinerd-tests-")
 os.environ.setdefault("USER_DB_PATH", os.path.join(_TMP, "user.db"))
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-prod")
 os.environ.setdefault("RECOMENDAI_NO_WARMUP", "1")

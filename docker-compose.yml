@@ -1,4 +1,4 @@
-# RecomendAI — 4 serviços: api (Flask) · inference (FastAPI/ML) · prometheus · grafana
+# Cinerd — 4 serviços: api (Flask) · inference (FastAPI/ML) · prometheus · grafana
 #
 # Antes de subir:  dvc pull            (baixa retrieval/index/ + recommender/weights/)
 #                  # e tenha data/raw/movies.db no host (bind-mount abaixo)
@@ -6,7 +6,7 @@
 #   API .......... http://localhost:8000
 #   Inference .... http://localhost:9000/docs   (OpenAPI)
 #   Prometheus ... http://localhost:9090
-#   Grafana ...... http://localhost:3000        (anônimo, dashboard "RecomendAI")
+#   Grafana ...... http://localhost:3000        (anônimo, dashboard "Cinerd")
 
 services:
   inference:

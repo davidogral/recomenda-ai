@@ -25,7 +25,7 @@ def _cfg() -> dict:
         "port": int(os.environ.get("SMTP_PORT", "587")),
         "user": os.environ.get("SMTP_USER", "").strip(),
         "password": os.environ.get("SMTP_PASSWORD", ""),
-        "from": os.environ.get("SMTP_FROM", os.environ.get("SMTP_USER", "no-reply@recomendai.local")),
+        "from": os.environ.get("SMTP_FROM", os.environ.get("SMTP_USER", "no-reply@cinerd.local")),
         "starttls": os.environ.get("SMTP_STARTTLS", "1").lower() not in ("0", "false", "no"),
     }
 

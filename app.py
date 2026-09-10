@@ -1,4 +1,4 @@
-"""RecomendAI — API Flask.
+"""Cinerd — API Flask.
 
 Três rotas principais:
   - POST /search       → busca textual (sinopse + nome + filtros) — motor superior
@@ -1274,9 +1274,9 @@ def _engineering_payload() -> dict:
         ],
         "links": {
             "metrics": "/metrics",
-            "metodologia": "https://github.com/davidogral/recomenda-ai/blob/main/docs/METODOLOGIA.md",
-            "eval": "https://github.com/davidogral/recomenda-ai/tree/main/eval",
-            "adr": "https://github.com/davidogral/recomenda-ai/tree/main/docs/adr",
+            "metodologia": "https://github.com/davidogral/cinerd/blob/main/docs/METODOLOGIA.md",
+            "eval": "https://github.com/davidogral/cinerd/tree/main/eval",
+            "adr": "https://github.com/davidogral/cinerd/tree/main/docs/adr",
         },
     }
 

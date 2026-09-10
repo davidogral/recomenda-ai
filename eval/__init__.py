@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Avaliação executável do SRI do RecomendAI.
+"""Avaliação executável do SRI do Cinerd.
 
 `python -m eval.run` — roda a ablação por sinal sobre o split de teste e grava
 JSON versionado em `eval/results/`. Ver `eval/README.md`.

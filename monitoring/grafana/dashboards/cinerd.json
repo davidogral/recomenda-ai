@@ -1,7 +1,7 @@
 {
-  "uid": "recomendaai",
-  "title": "RecomendAI",
-  "tags": ["recomendaai"],
+  "uid": "cinerd",
+  "title": "Cinerd",
+  "tags": ["cinerd"],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
@@ -16,8 +16,8 @@
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
       "targets": [
-        { "expr": "histogram_quantile(0.50, sum by (le, stage) (rate(recomendaai_stage_seconds_bucket[5m])))", "legendFormat": "p50 {{stage}}", "refId": "A" },
-        { "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(recomendaai_stage_seconds_bucket[5m])))", "legendFormat": "p95 {{stage}}", "refId": "B" }
+        { "expr": "histogram_quantile(0.50, sum by (le, stage) (rate(cinerd_stage_seconds_bucket[5m])))", "legendFormat": "p50 {{stage}}", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(cinerd_stage_seconds_bucket[5m])))", "legendFormat": "p95 {{stage}}", "refId": "B" }
       ]
     },
     {
@@ -27,9 +27,9 @@
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
       "targets": [
-        { "expr": "sum(rate(recomendaai_requests_total[5m]))", "legendFormat": "requisições/s", "refId": "A" },
-        { "expr": "sum(rate(recomendaai_errors_total[5m]))", "legendFormat": "erros/s", "refId": "B" },
-        { "expr": "sum(rate(recomendaai_requests_total{status=~\"5..\"}[5m]))", "legendFormat": "5xx/s", "refId": "C" }
+        { "expr": "sum(rate(cinerd_requests_total[5m]))", "legendFormat": "requisições/s", "refId": "A" },
+        { "expr": "sum(rate(cinerd_errors_total[5m]))", "legendFormat": "erros/s", "refId": "B" },
+        { "expr": "sum(rate(cinerd_requests_total{status=~\"5..\"}[5m]))", "legendFormat": "5xx/s", "refId": "C" }
       ]
     },
     {
@@ -39,7 +39,7 @@
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
       "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 0.3 }, { "color": "green", "value": 0.6 } ] } }, "overrides": [] },
       "targets": [
-        { "expr": "sum(rate(recomendaai_query_cache_events_total{result=\"hit\"}[10m])) / clamp_min(sum(rate(recomendaai_query_cache_events_total[10m])), 1e-9)", "legendFormat": "hit ratio", "refId": "A" }
+        { "expr": "sum(rate(cinerd_query_cache_events_total{result=\"hit\"}[10m])) / clamp_min(sum(rate(cinerd_query_cache_events_total[10m])), 1e-9)", "legendFormat": "hit ratio", "refId": "A" }
       ]
     },
     {
@@ -49,7 +49,7 @@
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
       "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
       "targets": [
-        { "expr": "recomendaai_process_rss_bytes", "legendFormat": "{{service}}", "refId": "A" }
+        { "expr": "cinerd_process_rss_bytes", "legendFormat": "{{service}}", "refId": "A" }
       ]
     }
   ]
