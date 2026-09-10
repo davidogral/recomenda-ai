@@ -172,6 +172,40 @@
             if (q.toString()) history.replaceState({}, '', location.pathname);
         });
 
+        // ---------- Tema claro/escuro ----------
+        // O <script> inline no <head> já aplicou data-theme antes do 1º paint
+        // (evita flash do tema errado); aqui só cuida do botão e da persistência.
+        (function () {
+            const btn = document.getElementById('themeToggle');
+            const icon = btn && btn.querySelector('.theme-toggle-icon');
+            const metaColor = document.getElementById('metaThemeColor');
+            const THEME_COLOR = { dark: '#0d0d0f', light: '#f7f7f9' };
+
+            function currentTheme() {
+                return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+            }
+            function paint(theme) {
+                if (icon) icon.textContent = theme === 'light' ? '☀️' : '🌙';
+                if (btn) btn.setAttribute('aria-label', theme === 'light' ? 'Mudar para tema escuro' : 'Mudar para tema claro');
+                if (metaColor) metaColor.setAttribute('content', THEME_COLOR[theme]);
+            }
+            function setTheme(theme, persist) {
+                document.documentElement.setAttribute('data-theme', theme);
+                paint(theme);
+                if (persist) { try { localStorage.setItem('cinerd:theme', theme); } catch (e) {} }
+            }
+
+            paint(currentTheme());
+            if (btn) btn.addEventListener('click', () => setTheme(currentTheme() === 'light' ? 'dark' : 'light', true));
+
+            // Se o usuário nunca escolheu manualmente, segue o sistema ao vivo.
+            try {
+                matchMedia('(prefers-color-scheme: light)').addEventListener('change', e => {
+                    if (!localStorage.getItem('cinerd:theme')) setTheme(e.matches ? 'light' : 'dark', false);
+                });
+            } catch (e) {}
+        })();
+
         // ---------- Navegação (Buscar + grupos Descobrir / Importar / Meu) ----------
         // Uma única função de troca de painel; a barra agrupa 7 destinos em 4 itens.
         const NAV = document.getElementById('nav');
@@ -519,6 +553,48 @@
                 if (e.key === 'Enter') { closeFilters(); doSearch(); }
             });
         });
+
+        // ---------- Busca por voz ----------
+        // Web Speech API: só Chrome/Edge/Safari têm suporte real (Firefox não
+        // tem); o botão fica hidden por padrão (ver index.html) e só aparece
+        // se o navegador tiver a API — degrada graciosamente, sem quebrar nada
+        // pra quem não tem suporte.
+        (function () {
+            const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const btn = document.getElementById('voiceBtn');
+            if (!SpeechRecognitionCtor || !btn) return;
+            btn.hidden = false;
+
+            const recognition = new SpeechRecognitionCtor();
+            recognition.lang = 'pt-BR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            let listening = false;
+
+            function stopListening() {
+                listening = false;
+                btn.classList.remove('is-listening');
+            }
+            recognition.addEventListener('result', e => {
+                const transcript = e.results?.[0]?.[0]?.transcript;
+                if (transcript) {
+                    const input = document.getElementById('searchQuery');
+                    input.value = transcript;
+                    input.focus();
+                    doSearch();
+                }
+            });
+            recognition.addEventListener('end', stopListening);
+            recognition.addEventListener('error', stopListening);
+            btn.addEventListener('click', () => {
+                if (listening) { recognition.stop(); return; }
+                try {
+                    recognition.start();
+                    listening = true;
+                    btn.classList.add('is-listening');
+                } catch (e) { stopListening(); }
+            });
+        })();
 
         // ========== ABA 2: ESCOLHER FILMES FAVORITOS ==========
         let pickSearchTimeout, popularOffset = 0, popularLoaded = false;

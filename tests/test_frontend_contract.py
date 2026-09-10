@@ -25,9 +25,9 @@ def test_mobile_viewport_and_skip_link_are_present():
 
 
 def test_frontend_assets_share_the_same_cache_version():
-    assert "style.css') }}?v=9" in INDEX
-    assert "app.js') }}?v=9" in INDEX
-    assert "style.css') }}?v=9" in ADMIN
+    assert "style.css') }}?v=11" in INDEX
+    assert "app.js') }}?v=11" in INDEX
+    assert "style.css') }}?v=11" in ADMIN
 
 
 def test_search_uses_editorial_hero_and_stable_filter_dialog():

@@ -3,16 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#0d0d0f">
-    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0d0d0f" id="metaThemeColor">
+    <meta name="color-scheme" content="dark light">
     <meta name="description" content="Cinerd — ache aquele filme que você não lembra o nome e descubra o que assistir a seguir. Busca de cinema por cena, clima, diretor ou elenco.">
     <title>Cinerd — ache o filme, descubra o próximo</title>
     <link rel="icon" type="image/png" sizes="96x96" href="{{ url_for('static', filename='icon-96.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="preconnect" href="https://image.tmdb.org">
     <link rel="dns-prefetch" href="https://image.tmdb.org">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=10">
-    <script src="{{ url_for('static', filename='app.js') }}?v=10" defer></script>
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('cinerd:theme');
+                var theme = saved === 'light' || saved === 'dark'
+                    ? saved
+                    : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+        })();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=11">
+    <script src="{{ url_for('static', filename='app.js') }}?v=11" defer></script>
 </head>
 <body>
     <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
@@ -20,7 +31,12 @@
         <header class="header">
             <div class="header-top">
                 <h1 class="brand"><a href="/"><span class="brand-mark" aria-hidden="true">🍿</span>Cinerd</a></h1>
-                <div id="authBar" class="auth-bar"></div>
+                <div class="header-actions">
+                    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Alternar tema claro/escuro" title="Alternar tema">
+                        <span class="theme-toggle-icon" aria-hidden="true">🌙</span>
+                    </button>
+                    <div id="authBar" class="auth-bar"></div>
+                </div>
             </div>
             <p class="tagline">Cinema para quem lembra da cena, da sensação — mas não do título.</p>
         </header>
@@ -114,6 +130,9 @@
                     <input type="text" id="searchQuery" class="text-input"
                            aria-label="Descreva o filme que deseja encontrar" enterkeyhint="search"
                            placeholder="Ex.: brinquedos que ganham vida quando ninguém está olhando">
+                    <button id="voiceBtn" class="btn-voice" type="button" aria-label="Falar a busca" title="Buscar por voz" hidden>
+                        <span aria-hidden="true">🎤</span>
+                    </button>
                     <button id="searchBtn" class="btn-primary" type="button">Buscar</button>
                 </div>
                 <button class="search-refine-trigger" id="filterOpenBtn" type="button"
