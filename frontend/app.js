@@ -287,9 +287,12 @@
         window.addEventListener('popstate', () => {
             goTo(location.pathname === '/engineering' ? 'engenharia' : 'find', { silent: true, noScroll: true, skipUrl: true });
         });
-        if (location.pathname === '/engineering') {
-            goTo('engenharia', { silent: true, noScroll: true, skipUrl: true });
-        }
+        // A chamada inicial (boot direto em /engineering) só roda no fim do
+        // arquivo (ver rodapé) — aqui ainda é cedo demais: variáveis como
+        // engLoaded/popularLoaded/exploreLoaded são declaradas mais abaixo
+        // no arquivo (`let`), e chamar goTo('engenharia') antes disso
+        // lançava ReferenceError (TDZ) e travava o carregamento da página
+        // inteira quando alguém abria o link direto.
 
         NAV.querySelectorAll('[data-tab]').forEach(btn => {
             btn.addEventListener('click', () => goTo(btn.dataset.tab));
@@ -2098,4 +2101,11 @@
                 status.hidden = false; body.hidden = true;
                 status.textContent = 'Não deu para carregar os números agora.';
             }
+        }
+
+        // Boot direto em /engineering (link compartilhado): só agora, no fim
+        // do arquivo, com tudo que goTo() usa (engLoaded e companhia) já
+        // declarado. Ver nota perto do goTo() sobre o TDZ que isso evitava.
+        if (location.pathname === '/engineering') {
+            goTo('engenharia', { silent: true, noScroll: true, skipUrl: true });
         }
