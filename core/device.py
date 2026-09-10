@@ -1,11 +1,11 @@
-"""SeleÃ§Ã£o automÃ¡tica de device para os modelos (embeddings, re-ranker, traduÃ§Ã£o).
+"""Seleção automática de device para os modelos (embeddings, re-ranker, tradução).
 
-Ordem: `cuda` (NVIDIA) â†’ `mps` (GPU da Apple via Metal/PyTorch) â†’ `cpu`.
+Ordem: `cuda` (NVIDIA) → `mps` (GPU da Apple via Metal/PyTorch) → `cpu`.
 Override por ambiente: `RECOMENDAI_DEVICE=cuda|mps|cpu`.
 
-Nota: para modelos HuggingFace/sentence-transformers, o caminho de GPU no Mac Ã©
-**MPS** (Metal), nÃ£o MLX â€” MLX Ã© um framework separado que exigiria reimplementar
-os modelos. MPS dÃ¡ a aceleraÃ§Ã£o de GPU da Apple aqui.
+Nota: para modelos HuggingFace/sentence-transformers, o caminho de GPU no Mac é
+**MPS** (Metal), não MLX — MLX é um framework separado que exigiria reimplementar
+os modelos. MPS dá a aceleração de GPU da Apple aqui.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ _cached: Optional[str] = None
 
 
 def get_device() -> str:
-    """Retorna o melhor device disponÃ­vel (cacheado)."""
+    """Retorna o melhor device disponível (cacheado)."""
     global _cached
     if _cached is not None:
         return _cached

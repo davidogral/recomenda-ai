@@ -1,14 +1,14 @@
-"""ConstrÃ³i e serializa os Ã­ndices de busca por sinopse dos 22k filmes.
+"""Constrói e serializa os índices de busca por sinopse dos 22k filmes.
 
 Gera, em `retrieval/index/`:
-  - `movie_ids.npy`         ordem das linhas (tmdb_id) â€” compartilhada por todos os Ã­ndices
+  - `movie_ids.npy`         ordem das linhas (tmdb_id) — compartilhada por todos os índices
   - `bm25_vectorizer.pkl`   CountVectorizer (stopwords PT) ajustado nas sinopses
   - `bm25_counts.npz`       matriz de contagens esparsa (sinal lexical BM25)
-  - `embeddings.npy`        embeddings multilÃ­ngues L2-normalizados (float32, NÃ—384)
-  - `kw_embeddings.npy`     embeddings temÃ¡ticos (gÃªneros+keywords) L2-normalizados
-  - `meta.json`             metadados (modelo, dim, contagens, parÃ¢metros)
+  - `embeddings.npy`        embeddings multilíngues L2-normalizados (float32, N×384)
+  - `kw_embeddings.npy`     embeddings temáticos (gêneros+keywords) L2-normalizados
+  - `meta.json`             metadados (modelo, dim, contagens, parâmetros)
 
-A lÃ³gica fica aqui (testÃ¡vel via CLI/notebook); o notebook
+A lógica fica aqui (testável via CLI/notebook); o notebook
 `research/build_search_index.ipynb` apenas chama `build_index()` e reporta.
 """
 
@@ -81,7 +81,7 @@ KEYWORD_TERM_EMB_PATH = _P["keyword_term_emb"]
 KEYWORD_TERMS_PATH = _P["keyword_terms"]
 META_PATH = _P["meta"]
 
-# Artefatos do Ã­ndice TF-IDF antigo (removidos no rebuild â€” agora usamos BM25).
+# Artefatos do índice TF-IDF antigo (removidos no rebuild — agora usamos BM25).
 _LEGACY_PATHS = [
     os.path.join(INDEX_DIR, "tfidf_vectorizer.pkl"),
     os.path.join(INDEX_DIR, "tfidf_matrix.npz"),
@@ -98,14 +98,14 @@ def embed_prefixes(model_name: str) -> tuple[str, str]:
         return "query: ", "passage: "
     return "", ""
 
-# Fallback caso o corpus do NLTK nÃ£o esteja disponÃ­vel (mantÃ©m o sistema
+# Fallback caso o corpus do NLTK não esteja disponível (mantém o sistema
 # funcionando offline). Lista enxuta de stopwords PT.
 _PT_STOPWORDS_FALLBACK = [
-    "a", "Ã ", "ao", "aos", "as", "Ã s", "com", "como", "da", "das", "de", "do",
-    "dos", "e", "Ã©", "em", "entre", "essa", "esse", "esta", "este", "eu", "foi",
-    "isso", "mais", "mas", "me", "mesmo", "na", "nas", "no", "nos", "nÃ£o", "o",
+    "a", "à", "ao", "aos", "as", "às", "com", "como", "da", "das", "de", "do",
+    "dos", "e", "é", "em", "entre", "essa", "esse", "esta", "este", "eu", "foi",
+    "isso", "mais", "mas", "me", "mesmo", "na", "nas", "no", "nos", "não", "o",
     "os", "ou", "para", "pela", "pelo", "por", "que", "se", "sem", "ser", "seu",
-    "sua", "sÃ£o", "tambÃ©m", "te", "tem", "um", "uma", "vocÃª", "Ã ",
+    "sua", "são", "também", "te", "tem", "um", "uma", "você", "à",
 ]
 
 
@@ -179,12 +179,12 @@ def _attribute_phrases(mv: dict) -> list[str]:
 
 
 def _build_keyword_documents(ids: np.ndarray) -> list[str]:
-    """Documento temÃ¡tico por filme: gÃªneros + keywords da TMDB + atributos.
+    """Documento temático por filme: gêneros + keywords da TMDB + atributos.
 
-    As keywords ("time loop", "memory loss", "viagem no tempo") sÃ£o o gancho que
-    casa com descriÃ§Ãµes de enredo. Vira um **embedding separado** (nÃ£o Ã© misturado
-    Ã  sinopse, pra nÃ£o diluir o embedding principal nem injetar o ruÃ­do de keywords
-    irrelevantes â€” "alarm clock", "telecaster" â€” no texto da sinopse)."""
+    As keywords ("time loop", "memory loss", "viagem no tempo") são o gancho que
+    casa com descrições de enredo. Vira um **embedding separado** (não é misturado
+    à sinopse, pra não diluir o embedding principal nem injetar o ruído de keywords
+    irrelevantes — "alarm clock", "telecaster" — no texto da sinopse)."""
     gmap = catalog.genres_by_movie()
     kmap = catalog.keywords_by_movie()
     cat = catalog.get_catalog()
@@ -268,14 +268,14 @@ def build_index(
     show_progress: bool = True,
     index_dir: str = INDEX_DIR,
 ) -> dict:
-    """ConstrÃ³i os Ã­ndices e salva em `index_dir` (padrÃ£o `retrieval/index/`).
+    """Constrói os índices e salva em `index_dir` (padrão `retrieval/index/`).
 
-    Gera, com `with_embeddings`, **dois** espaÃ§os de embedding: o da sinopse
-    (`embeddings.npy`) e o temÃ¡tico de keywords/gÃªneros (`kw_embeddings.npy`),
-    combinados na busca. O sinal lexical (BM25) Ã© sÃ³ da sinopse.
-    `limit` restringe aos N primeiros filmes; `with_embeddings=False` gera sÃ³ BM25.
-    `index_dir` != o padrÃ£o permite Ã­ndices alternativos (ex.: e5-small) sem
-    sobrescrever o de produÃ§Ã£o.
+    Gera, com `with_embeddings`, **dois** espaços de embedding: o da sinopse
+    (`embeddings.npy`) e o temático de keywords/gêneros (`kw_embeddings.npy`),
+    combinados na busca. O sinal lexical (BM25) é só da sinopse.
+    `limit` restringe aos N primeiros filmes; `with_embeddings=False` gera só BM25.
+    `index_dir` != o padrão permite índices alternativos (ex.: e5-small) sem
+    sobrescrever o de produção.
     """
     from retrieval.bm25 import BM25Index
 
@@ -303,7 +303,7 @@ def build_index(
 
     np.save(P["movie_ids"], ids)
     bm25.save(P["bm25_vectorizer"], P["bm25_counts"])
-    for legacy in _LEGACY_PATHS:  # limpa o Ã­ndice TF-IDF antigo, se existir
+    for legacy in _LEGACY_PATHS:  # limpa o índice TF-IDF antigo, se existir
         if os.path.exists(legacy):
             os.remove(legacy)
 
@@ -323,7 +323,7 @@ def build_index(
         "built_at": int(time.time()),
     }
 
-    # --- Embeddings multilÃ­ngues (L2-normalizados): sinopse + temÃ¡tico ---
+    # --- Embeddings multilíngues (L2-normalizados): sinopse + temático ---
     if with_embeddings:
         from sentence_transformers import SentenceTransformer
 
@@ -356,9 +356,9 @@ def build_index(
         plot_emb = _encode_passages(plot_docs)
         np.save(P["plot_embeddings"], plot_emb)
 
-        # Embedding por keyword distinta (nÃ£o por filme): permite, na explicaÃ§Ã£o,
-        # dizer QUAIS keywords temÃ¡ticas casaram com a consulta â€” de forma
-        # multilÃ­ngue (a consulta em PT casa "time loop"/"viagem no tempo").
+        # Embedding por keyword distinta (não por filme): permite, na explicação,
+        # dizer QUAIS keywords temáticas casaram com a consulta — de forma
+        # multilíngue (a consulta em PT casa "time loop"/"viagem no tempo").
         kw_rows = db.query("SELECT keyword_id, name FROM keywords ORDER BY keyword_id")
         kw_names = [r["name"] for r in kw_rows]
         kw_term_emb = _encode_passages(kw_names)
@@ -380,7 +380,7 @@ def build_index(
             embed_build_secs=round(time.time() - t0, 1),
         )
     else:
-        # Remove embeddings antigos para nÃ£o dessincronizar com movie_ids.
+        # Remove embeddings antigos para não dessincronizar com movie_ids.
         for path in (P["embeddings"], P["kw_embeddings"],
                      P["keyword_term_emb"], P["keyword_terms"], P["plot_embeddings"]):
             if os.path.exists(path):
@@ -647,8 +647,8 @@ def build_person_bio_bm25(index_dir: str = INDEX_DIR) -> dict:
 if __name__ == "__main__":
     import argparse
 
-    p = argparse.ArgumentParser(description="ConstrÃ³i o Ã­ndice de busca por sinopse.")
-    p.add_argument("--no-embeddings", action="store_true", help="SÃ³ TF-IDF.")
+    p = argparse.ArgumentParser(description="Constrói o índice de busca por sinopse.")
+    p.add_argument("--no-embeddings", action="store_true", help="Só TF-IDF.")
     p.add_argument("--limit", type=int, default=None, help="Limitar a N filmes.")
     p.add_argument("--model", default=DEFAULT_EMBED_MODEL)
     p.add_argument("--batch-size", type=int, default=64)

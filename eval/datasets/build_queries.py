@@ -42,7 +42,7 @@ OUT_PATH = os.path.join(_HERE, "queries.jsonl")
 # (alguns difíceis de propósito); EXT = 40 filmes famosos com paráfrase
 # estilo-usuário e baixo overlap lexical com a sinopse real.
 # Correções vs. o harness: dois títulos estavam com mojibake e não resolviam
-# ("Senhor dos AnÃ©is" -> "Senhor dos Anéis"; "AmÃ©lie" -> "Amélie Poulain",
+# ("Senhor dos Anéis" -> "Senhor dos Anéis"; "Amélie" -> "Amélie Poulain",
 # que é como o catálogo PT registra o filme).
 # ---------------------------------------------------------------------------
 CORE_V1 = [

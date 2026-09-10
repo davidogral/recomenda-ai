@@ -1,17 +1,17 @@
 """Treina o modelo colaborativo (SVD) nos ratings reais e serializa os fatores.
 
 Gera, em `recommender/weights/`:
-  - `qi.npy`            fatores latentes dos itens (n_items Ã— n_factors, float32)
+  - `qi.npy`            fatores latentes dos itens (n_items × n_factors, float32)
   - `bi.npy`            vieses dos itens (n_items, float32)
-  - `item_ids.npy`      tmdb_id de cada linha de qi/bi (mapeamento Ã­ndiceâ†’item)
-  - `neighbors.npy`     top-k vizinhos por item (Ã­ndices em qi) â€” fallback item-item
+  - `item_ids.npy`      tmdb_id de cada linha de qi/bi (mapeamento índice→item)
+  - `neighbors.npy`     top-k vizinhos por item (índices em qi) — fallback item-item
   - `neighbor_sims.npy` similaridades cosseno dos vizinhos (float32)
-  - `meta.json`         mu (mÃ©dia global), n_factors, RMSE/MAE em holdout, contagens
+  - `meta.json`         mu (média global), n_factors, RMSE/MAE em holdout, contagens
 
-A lÃ³gica fica aqui (rodÃ¡vel por CLI/notebook). `research/train_recommender.ipynb`
-apenas chama `train()` e reporta as mÃ©tricas.
+A lógica fica aqui (rodável por CLI/notebook). `research/train_recommender.ipynb`
+apenas chama `train()` e reporta as métricas.
 
-NÃ£o usa ratings sintÃ©ticos â€” sÃ³ os ratings reais (escala 0.5â€“5.0).
+Não usa ratings sintéticos — só os ratings reais (escala 0.5–5.0).
 """
 
 from __future__ import annotations
@@ -50,14 +50,14 @@ def _load_ratings_df(sample: Optional[int], seed: int):
 
 
 def _compute_neighbors(qi: np.ndarray, k: int):
-    """Top-k vizinhos por item via cosseno (brute, sem matriz densa 22kÂ²)."""
+    """Top-k vizinhos por item via cosseno (brute, sem matriz densa 22k²)."""
     from sklearn.neighbors import NearestNeighbors
 
-    k_eff = min(k + 1, qi.shape[0])  # +1 porque o prÃ³prio item aparece
+    k_eff = min(k + 1, qi.shape[0])  # +1 porque o próprio item aparece
     nn = NearestNeighbors(n_neighbors=k_eff, metric="cosine", algorithm="brute")
     nn.fit(qi)
     dist, idx = nn.kneighbors(qi)
-    # Remove a auto-correspondÃªncia (primeira coluna costuma ser o prÃ³prio item).
+    # Remove a auto-correspondência (primeira coluna costuma ser o próprio item).
     neighbors = np.empty((qi.shape[0], k_eff - 1), dtype=np.int32)
     sims = np.empty((qi.shape[0], k_eff - 1), dtype=np.float32)
     for i in range(qi.shape[0]):
@@ -101,7 +101,7 @@ def train(
     reader = Reader(rating_scale=RATING_SCALE)
     data = Dataset.load_from_df(df[["user_id", "tmdb_id", "rating"]], reader)
 
-    # --- AvaliaÃ§Ã£o em holdout ---
+    # --- Avaliação em holdout ---
     t0 = time.time()
     trainset, testset = train_test_split(data, test_size=test_size, random_state=seed)
     algo = SVD(n_factors=n_factors, n_epochs=n_epochs, lr_all=lr_all,
@@ -122,7 +122,7 @@ def train(
     algo.fit(full_trainset)
     fit_secs = round(time.time() - t0, 1)
 
-    # Fatores/vieses dos itens + mapeamento Ã­ndiceâ†’tmdb_id.
+    # Fatores/vieses dos itens + mapeamento índice→tmdb_id.
     qi = np.asarray(algo.qi, dtype=np.float32)
     bi = np.asarray(algo.bi, dtype=np.float32)
     mu = float(full_trainset.global_mean)
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Treina o SVD colaborativo.")
     p.add_argument("--n-factors", type=int, default=50)
     p.add_argument("--n-epochs", type=int, default=20)
-    p.add_argument("--sample", type=int, default=None, help="Amostra N ratings (teste rÃ¡pido).")
+    p.add_argument("--sample", type=int, default=None, help="Amostra N ratings (teste rápido).")
     p.add_argument("--neighbors-k", type=int, default=50)
     args = p.parse_args()
 

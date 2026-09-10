@@ -1,15 +1,15 @@
-"""RecomendaÃ§Ã£o colaborativa: fold-in de usuÃ¡rio novo + fallbacks.
+"""Recomendação colaborativa: fold-in de usuário novo + fallbacks.
 
-Sistema **independente** da recuperaÃ§Ã£o. Carrega os fatores treinados por
-`recommender/train.py` e recomenda para um usuÃ¡rio que ainda nÃ£o estÃ¡ no modelo
+Sistema **independente** da recuperação. Carrega os fatores treinados por
+`recommender/train.py` e recomenda para um usuário que ainda não está no modelo
 (ex.: importado do Letterboxd), **sem retreinar**.
 
-Cascata de estratÃ©gias, por nÂº de itens conhecidos (que existem no modelo):
-  - overlap >= `min_overlap_foldin`  â†’ **fold-in**: resolve o vetor latente `p`
-    por ridge sobre os itens avaliados; score = mu + bi + qiÂ·p.
-  - 1 <= overlap < min_overlap_foldin â†’ **item-item**: agrega os top-k vizinhos
-    dos itens que o usuÃ¡rio gostou (vizinhos prÃ©-computados, esparsos).
-  - overlap == 0                      â†’ **popularidade** (do catÃ¡logo).
+Cascata de estratégias, por nº de itens conhecidos (que existem no modelo):
+  - overlap >= `min_overlap_foldin`  → **fold-in**: resolve o vetor latente `p`
+    por ridge sobre os itens avaliados; score = mu + bi + qi·p.
+  - 1 <= overlap < min_overlap_foldin → **item-item**: agrega os top-k vizinhos
+    dos itens que o usuário gostou (vizinhos pré-computados, esparsos).
+  - overlap == 0                      → **popularidade** (do catálogo).
 """
 
 from __future__ import annotations
@@ -30,11 +30,11 @@ class CollaborativeRecommender:
                  bias_weight: float = 0.5):
         self.ridge_reg = ridge_reg
         self.min_overlap_foldin = min_overlap_foldin
-        # Peso do viÃ©s de item `bi` no ranking top-N. A nota prevista Ã© sempre
-        # mu + bi + qiÂ·p (bom para RMSE), mas rankear top-N pela nota prevista
-        # crua super-recomenda os clÃ¡ssicos universalmente aclamados (bi alto)
+        # Peso do viés de item `bi` no ranking top-N. A nota prevista é sempre
+        # mu + bi + qi·p (bom para RMSE), mas rankear top-N pela nota prevista
+        # crua super-recomenda os clássicos universalmente aclamados (bi alto)
         # para qualquer gosto. Reduzir `bias_weight` privilegia o casamento de
-        # gosto (qiÂ·p) e melhora a personalizaÃ§Ã£o. 1.0 = nota prevista pura.
+        # gosto (qi·p) e melhora a personalização. 1.0 = nota prevista pura.
         self.bias_weight = bias_weight
 
         if not os.path.exists(tr.META_PATH):
@@ -59,32 +59,32 @@ class CollaborativeRecommender:
         """Resolve o vetor latente `p` por ridge sobre os itens avaliados.
 
         `known`: lista de (linha_em_qi, rating). Minimiza
-        ||y - Q p||Â² + regÂ·||p||Â², com y = rating - mu - bi.
+        ||y - Q p||² + reg·||p||², com y = rating - mu - bi.
         """
         rows = np.array([r for r, _ in known], dtype=np.int64)
         ratings = np.array([v for _, v in known], dtype=np.float64)
-        Q = self.qi[rows].astype(np.float64)            # m Ã— k
-        y = ratings - self.mu - self.bi[rows]           # resÃ­duo alvo
+        Q = self.qi[rows].astype(np.float64)            # m × k
+        y = ratings - self.mu - self.bi[rows]           # resíduo alvo
         A = Q.T @ Q + self.ridge_reg * np.eye(self.n_factors)
         p = np.linalg.solve(A, Q.T @ y)
         return p.astype(np.float32)
 
     # ------------------------------------------------------------------- modos
     def _predict_all(self, p: np.ndarray) -> np.ndarray:
-        """Nota prevista para todos os itens: mu + bi + qiÂ·p."""
+        """Nota prevista para todos os itens: mu + bi + qi·p."""
         return self.mu + self.bi + self.qi @ p
 
     def _rank_all(self, p: np.ndarray) -> np.ndarray:
-        """Score de ranking top-N (viÃ©s de item down-weighted)."""
+        """Score de ranking top-N (viés de item down-weighted)."""
         return self.mu + self.bias_weight * self.bi + self.qi @ p
 
     def _item_item_scores(self, known: list[tuple[int, float]]) -> dict[int, float]:
-        """Agrega vizinhos dos itens que o usuÃ¡rio gostou (rating > mu)."""
+        """Agrega vizinhos dos itens que o usuário gostou (rating > mu)."""
         agg: dict[int, float] = {}
         for row, rating in known:
             w = rating - self.mu
             if w <= 0:
-                continue  # sÃ³ itens de que ele gostou puxam vizinhos
+                continue  # só itens de que ele gostou puxam vizinhos
             for nbr, sim in zip(self.neighbors[row], self.neighbor_sims[row]):
                 if sim <= 0:
                     continue
@@ -108,7 +108,7 @@ class CollaborativeRecommender:
         return out[:top] if top else out
 
     def _popularity_rows(self) -> list[int]:
-        """Linhas (em qi) ordenadas por popularidade do catÃ¡logo."""
+        """Linhas (em qi) ordenadas por popularidade do catálogo."""
         cat = catalog.get_catalog()
         scored = [
             (i, (cat.get(int(t), {}).get("popularity") or 0.0))
