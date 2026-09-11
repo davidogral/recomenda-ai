@@ -610,16 +610,16 @@ onde $\mu$ = média global, $b_i$ = viés do item, $\vec{q}_i$ = fatores do item
 
 | Métrica | Valor |
 |---|---|
-| Avaliações | **2.911.675** |
-| Usuários | **19.835** |
-| Filmes | **15.246** |
-| Fatores latentes ($k$) | 50 |
+| Avaliações (amostra de treino) | **10.000.000** |
+| Usuários | **200.943** |
+| Filmes | **19.206** |
+| Fatores latentes ($k$) | 64 |
 | Épocas | 20 |
-| **RMSE** (holdout) | **0.799** |
-| **MAE** (holdout) | **0.606** |
-| Escala | 0.5 – 5.0 |
+| **RMSE** (holdout) | **0,829** |
+| **MAE** (holdout) | **0,626** |
+| Escala | 0,5 – 5,0 |
 
-Treinado por [`recommender/train.py`](../recommender/train.py); os fatores ($q_i$, $b_i$, $\mu$) ficam serializados em `.npy` para inferência em milissegundos.
+Treinado por [`recommender/train.py`](../recommender/train.py) (`--n-factors 64 --sample 10000000`) sobre uma amostra de 10 M avaliações do conjunto completo MovieLens ml-32m reconciliado (30,9 M avaliações · 200,9 k usuários · 19,7 k filmes; ver [proveniência](../README.md#-proveniência-dos-dados)) — amostrado por custo de treino em lote completo, não por limite de qualidade. Os fatores ($q_i$, $b_i$, $\mu$) ficam serializados em `.npy` (`recommender/weights/meta.json` registra a config e as métricas de cada treino) para inferência em milissegundos.
 
 </details>
 

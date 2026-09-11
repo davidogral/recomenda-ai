@@ -1,0 +1,171 @@
+{
+  "run": {
+    "timestamp_utc": "2026-09-11T00:27:11Z",
+    "git_commit": "ac05c20",
+    "split": "test",
+    "configs": {
+      "fusao_completa": {},
+      "sem_personagem": {
+        "RECOMENDAI_ENTITY_WEIGHT": "0"
+      },
+      "sem_enredo_lexico": {
+        "RECOMENDAI_PLOT_BM25_WEIGHT": "0"
+      },
+      "sem_enredo_maxsim": {
+        "RECOMENDAI_PLOT_CHUNK_WEIGHT": "0"
+      },
+      "sem_prior_popularidade": {
+        "RECOMENDAI_POP_PRIOR": "0"
+      },
+      "sem_teto_zscore": {
+        "RECOMENDAI_ZSCORE_CLIP": "0"
+      }
+    }
+  },
+  "results": {
+    "fusao_completa": {
+      "all": {
+        "n": 47,
+        "ndcg10": 0.829,
+        "mrr": 0.79,
+        "r10": 0.9574,
+        "r50": 1.0,
+        "median": 1
+      },
+      "v2": {
+        "n": 30,
+        "ndcg10": 0.7956,
+        "mrr": 0.7552,
+        "r10": 0.9333,
+        "r50": 1.0,
+        "median": 1
+      },
+      "engine": {
+        "n_movies": 22029,
+        "embed_model": "intfloat/multilingual-e5-large",
+        "embed_dim": 1024,
+        "lexical": "bm25"
+      }
+    },
+    "sem_personagem": {
+      "all": {
+        "n": 47,
+        "ndcg10": 0.829,
+        "mrr": 0.79,
+        "r10": 0.9574,
+        "r50": 1.0,
+        "median": 1
+      },
+      "v2": {
+        "n": 30,
+        "ndcg10": 0.7956,
+        "mrr": 0.7552,
+        "r10": 0.9333,
+        "r50": 1.0,
+        "median": 1
+      },
+      "engine": {
+        "n_movies": 22029,
+        "embed_model": "intfloat/multilingual-e5-large",
+        "embed_dim": 1024,
+        "lexical": "bm25"
+      }
+    },
+    "sem_enredo_lexico": {
+      "all": {
+        "n": 47,
+        "ndcg10": 0.7893,
+        "mrr": 0.7433,
+        "r10": 0.9362,
+        "r50": 1.0,
+        "median": 1
+      },
+      "v2": {
+        "n": 30,
+        "ndcg10": 0.7758,
+        "mrr": 0.7274,
+        "r10": 0.9333,
+        "r50": 1.0,
+        "median": 1
+      },
+      "engine": {
+        "n_movies": 22029,
+        "embed_model": "intfloat/multilingual-e5-large",
+        "embed_dim": 1024,
+        "lexical": "bm25"
+      }
+    },
+    "sem_enredo_maxsim": {
+      "all": {
+        "n": 47,
+        "ndcg10": 0.767,
+        "mrr": 0.723,
+        "r10": 0.9149,
+        "r50": 1.0,
+        "median": 1
+      },
+      "v2": {
+        "n": 30,
+        "ndcg10": 0.7446,
+        "mrr": 0.6985,
+        "r10": 0.9,
+        "r50": 1.0,
+        "median": 1
+      },
+      "engine": {
+        "n_movies": 22029,
+        "embed_model": "intfloat/multilingual-e5-large",
+        "embed_dim": 1024,
+        "lexical": "bm25"
+      }
+    },
+    "sem_prior_popularidade": {
+      "all": {
+        "n": 47,
+        "ndcg10": 0.7779,
+        "mrr": 0.7429,
+        "r10": 0.8936,
+        "r50": 0.9574,
+        "median": 1
+      },
+      "v2": {
+        "n": 30,
+        "ndcg10": 0.7433,
+        "mrr": 0.7074,
+        "r10": 0.8667,
+        "r50": 0.9333,
+        "median": 1
+      },
+      "engine": {
+        "n_movies": 22029,
+        "embed_model": "intfloat/multilingual-e5-large",
+        "embed_dim": 1024,
+        "lexical": "bm25"
+      }
+    },
+    "sem_teto_zscore": {
+      "all": {
+        "n": 47,
+        "ndcg10": 0.657,
+        "mrr": 0.5698,
+        "r10": 0.9362,
+        "r50": 1.0,
+        "median": 2
+      },
+      "v2": {
+        "n": 30,
+        "ndcg10": 0.6319,
+        "mrr": 0.551,
+        "r10": 0.9,
+        "r50": 1.0,
+        "median": 2
+      },
+      "engine": {
+        "n_movies": 22029,
+        "embed_model": "intfloat/multilingual-e5-large",
+        "embed_dim": 1024,
+        "lexical": "bm25"
+      }
+    }
+  }
+}

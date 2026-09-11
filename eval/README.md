@@ -50,7 +50,7 @@ se alguma dica de título não resolver ou colidir).
 | grupo | origem | dev | teste | observação |
 |---|---|---:|---:|---|
 | **v1** | 52 casos originais do `retrieval/eval_harness.py` | 35 | 17 | usados na calibração dos pesos → os 17 de teste são "vistos"; leia como continuidade histórica |
-| **v2** | 90 casos novos, nunca usados em calibração | 60 | 30 | **held-out de verdade** — é aqui que o número de teste vale como generalização |
+| **v2** | 90 casos novos, não usados na calibração original dos pesos | 60 | 30 | subconjunto mais conservador do split de teste — mas já reaproveitado noutras análises (Tabela IV do artigo), não mais 100% intocado |
 | **total** | | 95 | 47 | |
 
 Divisão determinística (`SPLIT_SEED = 20260831`). **Só o split de teste é
@@ -68,6 +68,21 @@ ser held-out limpo.
 | `thematic` | só temático (cosseno com embedding de keywords/gêneros) |
 | `fusion` | fusão z-score dos 3 sinais + prior de popularidade — **pipeline de produção** |
 | `fusion_rerank` | a fusão + cross-encoder no top-`RERANK_POOL` (50) — variante experimental, off em produção |
+
+## Ablação leave-one-component-out — [`ablation_components.py`](ablation_components.py)
+
+```bash
+.venv/bin/python -m eval.ablation_components                # split de teste, grava JSON
+.venv/bin/python -m eval.ablation_components --split dev
+```
+
+Complementa a ablação de `pipelines.py` (que isola os 3 sinais textuais principais)
+zerando, um de cada vez, os quatro componentes adicionais da fusão de produção
+(personagem, enredo léxico, enredo MaxSim, prior de popularidade) e o teto de
+z-score, via as mesmas env vars documentadas em `retrieval/search_engine.py`.
+Reporta nDCG@10 tanto no split completo quanto no subconjunto `v2`. Ablação
+**parcial**: não remove BM25/embedding/temático nem varia ReLU/limiar do teto —
+ver limitações na Seção V da METODOLOGIA/artigo.
 
 ## Saída — `results/`
 

@@ -28,7 +28,7 @@ A camada de **busca** recupera filmes a partir do que o usuário descreve, mesmo
 
 ### 2. Machine Learning (ML) — *o que assistir a seguir*
 A camada de **recomendação** prevê o que o usuário vai gostar:
-*   **Filtragem Colaborativa (SVD):** o *Singular Value Decomposition* é treinado em **ratings reais** (≈2,9M de avaliações, ≈19,8k usuários, ≈15k filmes) e atinge **RMSE ≈ 0,80** em holdout. Os fatores latentes ficam serializados em `.npy` para inferência em milissegundos.
+*   **Filtragem Colaborativa (SVD):** o *Singular Value Decomposition* é treinado em **ratings reais** (10M de avaliações — amostra do MovieLens ml-32m reconciliado, 30,9M no total —, ≈200,9k usuários, ≈19,2k filmes) e atinge **RMSE ≈ 0,83** em holdout. Os fatores latentes ficam serializados em `.npy` para inferência em milissegundos.
 *   **Perfil de gosto:** a partir dos filmes que o usuário curte, montamos um vetor de conteúdo (embeddings) e cruzamos com o sinal colaborativo para re-rankear as sugestões.
 *   **Fallback item-item:** quando não há sinal colaborativo suficiente, usamos os vizinhos mais próximos pré-computados.
 
